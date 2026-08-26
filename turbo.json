@@ -1,40 +1,75 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "ui": "stream",
-  "globalDependencies": [".env"],
-  "globalEnv": ["NODE_ENV"],
+  "globalDependencies": [
+    ".env"
+  ],
+  "globalEnv": [
+    "NODE_ENV",
+    "POSTGRES_PORT"
+  ],
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
-      "env": ["DATABASE_URL", "NEXT_PUBLIC_API_URL"]
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "dist/**",
+        ".next/**",
+        "!.next/cache/**"
+      ],
+      "env": [
+        "DATABASE_URL",
+        "WEB_PORT",
+        "NEXT_PUBLIC_API_URL"
+      ]
     },
     "dev": {
       "cache": false,
       "persistent": true,
-      "env": ["DATABASE_URL", "PORT", "CORS_ORIGINS", "NEXT_PUBLIC_API_URL"]
+      "env": [
+        "DATABASE_URL",
+        "PORT",
+        "WEB_PORT",
+        "CORS_ORIGINS",
+        "NEXT_PUBLIC_API_URL"
+      ]
     },
     "lint": {
-      "dependsOn": ["^build"],
+      "dependsOn": [
+        "^build"
+      ],
       "outputs": []
     },
     "typecheck": {
-      "dependsOn": ["^build"],
+      "dependsOn": [
+        "^build"
+      ],
       "outputs": []
     },
     "test": {
-      "dependsOn": ["^build"],
+      "dependsOn": [
+        "^build"
+      ],
       "outputs": [],
-      "env": ["DATABASE_URL"]
+      "env": [
+        "DATABASE_URL"
+      ]
     },
     "db:generate": {
       "cache": false,
-      "env": ["DATABASE_URL"]
+      "env": [
+        "DATABASE_URL"
+      ]
     },
     "db:migrate": {
       "cache": false,
-      "dependsOn": ["^build"],
-      "env": ["DATABASE_URL"]
+      "dependsOn": [
+        "^build"
+      ],
+      "env": [
+        "DATABASE_URL"
+      ]
     }
   }
 }
