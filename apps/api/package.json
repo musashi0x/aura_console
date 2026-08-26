@@ -1,0 +1,29 @@
+{
+  "name": "@aura/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@aura/db": "workspace:*",
+    "@hono/node-server": "2.1.1",
+    "hono": "4.13.5",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@aura/eslint-config": "workspace:*",
+    "@aura/tsconfig": "workspace:*",
+    "@types/node": "22.20.1",
+    "eslint": "9.39.5",
+    "tsx": "4.23.12",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  }
+}

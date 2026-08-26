@@ -1,0 +1,26 @@
+{
+  "name": "aura-memory",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.34.5",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "preinstall": "node scripts/check-package-manager.mjs",
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "db:generate": "turbo run db:generate",
+    "db:migrate": "turbo run db:migrate"
+  },
+  "devDependencies": {
+    "@aura/eslint-config": "workspace:*",
+    "@aura/tsconfig": "workspace:*",
+    "eslint": "9.39.5",
+    "turbo": "2.10.12",
+    "typescript": "5.9.3"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "@aura/eslint-config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./base.js",
+    "./next": "./next.js"
+  },
+  "dependencies": {
+    "@eslint/js": "9.39.5",
+    "eslint-config-next": "16.3.3",
+    "globals": "17.11.0",
+    "typescript-eslint": "8.68.0"
+  },
+  "peerDependencies": {
+    "eslint": "^9.39.5"
+  }
+}
