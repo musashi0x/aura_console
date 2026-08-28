@@ -1,4 +1,4 @@
-import { FirstRunBanner } from "@/features/onboarding/components/first-run-banner";
+import { FirstRunGate } from "@/features/onboarding/components/first-run-gate";
 import { apiClient } from "@/lib/api-client";
 
 // The health status must reflect the current state on every request.
@@ -9,7 +9,7 @@ export default async function HomePage() {
 
   return (
     <main id="main">
-      <FirstRunBanner />
+      <FirstRunGate />
       <h1>Aura Console</h1>
       <p className="subtitle">Monorepo scaffold — web, API, and Postgres.</p>
 

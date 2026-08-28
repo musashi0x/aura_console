@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { OnboardingFlow } from "@/features/onboarding/components/onboarding-flow";
+import { OnboardingRoute } from "./onboarding-route";
 
 export const metadata: Metadata = {
   title: "Get started — Aura Console",
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default function OnboardingPage() {
   return (
     <main id="main">
-      <OnboardingFlow />
+      <OnboardingRoute />
     </main>
   );
 }
