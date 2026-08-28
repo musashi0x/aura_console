@@ -6,6 +6,7 @@ import { env } from "./env.js";
 import { errorBody } from "./errors.js";
 import { requestLogger } from "./middleware/request-logger.js";
 import { health } from "./routes/health.js";
+import { runs } from "./routes/runs.js";
 
 export const app = new Hono();
 
@@ -22,6 +23,7 @@ app.use(
 );
 
 app.route("/health", health);
+app.route("/api/runs", runs);
 
 app.notFound((c) =>
   c.json(errorBody("not_found", `No route for ${c.req.method} ${c.req.path}`), 404),
