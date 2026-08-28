@@ -73,7 +73,7 @@
   --landing-line: rgba(17, 18, 20, 0.12);
   --landing-dot: rgba(17, 18, 20, 0.09);
   --landing-shadow: 0 30px 90px rgba(22, 27, 38, 0.13);
-  --landing-dot-gap: 26px;
+  --landing-dot-gap: 24px;
 
   /* Status on the light canvas. The dark Console success and error tones do
      not reach AA on an off-white surface, so the landing has its own pair. */

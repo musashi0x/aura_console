@@ -525,6 +525,14 @@ a:not(.btn):hover {
    scene is readable with scripting disabled.
 --------------------------------------------------------------------------- */
 
+/* The document background is the Console canvas, so overscroll past the top or
+   bottom of the light landing page would otherwise flash dark. Scoped with
+   :has() so only the landing route is affected and the Console keeps its own. */
+html:has(.lp),
+body:has(.lp) {
+  background: var(--landing-canvas);
+}
+
 .lp {
   position: relative;
   min-height: 100svh;
@@ -690,20 +698,20 @@ a:not(.btn):hover {
 
 .lp-opening .lp-window {
   width: min(72vw, 1080px);
-  min-height: 64svh;
+  min-height: 68svh;
   display: grid;
   place-items: center;
-  padding: var(--space-12);
+  padding: var(--space-12) clamp(var(--space-8), 8vw, 6rem);
 }
 
 .lp-opening__statement {
   margin: 0;
   text-align: center;
-  font-size: clamp(2rem, 4.4vw, 4rem);
-  line-height: 1.04;
+  font-size: clamp(1.75rem, 3.6vw, 3.25rem);
+  line-height: 1.06;
   letter-spacing: -0.035em;
   font-weight: 500;
-  max-width: 18ch;
+  max-width: 20ch;
   text-wrap: balance;
 }
 
@@ -1042,8 +1050,18 @@ a:not(.btn):hover {
 
 .lp-btn--primary {
   background: var(--landing-ink);
-  color: var(--landing-surface);
   border-color: var(--landing-ink);
+}
+
+/* The global `a:not(.btn)` rule also matches `.lp-btn`, and out-specifies a
+   bare class, so landing buttons need the extra qualifier or they render in
+   Console cyan on the light canvas. */
+.lp a.lp-btn {
+  color: var(--landing-ink);
+}
+
+.lp a.lp-btn--primary {
+  color: var(--landing-surface);
 }
 
 .lp-cta__note {
@@ -1150,8 +1168,20 @@ a:not(.btn):hover {
     text-align: left;
   }
 
+  /* Mobile keeps the mark and the readiness signal only. The example Run link
+     is duplicated by the closing call to action, and three items at this width
+     wrap into a ragged three-line header. */
   .lp-header__cta {
-    font-size: 0.8125rem;
+    display: none;
+  }
+
+  .lp-header__brand,
+  .lp-status {
+    white-space: nowrap;
+  }
+
+  .lp-status {
+    font-size: 0.625rem;
   }
 }
 

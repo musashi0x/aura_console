@@ -88,6 +88,18 @@ describe("landing surface", () => {
     expect(globals).toMatch(/\.lp a:not\(\.lp-btn\)\s*\{[^}]*color:\s*var\(--landing-ink\)/);
   });
 
+  it("keeps landing buttons out of the global anchor colour", () => {
+    // `a:not(.btn)` matches `.lp-btn` too and out-specifies a bare class.
+    expect(globals).toMatch(/\.lp a\.lp-btn\s*\{[^}]*color:\s*var\(--landing-ink\)/);
+    expect(globals).toMatch(/\.lp a\.lp-btn--primary\s*\{[^}]*color:\s*var\(--landing-surface\)/);
+  });
+
+  it("paints the document itself on the landing route so overscroll is not dark", () => {
+    // Without this the Console canvas shows through when rubber-band scrolling
+    // past the top or bottom of the light page.
+    expect(globals).toMatch(/html:has\(\.lp\)[\s\S]{0,80}background:\s*var\(--landing-canvas\)/);
+  });
+
   it("keeps landing ink and muted text readable on the landing canvas", () => {
     const canvas = value("landing-canvas");
     expect(contrast(value("landing-ink"), canvas)).toBeGreaterThanOrEqual(4.5);
