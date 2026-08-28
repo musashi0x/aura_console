@@ -75,6 +75,12 @@ describe("fonts degrade without a network", () => {
   });
 });
 
+describe("links", () => {
+  it("does not fall back to the user agent blue, which is outside the token layer", () => {
+    expect(globals).toMatch(/a:not\(\.btn\)\s*\{[^}]*color:\s*var\(--color-cyan\)/);
+  });
+});
+
 describe("reduced motion", () => {
   it("strips the backdrop and the glow", () => {
     const block = globals.slice(globals.indexOf("@media (prefers-reduced-motion: reduce)"));
