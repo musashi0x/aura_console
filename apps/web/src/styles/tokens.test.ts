@@ -81,6 +81,22 @@ describe("links", () => {
   });
 });
 
+describe("landing surface", () => {
+  it("does not let the Console cyan leak into landing links", () => {
+    // The global anchor rule is Console-scoped; the landing needs its own ink
+    // or the header renders cyan on an off-white canvas.
+    expect(globals).toMatch(/\.lp a:not\(\.lp-btn\)\s*\{[^}]*color:\s*var\(--landing-ink\)/);
+  });
+
+  it("keeps landing ink and muted text readable on the landing canvas", () => {
+    const canvas = value("landing-canvas");
+    expect(contrast(value("landing-ink"), canvas)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(value("landing-muted"), canvas)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(value("landing-ok"), canvas)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(value("landing-bad"), canvas)).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
 describe("reduced motion", () => {
   it("strips the backdrop and the glow", () => {
     const block = globals.slice(globals.indexOf("@media (prefers-reduced-motion: reduce)"));

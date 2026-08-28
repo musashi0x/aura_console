@@ -3,27 +3,32 @@ import Link from "next/link";
 import { landing } from "../copy";
 import { Reveal } from "./reveal";
 
+/** Scene 7. Back to an almost empty canvas. */
 export function FinalCta() {
   return (
-    <section className="cta" aria-labelledby="cta-heading">
+    <section className="lp-cta" aria-labelledby="cta-heading">
       <Reveal>
-        <h2 id="cta-heading" className="cta__headline">
+        <h2
+          id="cta-heading"
+          className="lp-display"
+          aria-label={landing.cta.headline.join(" ")}
+        >
           {landing.cta.headline.map((line) => (
-            <span key={line} className="cta__line">
-              {line}
+            <span key={line} className="lp-display__line">
+              {line}{" "}
             </span>
           ))}
         </h2>
-        <div className="cta__actions">
-          <Link href="/runs/new" className="btn btn--primary">
+        <div className="lp-cta__actions">
+          <Link href="/runs/example" className="lp-btn lp-btn--primary">
             {landing.cta.primary}
           </Link>
-          <Link href="/runs/example" className="btn">
+          <Link href="/runs/new" className="lp-btn">
             {landing.cta.secondary}
           </Link>
         </div>
-        {/* Stated plainly: following either link creates nothing. */}
-        <p className="cta__note">{landing.cta.note}</p>
+        {/* Following either link creates nothing. Said plainly, not in a tooltip. */}
+        <p className="lp-cta__note">{landing.cta.note}</p>
       </Reveal>
     </section>
   );

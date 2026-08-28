@@ -60,6 +60,31 @@
   --text-xl: 1.5rem;
   --text-2xl: 2rem;
 
+  /* -------------------------------------------------------------------------
+     Landing surface. The public page is a bright editorial canvas; the dark
+     Console tokens above are reserved for the product window embedded in it.
+     The contrast between the two is the point, so these are separate scales
+     rather than overrides.
+  ------------------------------------------------------------------------- */
+  --landing-canvas: #f3f4f1;
+  --landing-surface: #fafaf8;
+  --landing-ink: #111214;
+  --landing-muted: #696d73;
+  --landing-line: rgba(17, 18, 20, 0.12);
+  --landing-dot: rgba(17, 18, 20, 0.09);
+  --landing-shadow: 0 30px 90px rgba(22, 27, 38, 0.13);
+  --landing-dot-gap: 26px;
+
+  /* Status on the light canvas. The dark Console success and error tones do
+     not reach AA on an off-white surface, so the landing has its own pair. */
+  --landing-ok: #1f7a52;
+  --landing-bad: #a3323f;
+
+  /* Window chrome. Decorative only, never used to convey state. */
+  --landing-dot-red: #e5645c;
+  --landing-dot-amber: #e0aa4a;
+  --landing-dot-green: #57a55c;
+
   /* Elevation */
   --shadow-panel: 0 1px 0 rgba(255, 255, 255, 0.03) inset,
     0 12px 32px rgba(0, 0, 0, 0.45);
