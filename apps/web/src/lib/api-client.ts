@@ -9,6 +9,12 @@ export interface DbHealth {
   latencyMs: number;
 }
 
+export interface Liveness {
+  status: "ok";
+  uptime: number;
+  timestamp: string;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<ApiResult<T>> {
   let response: Response;
 
@@ -51,5 +57,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<ApiResult<T
 }
 
 export const apiClient = {
+  /** Liveness. Answers even when Postgres is down, so it isolates the domain. */
+  health: () => request<Liveness>("/health"),
   dbHealth: () => request<DbHealth>("/health/db"),
 };
