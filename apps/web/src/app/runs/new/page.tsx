@@ -1,33 +1,28 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
+import { ConsoleShell } from "@/features/console/components/console-shell";
+import { DataUnavailable } from "@/features/console/components/data-unavailable";
+import { apiClient } from "@/lib/api-client";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = { title: "Start a Run — Aura Console" };
 
 /**
- * Placeholder. The New Run form and the Runs screen belong to the Console
- * shell (task #44) and the run skeleton (task #30). This exists so onboarding
- * hands off to a real destination instead of a dead button, and it says
- * plainly that the surface is not built rather than implying it works.
+ * Placeholder, now rendered inside the Console shell. Replacing it with the
+ * real surface is tracked separately and depends on the run skeleton.
  */
-export default function NewRunPlaceholder() {
+export default async function NewRunPage() {
+  const health = await apiClient.dbHealth();
+
   return (
-    <main id="main">
-      <h1>Start a Run</h1>
-      <p className="subtitle">Not built yet.</p>
-      <section className="card">
-        <p>
-          The New Run form is part of the Aura Console shell and the run skeleton, which
-          are still in progress. Nothing has been created and no economic action has been
-          taken.
-        </p>
-        <p className="detail">
-          Tracked by task #44 (Console shell and replayable Run timeline) and task #30
-          (run skeleton and replayable event shell).
-        </p>
-        <p>
-          <Link href="/">Back to the Console</Link>
-        </p>
-      </section>
-    </main>
+    <ConsoleShell surface="Runs" ready={health.ok}>
+      <h1 className="cs__title">Start a Run</h1>
+      <DataUnavailable
+        title="Not built yet"
+        body="The New Run form needs a Run creation endpoint, which does not exist yet. Nothing has been created and no economic action has been taken."
+        owner="task #61"
+      />
+    </ConsoleShell>
   );
 }

@@ -1195,3 +1195,312 @@ body:has(.lp) {
     position: static;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Console shell. The operational layer: dark, dense, monospace metadata.
+   Distinct from the editorial landing surface by design.
+--------------------------------------------------------------------------- */
+
+.cs {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-canvas);
+  color: var(--color-text);
+}
+
+.cs__bar {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: 0 var(--space-6);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.cs__brand {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.16em;
+  text-decoration: none;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.cs__surface {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.1em;
+  color: var(--color-text-muted);
+}
+
+.cs__bar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.cs__env {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.1em;
+  color: var(--color-text-muted);
+}
+
+.cs__body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 13rem minmax(0, 1fr);
+}
+
+.cs__nav {
+  border-right: 1px solid var(--color-border);
+  padding: var(--space-6) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.cs__nav-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+/* The global `a:not(.btn)` rule out-specifies a bare class, so Console links
+   need the extra qualifier or the navigation renders in accent cyan. Same
+   trap the landing surface hit. */
+.cs a.cs__brand,
+.cs a.cs__nav-link,
+.cs a.cs__nav-secondary {
+  color: var(--color-text-muted);
+}
+
+.cs a.cs__nav-link[aria-current="page"] {
+  color: var(--color-text);
+}
+
+.cs a.cs__nav-link:hover,
+.cs a.cs__nav-secondary:hover {
+  color: var(--color-text);
+}
+
+.cs__nav-link,
+.cs__nav-secondary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  color: var(--color-text-muted);
+  font-size: var(--text-base);
+}
+
+.cs__nav-link[aria-current="page"] {
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+}
+
+/* System is secondary: it sits apart and never competes with the three
+   product destinations. */
+.cs__nav-secondary {
+  margin-top: auto;
+  font-size: var(--text-sm);
+}
+
+.cs__main {
+  max-width: none;
+  padding: var(--space-8) var(--space-8) var(--space-12);
+}
+
+.cs__title {
+  font-size: var(--text-xl);
+  margin: 0 0 var(--space-2);
+}
+
+.cs__lede {
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-6);
+  max-width: 46rem;
+}
+
+.cs__owner {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.cs__link {
+  font-size: var(--text-sm);
+}
+
+.sys {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+  max-width: 52rem;
+}
+
+.sys__state {
+  margin: 0 0 var(--space-2);
+}
+
+.sys__detail {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.run__head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.run__objective {
+  font-size: var(--text-xl);
+  margin: 0 0 var(--space-2);
+}
+
+.run__meta {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin: 0;
+}
+
+.run__states {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.run__fixture {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-warning);
+}
+
+.run__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--space-4);
+  margin: var(--space-6) 0;
+  padding: var(--space-4) 0;
+  border-block: 1px solid var(--color-border);
+}
+
+.run__facts dt {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+}
+
+.run__facts dd {
+  margin: var(--space-1) 0 0;
+}
+
+.run__transport {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-6);
+}
+
+.run__events {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.run__event-btn {
+  width: 100%;
+  display: flex;
+  gap: var(--space-4);
+  align-items: baseline;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.run__event-btn:hover {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+}
+
+.run__seq {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-cyan);
+}
+
+.run__event-body {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.run__event-meta {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.run__foot {
+  margin-top: var(--space-6);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 47.99rem) {
+  .cs__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cs__nav {
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-2);
+    overflow-x: auto;
+    padding: var(--space-2) var(--space-4);
+  }
+
+  .cs__nav-list {
+    grid-auto-flow: column;
+    gap: var(--space-2);
+  }
+
+  .cs__nav-secondary {
+    margin-top: 0;
+    margin-left: auto;
+  }
+
+  .cs__main {
+    padding: var(--space-6) var(--space-4) var(--space-12);
+  }
+
+  .cs__surface {
+    display: none;
+  }
+}

@@ -29,6 +29,19 @@ label and a note that it is not live data and not a Run. Readiness shown to an
 operator must come from a real check; policy and agent identity stay
 **Not checked** while no endpoint exists.
 
+## The Console lives under its own routes, not at the root
+
+The Console shell is served from `/runs`, `/counterparties`, `/policies`, and
+`/system`. It did not take over `/`, which stays the landing page, and it did
+not weaken `FirstRunGate`. Database and API readiness moved from the old root
+health card to `/system`.
+
+## Unavailable is not empty
+
+A surface whose data source does not exist says so and names the task that owns
+it. It never renders an empty list, because an empty list claims a verified
+empty result from a query that never happened.
+
 ## Privacy acknowledgement is not consent
 
 The onboarding disclosure may be acknowledged in browser storage to avoid

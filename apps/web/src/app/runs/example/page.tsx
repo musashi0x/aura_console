@@ -1,32 +1,28 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
+import { ConsoleShell } from "@/features/console/components/console-shell";
+import { DataUnavailable } from "@/features/console/components/data-unavailable";
+import { apiClient } from "@/lib/api-client";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = { title: "Example Run — Aura Console" };
 
 /**
- * Placeholder. The example Run replays the canonical Alpha and Beta fixture
- * through the same projection as a live Run, which does not exist yet. It is
- * labelled an example here for the same reason it will be later: it must never
- * be mistaken for live commerce.
+ * Placeholder, now rendered inside the Console shell. Replacing it with the
+ * real surface is tracked separately and depends on the run skeleton.
  */
-export default function ExampleRunPlaceholder() {
+export default async function ExampleRunPage() {
+  const health = await apiClient.dbHealth();
+
   return (
-    <main id="main">
-      <h1>Example Run</h1>
-      <p className="subtitle">Not built yet. This is an example, not live commerce.</p>
-      <section className="card">
-        <p>
-          The example Run replays the canonical fixture through the same projection as a
-          real Run. That timeline is part of the Console shell and is still in progress.
-        </p>
-        <p className="detail">
-          Tracked by task #44 (Console shell and replayable Run timeline) and task #30
-          (run skeleton and replayable event shell).
-        </p>
-        <p>
-          <Link href="/">Back to the Console</Link>
-        </p>
-      </section>
-    </main>
+    <ConsoleShell surface="Runs" ready={health.ok}>
+      <h1 className="cs__title">Example Run</h1>
+      <DataUnavailable
+        title="Not built yet"
+        body="The example Run replays a canonical fixture through the same projection as a real Run. That surface is not wired up yet. This is an example, not live commerce."
+        owner="task #61"
+      />
+    </ConsoleShell>
   );
 }
