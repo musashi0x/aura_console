@@ -8,7 +8,7 @@ export default async function HomePage() {
 
   return (
     <main>
-      <h1>Aura Memory</h1>
+      <h1>Aura Console</h1>
       <p className="subtitle">Monorepo scaffold — web, API, and Postgres.</p>
 
       <section className="card">

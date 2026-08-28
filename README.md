@@ -1,6 +1,7 @@
-# aura_memory
+# Aura Console
 
-A pnpm + Turborepo monorepo: a Next.js web app, a Hono API, and Postgres through Drizzle ORM.
+Aura Console is a pnpm + Turborepo monorepo: a Next.js web app, a Hono API,
+and Postgres through Drizzle ORM.
 
 ## Prerequisites
 
