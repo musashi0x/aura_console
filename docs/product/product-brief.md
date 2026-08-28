@@ -32,6 +32,10 @@ for a returning operator. A genuinely new browser is routed through
 ## Scope
 
 - Editorial landing page and Console shell.
+  The shell owns navigation, the environment label, the readiness result, and
+  the state vocabulary (empty, loading, degraded, unavailable memory, live,
+  paused, history). It owns no data: it renders what a real check returns and
+  says so plainly when a surface has no endpoint behind it.
 - Readiness checks backed by real API endpoints.
 - Onboarding that explains the product and hands off to a Run.
 - Replayable Run timeline with frozen Decision Context and Memory Diff.

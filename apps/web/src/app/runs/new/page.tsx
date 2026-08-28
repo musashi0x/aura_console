@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { ConsoleShell } from "@/features/console/components/console-shell";
-import { DataUnavailable } from "@/features/console/components/data-unavailable";
+import { ConsoleEmptyState } from "@/features/console/components/console-states";
 import { apiClient } from "@/lib/api-client";
 
 export const dynamic = "force-dynamic";
@@ -16,13 +16,13 @@ export default async function NewRunPage() {
   const health = await apiClient.dbHealth();
 
   return (
-    <ConsoleShell surface="Runs" ready={health.ok}>
+    <ConsoleShell surface="Runs" readiness={health.ok ? "ready" : "degraded"}>
       <h1 className="cs__title">Start a Run</h1>
-      <DataUnavailable
-        title="Not built yet"
-        body="The New Run form needs a Run creation endpoint, which does not exist yet. Nothing has been created and no economic action has been taken."
-        owner="task #61"
-      />
+      <ConsoleEmptyState exampleAvailable={false} createAvailable={false} />
+      <p className="cs__deferred">
+        This destination is a placeholder until the run skeleton lands. Nothing has been created
+        and no economic action has been taken. Tracked by task #61.
+      </p>
     </ConsoleShell>
   );
 }

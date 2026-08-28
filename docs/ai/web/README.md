@@ -8,7 +8,7 @@ not exist yet.
 
 ## Topics
 
-- [Console shell](console.md) — the operator surface, its routes, the projection fold, and transport state.
+- [Console shell](console-shell.md) — the operator surface, its routes, the projection fold, and transport state.
 - [Landing page](landing.md) — the root route, its scenes, tokens, and the static-preview boundary.
 - [Onboarding](onboarding.md) — first-visit routing, readiness checks, and the browser-local acknowledgement.
 - [Home page](home.md) — how `/` composes the first-run gate and the landing page.

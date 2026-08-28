@@ -1307,11 +1307,78 @@ body:has(.lp) {
   color: var(--color-text);
 }
 
-/* System is secondary: it sits apart and never competes with the three
-   product destinations. */
-.cs__nav-secondary {
+/* Secondary destinations sit apart and never compete with the three product
+   destinations. */
+.cs__nav-list--secondary {
   margin-top: auto;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.cs__nav-secondary {
   font-size: var(--text-sm);
+}
+
+.cs__run-ref {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-cyan);
+}
+
+.cs__actions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.cs__action-link {
+  text-decoration: none;
+}
+
+.cs__muted {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.cs__detail {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  margin: 0 0 var(--space-3);
+}
+
+.cs__state-badge {
+  margin: 0 0 var(--space-3);
+}
+
+.cs__deferred {
+  margin-top: var(--space-6);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  max-width: 46rem;
+}
+
+.cs__loading {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 40rem;
+}
+
+.cs__loading-label {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+/* Static placeholders. No shimmer loop, and never a fabricated status value. */
+.cs__skeleton {
+  height: 1.25rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+}
+
+.cs__skeleton--short {
+  width: 40%;
 }
 
 .cs__main {
@@ -1474,6 +1541,9 @@ body:has(.lp) {
 @media (max-width: 47.99rem) {
   .cs__body {
     grid-template-columns: minmax(0, 1fr);
+    /* The rail becomes a row. Without explicit rows the auto row absorbs the
+       grid's free height and the strip grows far past its content. */
+    grid-template-rows: auto minmax(0, 1fr);
   }
 
   .cs__nav {
@@ -1491,9 +1561,18 @@ body:has(.lp) {
     gap: var(--space-2);
   }
 
-  .cs__nav-secondary {
+  /* Destinations scroll inside the strip; wrapping one onto two lines would
+     make the strip taller for every surface. */
+  .cs__nav a {
+    white-space: nowrap;
+  }
+
+  .cs__nav-list--secondary {
     margin-top: 0;
-    margin-left: auto;
+    padding-top: 0;
+    border-top: 0;
+    border-left: 1px solid var(--color-border);
+    padding-left: var(--space-2);
   }
 
   .cs__main {
@@ -1502,5 +1581,21 @@ body:has(.lp) {
 
   .cs__surface {
     display: none;
+  }
+
+  /* The bar carries three mono labels. At 390px the default tracking wraps each
+     of them onto two lines, so tighten the type rather than drop a label: the
+     environment and the readiness result both have to stay readable. */
+  .cs__bar {
+    gap: var(--space-3);
+    padding: 0 var(--space-4);
+  }
+
+  .cs__brand,
+  .cs__env,
+  .cs__bar .status-badge {
+    font-size: 0.625rem;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
   }
 }

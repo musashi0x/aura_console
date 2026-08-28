@@ -6,7 +6,7 @@ import { apiClient } from "@/lib/api-client";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = { title: "System — Aura Console" };
+export const metadata: Metadata = { title: "Readiness — Aura Console" };
 
 /**
  * The readiness surface, moved off the root route when that became the landing
@@ -57,8 +57,8 @@ export default async function SystemPage() {
   ];
 
   return (
-    <ConsoleShell surface="System" ready={database.ok}>
-      <h1 className="cs__title">System</h1>
+    <ConsoleShell surface="Readiness" readiness={database.ok ? "ready" : "degraded"}>
+      <h1 className="cs__title">Readiness</h1>
       <p className="cs__lede">
         Aura reports only what it verified. Anything it cannot check is listed as not checked
         rather than assumed.
