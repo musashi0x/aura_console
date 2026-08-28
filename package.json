@@ -1,5 +1,5 @@
 {
-  "name": "aura-memory",
+  "name": "aura-console",
   "version": "0.0.0",
   "private": true,
   "packageManager": "pnpm@10.34.5",

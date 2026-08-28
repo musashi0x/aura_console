@@ -4,8 +4,8 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Aura Memory",
-  description: "Monorepo health",
+  title: "Aura Console",
+  description: "Aura Console monorepo health",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
