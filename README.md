@@ -1,7 +1,11 @@
 # Aura Console
 
-Aura Console is a pnpm + Turborepo monorepo: a Next.js web app, a Hono API,
-and Postgres through Drizzle ORM.
+A pnpm + Turborepo monorepo: a Next.js web app, a Hono API, and Postgres through Drizzle ORM.
+
+## Documentation
+
+- [Product documentation](docs/product/README.md) — scope, onboarding, visual system, demo choreography, and decisions.
+- [AI code map](docs/ai/README.md) — progressive-disclosure map from product areas to source files and symbols.
 
 ## Prerequisites
 
@@ -19,8 +23,14 @@ pnpm db:migrate               # apply committed migrations
 pnpm dev                      # web on :3000, API on :3001
 ```
 
-Open http://localhost:3000. The page server-renders the API's database health
-check, so a green status means the whole chain is wired: web → API → Postgres.
+Open http://localhost:3000. A fresh browser is routed to `/onboarding`; once you
+acknowledge or skip, `/` shows the landing page. The header readiness badge comes
+from the real API database check, so `SYSTEM READY` means the whole chain is
+wired: web → API → Postgres.
+
+Current routes: `/` (landing), `/onboarding`, and `/runs/new` and `/runs/example`,
+which are labelled placeholders until the Console shell lands. See the
+[landing page documentation](docs/product/landing-page.md).
 
 Ports are configurable (`WEB_PORT`, `PORT`, `POSTGRES_PORT`) because the
 defaults collide with whatever else you have running.
