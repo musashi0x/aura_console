@@ -33,7 +33,7 @@ const toDisclosure = async (user: ReturnType<typeof setup>) => {
 describe("first visit", () => {
   it("starts at welcome and says there is no sign-in", () => {
     render(<OnboardingFlow />);
-    expect(screen.getByRole("heading", { name: "Aura Console" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /welcome to aura console/i })).toBeInTheDocument();
     expect(screen.getByText(/there is no sign-in/i)).toBeInTheDocument();
   });
 
@@ -100,7 +100,7 @@ describe("acknowledgement", () => {
     render(<OnboardingFlow />);
     await toDisclosure(user);
     expect(screen.getByText(/stored in this browser only/i)).toBeInTheDocument();
-    expect(screen.getByText(/not a legal consent record/i)).toBeInTheDocument();
+    expect(screen.getByText(/not a consent record/i)).toBeInTheDocument();
   });
 
   it("can be withdrawn without breaking the flow", async () => {
@@ -204,8 +204,17 @@ describe("accessibility", () => {
     );
   });
 
-  it("marks the current step for assistive technology", () => {
+  it("marks the current step and announces the position", () => {
     render(<OnboardingFlow />);
-    expect(screen.getByText("Welcome")).toHaveAttribute("aria-current", "step");
+    expect(screen.getByText("Welcome").closest("li")).toHaveAttribute("aria-current", "step");
+    expect(screen.getByText(/step 1 of 4/i)).toBeInTheDocument();
+  });
+
+  it("names the acknowledgement a privacy acknowledgement, never consent", async () => {
+    const user = setup();
+    render(<OnboardingFlow />);
+    await toDisclosure(user);
+    expect(screen.getByLabelText(/privacy acknowledgement/i)).toBeInTheDocument();
+    expect(screen.getByText(/not a consent record/i)).toBeInTheDocument();
   });
 });

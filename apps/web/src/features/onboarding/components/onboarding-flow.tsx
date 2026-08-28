@@ -76,19 +76,31 @@ export function OnboardingFlow({ onFinish, onSkip }: OnboardingFlowProps) {
     onSkip?.();
   };
 
+  const position = STEP_LABELS.findIndex((entry) => entry.id === state.step) + 1;
+
   return (
-    <section className="onboarding" aria-labelledby="onboarding-heading">
-      <ol className="onboarding__steps">
-        {STEP_LABELS.map((entry) => (
-          <li
-            key={entry.id}
-            className="onboarding__step"
-            aria-current={entry.id === state.step ? "step" : undefined}
-          >
-            {entry.label}
-          </li>
-        ))}
-      </ol>
+    <div className="onboarding-shell">
+      <section className="onboarding" aria-labelledby="onboarding-heading">
+        <nav aria-label="Onboarding progress">
+          <p className="visually-hidden">
+            Step {position} of {STEP_LABELS.length}
+          </p>
+          <ol className="onboarding__steps">
+            {STEP_LABELS.map((entry, index) => (
+              <li
+                key={entry.id}
+                className="onboarding__step"
+                aria-current={entry.id === state.step ? "step" : undefined}
+                data-state={index < position - 1 ? "done" : index === position - 1 ? "current" : "todo"}
+              >
+                <span aria-hidden="true" className="onboarding__step-index">
+                  {index + 1}
+                </span>
+                {entry.label}
+              </li>
+            ))}
+          </ol>
+        </nav>
 
       {state.step === "welcome" ? (
         <>
@@ -203,6 +215,18 @@ export function OnboardingFlow({ onFinish, onSkip }: OnboardingFlowProps) {
           <p className="onboarding__note">{copy.complete.exampleNote}</p>
         </>
       ) : null}
-    </section>
+      </section>
+
+      {/* Context, not decoration. It never asserts state the flow has not verified. */}
+      <aside className="onboarding-aside" aria-label={copy.aside.heading}>
+        <h2 className="onboarding-aside__heading">{copy.aside.heading}</h2>
+        <ul className="onboarding-aside__list">
+          {copy.aside.points.map((point) => (
+            <li key={point}>{point}</li>
+          ))}
+        </ul>
+        <p className="onboarding__note">{copy.aside.footnote}</p>
+      </aside>
+    </div>
   );
 }

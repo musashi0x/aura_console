@@ -5,8 +5,8 @@
  */
 export const copy = {
   welcome: {
-    title: "Aura Console",
-    lead: "Your agent remembers what it spent, and why.",
+    title: "Welcome to Aura Console",
+    lead: "Understand what your agent is ready to do, how private relationship memory works, and start your first Run.",
     body: "Aura is an economic decision layer for autonomous agents. The Console is where you give an agent an objective, see which provider it chose and why, approve anything your policy gates, and inspect what it learned afterwards.",
     noSignIn:
       "There is no sign-in. v0.1 is a single-operator demo console running against a non-mainnet environment.",
@@ -41,9 +41,9 @@ export const copy = {
         text: "Policy decides whether an action runs automatically, needs your approval, or is denied. If required memory cannot be loaded, Aura never runs the action automatically.",
       },
     ],
-    acknowledgeLabel: "I have read what Aura stores",
+    acknowledgeLabel: "I have read this privacy acknowledgement",
     storageNote:
-      "This acknowledgement is stored in this browser only. It is not sent to a server and it is not a legal consent record.",
+      "This privacy acknowledgement is stored in this browser only. It is not sent to a server, and it is not a consent record.",
     primary: "Start using Aura",
     secondary: "Skip for now",
   },
@@ -53,6 +53,16 @@ export const copy = {
     primary: "Start a Run",
     secondary: "View example run",
     exampleNote: "The example uses a fixture and is not live commerce.",
+  },
+  aside: {
+    heading: "What this covers",
+    points: [
+      "What Aura Console does and does not do.",
+      "Which dependencies are verified, and which Aura cannot check yet.",
+      "What Aura stores, and what never leaves your agent.",
+    ],
+    footnote:
+      "Nothing here starts a Run, moves money, or changes your policy.",
   },
   banner: {
     text: "First time here? Take a two minute tour of what Aura stores and what is ready.",
