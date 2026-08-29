@@ -4,7 +4,7 @@ import { useReducer } from "react";
 
 import { MonoRef, StatusBadge } from "@/components/primitives";
 
-import type { RunView } from "../model/types";
+import { isTerminal, type RunView } from "../model/types";
 import { foldRun, type FoldSeed } from "../projection/fold-run";
 import type { CanonicalEvent } from "../model/types";
 import {
@@ -12,6 +12,7 @@ import {
   isHistorical,
   playhead,
   presentationReducer,
+  transportLabel,
 } from "../presentation/presentation-state";
 
 export interface RunTimelineProps {
@@ -33,7 +34,7 @@ export function RunTimeline({ events, seed, fixtureLabel }: RunTimelineProps) {
   // never had one. Opening in LIVE put a "… LIVE" badge on example data, which
   // is exactly the claim this product may never make.
   const complete = foldRun(events, seed, null);
-  const ended = complete.status === "COMPLETED" || fixtureLabel !== undefined;
+  const ended = isTerminal(complete.status) || fixtureLabel !== undefined;
   const [presentation, dispatch] = useReducer(
     presentationReducer,
     ended && complete.lastSequence !== null
@@ -43,7 +44,10 @@ export function RunTimeline({ events, seed, fixtureLabel }: RunTimelineProps) {
   const at = playhead(presentation);
   const view: RunView = foldRun(events, seed, at);
   const historical = isHistorical(presentation);
-  const last = foldRun(events, seed, null).lastSequence;
+  // The COUNT of events, not the highest sequence NUMBER. Sequences are
+  // zero-based, so `lastSequence` reported one fewer than the Run contains, and
+  // a single-event Run read as "0 events".
+  const total = complete.entries.length;
 
   return (
     <section className="run" aria-labelledby="run-heading">
@@ -69,7 +73,7 @@ export function RunTimeline({ events, seed, fixtureLabel }: RunTimelineProps) {
               {presentation.mode === "HISTORY" ? ` · ${presentation.atTime}` : ""}
             </StatusBadge>
           ) : (
-            <StatusBadge tone="pending">{presentation.mode}</StatusBadge>
+            <StatusBadge tone="pending">{transportLabel(presentation)}</StatusBadge>
           )}
         </div>
       </header>
@@ -98,7 +102,7 @@ export function RunTimeline({ events, seed, fixtureLabel }: RunTimelineProps) {
           type="button"
           className="btn"
           onClick={() => dispatch({ kind: "pause" })}
-          disabled={at === null}
+          disabled={ended || at === null}
         >
           Pause
         </button>
@@ -106,18 +110,24 @@ export function RunTimeline({ events, seed, fixtureLabel }: RunTimelineProps) {
           type="button"
           className="btn"
           onClick={() => dispatch({ kind: "play" })}
-          disabled={at === null}
+          disabled={ended || at === null}
         >
           Play
         </button>
-        <button
-          type="button"
-          className="btn"
-          onClick={() => dispatch({ kind: "jumpToLive" })}
-          disabled={!historical}
-        >
-          Jump to live
-        </button>
+        {/* Offered only where it means something. Without a stream there is no
+            live edge to return to on an unfinished Run, and an ended Run has
+            none at all. The control is removed rather than disabled, so it does
+            not advertise a capability the Console does not have. */}
+        {ended ? null : (
+          <button
+            type="button"
+            className="btn"
+            onClick={() => dispatch({ kind: "jumpToLive" })}
+            disabled={!historical}
+          >
+            Back to latest
+          </button>
+        )}
       </div>
 
       <ol className="run__events">
@@ -152,7 +162,7 @@ export function RunTimeline({ events, seed, fixtureLabel }: RunTimelineProps) {
       </ol>
 
       <p className="run__foot">
-        Showing {view.entries.length} of {last ?? 0} events
+        Showing {view.entries.length} of {total} {total === 1 ? "event" : "events"}
         {historical ? ", held at an earlier point in this Run." : "."}
       </p>
     </section>

@@ -21,6 +21,21 @@ export type TransportCommand =
 
 export const initialPresentation: PresentationState = { mode: "LIVE" };
 
+/**
+ * What the transport badge says, in words the reader can act on.
+ *
+ * LIVE is a claim that the Console is following a moving edge. It has no
+ * stream, so a single read of an unfinished Run is the newest state it knows
+ * about, not a subscription to the newest state that exists. Saying LIVE there
+ * promised an update that would never arrive.
+ *
+ * The mode stays LIVE internally because it is the same fold — `playhead`
+ * returns null, meaning "no ceiling" — and renaming the mode would rename the
+ * projection's own vocabulary for a labelling problem.
+ */
+export const transportLabel = (state: PresentationState): string =>
+  state.mode === "LIVE" ? "LATEST SNAPSHOT" : state.mode;
+
 /** True when the operator is not looking at the newest event. */
 export const isHistorical = (state: PresentationState): boolean =>
   state.mode === "PAUSED" || state.mode === "HISTORY";
@@ -43,10 +58,16 @@ export function presentationReducer(
 ): PresentationState {
   switch (command.kind) {
     case "play": {
+      // PLAYING is a claim that the playhead is advancing. Nothing advances it
+      // from ENDED — the Run has no further events — so entering PLAYING there
+      // would leave a control that says it is playing while nothing moves.
+      if (state.mode === "ENDED") return state;
       const at = playhead(state);
       return at === null ? state : { mode: "PLAYING", sequence: at };
     }
     case "pause": {
+      // Pausing something that is not running is not a state, it is a no-op.
+      if (state.mode === "ENDED") return state;
       const at = playhead(state);
       return at === null ? state : { mode: "PAUSED", sequence: at };
     }

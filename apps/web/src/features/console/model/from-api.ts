@@ -19,10 +19,12 @@ export function seedFromRun(run: RunSummary): FoldSeed {
   return {
     runId: run.id,
     objective: run.objective,
-    // Origin passes through unchanged. An agent-created Run is not a
-    // Console-created one, and a FIXTURE is neither: collapsing them hid that
-    // the example Run was example data in the one field that names its origin.
-    source: run.source === "AGENT" ? "API" : run.source,
+    // Origin passes through UNCHANGED. An agent-created Run is not a
+    // Console-created one and is not "the API" either: the API is the transport
+    // that carried it, not the actor that started it. Renaming AGENT to API
+    // loses the only field that says an agent, rather than an operator, opened
+    // this Run.
+    source: run.source,
     environment: run.environment,
     budgetUsdc: run.budgetUsdc,
   };

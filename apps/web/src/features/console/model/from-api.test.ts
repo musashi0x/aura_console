@@ -41,7 +41,9 @@ describe("the API seed", () => {
     // Who or what started the work is a fact about the Run. An agent is not the
     // Console, and a FIXTURE is neither: collapsing them would hide that an
     // example Run is example data in the one field that names its origin.
-    expect(seedFromRun({ ...run, source: "AGENT" }).source).toBe("API");
+    // AGENT is not "the API": the API is the transport that carried the Run,
+    // not the actor that opened it.
+    expect(seedFromRun({ ...run, source: "AGENT" }).source).toBe("AGENT");
     expect(seedFromRun({ ...run, source: "FIXTURE" }).source).toBe("FIXTURE");
     expect(seedFromRun({ ...run, source: "CONSOLE" }).source).toBe("CONSOLE");
   });

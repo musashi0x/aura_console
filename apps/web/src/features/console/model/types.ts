@@ -14,6 +14,15 @@ export type RunStatus =
   | "FAILED"
   | "CANCELLED";
 
+/**
+ * A Run in one of these states will produce no further events, so there is no
+ * moving edge to follow. Only COMPLETED was treated as terminal, which left a
+ * failed or cancelled Run claiming to follow an edge that had stopped.
+ */
+export const TERMINAL_STATUSES: readonly RunStatus[] = ["COMPLETED", "FAILED", "CANCELLED"];
+
+export const isTerminal = (status: RunStatus): boolean => TERMINAL_STATUSES.includes(status);
+
 /** State machines section 4. NO_HISTORY and ERROR are never mapped onto each other. */
 export type RetrievalStatus =
   | "NOT_REQUESTED"
@@ -80,7 +89,7 @@ export interface RunView {
   runId: string;
   objective: string;
   status: RunStatus;
-  source: "CONSOLE" | "API" | "FIXTURE";
+  source: "CONSOLE" | "AGENT" | "API" | "FIXTURE";
   environment: string;
   isMainnet: false;
   budgetUsdc: string | null;

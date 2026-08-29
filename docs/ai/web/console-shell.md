@@ -19,8 +19,8 @@ an explicit unavailable state rather than an empty one.
 |---|---|---|
 | `/runs` | `apps/web/src/app/runs/page.tsx` | Shell renders; no Runs endpoint |
 | `/runs/[runId]` | `apps/web/src/app/runs/[runId]/page.tsx` | Shell renders; no events endpoint |
-| `/runs/new` | `apps/web/src/app/runs/new/page.tsx` | Placeholder, task #61 |
-| `/runs/example` | `apps/web/src/app/runs/example/page.tsx` | Placeholder, task #61 |
+| `/runs/new` | `apps/web/src/app/runs/new/page.tsx` | Creates a Run through `POST /api/runs` |
+| `/runs/example` | `apps/web/src/app/runs/example/page.tsx` | Labelled fixture through the real fold |
 | `/counterparties` | `apps/web/src/app/counterparties/page.tsx` | Shell renders; no projection |
 | `/policies` | `apps/web/src/app/policies/page.tsx` | Shell renders; no policy endpoint |
 | `/system` | `apps/web/src/app/system/page.tsx` | Live readiness, fully working |
@@ -94,10 +94,14 @@ without removing any content or state.
 
 ## Missing endpoints
 
-The Console needs `POST /api/runs`, `GET /api/runs`, `GET /api/runs/{id}`,
-`GET /api/runs/{id}/events`, and a stream. None exist; the API serves only
-`/health` and `/health/db`. They belong to task #30. Do not add client methods
-that would call a route that is not there.
+Four of the five exist and are mounted: `POST /api/runs`, `GET /api/runs`,
+`GET /api/runs/{id}` and `GET /api/runs/{id}/events`.
+
+`GET /api/runs/{id}/stream` does not. There is deliberately no client method for
+it: a method that 404s turns a known gap into a runtime failure. Until it lands,
+a Run surface reads its events ONCE, so the transport says `LATEST SNAPSHOT`
+rather than `LIVE`. "Live" would claim a subscription the Console does not
+have.
 
 ## Screenshots
 

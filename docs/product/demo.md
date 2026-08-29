@@ -23,10 +23,13 @@
 
 ## What is demonstrable today
 
-Steps 1 to 5 are implemented. Step 6 onward depends on the run skeleton
-(task #30); the Run destinations render the shell and an explicit unavailable
-state, and the landing Console window is a labelled static preview. Do not demo
-them as live.
+Steps 1 to 6 are implemented. `/runs` lists real Runs from the API, `/runs/new`
+creates one, and `/runs/example` is a labelled fixture through the same fold.
+
+What is NOT demonstrable: live updates. There is no stream, so every Run surface
+is a single read and says `LATEST SNAPSHOT`. Do not narrate a Run as unfolding
+on screen, and do not reload to imply it moved on its own. The landing Console
+window remains a labelled static preview.
 
 ## Presentation rules
 

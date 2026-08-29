@@ -37,9 +37,12 @@ const timeline = (extra?: Partial<React.ComponentProps<typeof RunTimeline>>) =>
   render(<RunTimeline events={events} seed={seed} {...extra} />);
 
 describe("live and history", () => {
-  it("starts live and shows every event", () => {
+  it("opens on the newest state it knows, without claiming to be live", () => {
+    // There is no stream, so a single read is the latest SNAPSHOT rather than a
+    // subscription. "LIVE" promised an update that would never arrive.
     timeline();
-    expect(screen.getByText("LIVE")).toBeInTheDocument();
+    expect(screen.getByText("LATEST SNAPSHOT")).toBeInTheDocument();
+    expect(screen.queryByText("LIVE")).not.toBeInTheDocument();
     expect(screen.getByText("Outcome recorded")).toBeInTheDocument();
   });
 
@@ -54,18 +57,18 @@ describe("live and history", () => {
     expect(screen.getByText("Evidence collected")).toBeInTheDocument();
   });
 
-  it("returns to live and catches up", async () => {
+  it("returns to the latest snapshot and catches up", async () => {
     const user = userEvent.setup();
     timeline();
     await user.click(screen.getByRole("button", { name: /show the run as of evidence collected/i }));
-    await user.click(screen.getByRole("button", { name: /jump to live/i }));
-    expect(screen.getByText("LIVE")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /back to latest/i }));
+    expect(screen.getByText("LATEST SNAPSHOT")).toBeInTheDocument();
     expect(screen.getByText("Outcome recorded")).toBeInTheDocument();
   });
 
-  it("disables jump to live while already live", () => {
+  it("disables the return control when already at the latest", () => {
     timeline();
-    expect(screen.getByRole("button", { name: /jump to live/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /back to latest/i })).toBeDisabled();
   });
 });
 
@@ -97,7 +100,7 @@ describe("accessibility", () => {
     timeline();
     const group = screen.getByRole("group", { name: /timeline transport/i });
     expect(group).toBeInTheDocument();
-    for (const name of [/pause/i, /play/i, /jump to live/i]) {
+    for (const name of [/pause/i, /play/i, /back to latest/i]) {
       expect(screen.getByRole("button", { name })).toBeInTheDocument();
     }
   });

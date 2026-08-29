@@ -172,16 +172,24 @@ Both landing calls to action lead into the Console shell: the header and closing
 primary action open `/runs/example`, the secondary action opens `/runs/new`. The
 shell takes over the visual layer at that boundary, from the bright editorial
 surface to the dark operational one, and states the environment and readiness
-itself. Following either action still creates nothing; both destinations render
-an explicit unavailable state until the run skeleton (task #30) lands. The
-Console shell is documented in [console-shell.md](../ai/web/console-shell.md).
+itself.
+
+Both destinations are now real. `/runs/example` renders a labelled fixture
+through the production fold, and `/runs/new` creates a Run through
+`POST /api/runs`. Creating a Run records an objective and a ceiling; it
+authorizes no spending and takes no economic action. The Console shell is
+documented in [console-shell.md](../ai/web/console-shell.md).
 
 ## Known gaps
 
-- The Console preview is static. Real Run data depends on the run skeleton
-  (task #30).
-- `/runs/new` and `/runs/example` render the shell with an explicit
-  unavailable state; real Run surfaces are task #61.
+- The first-run banner is part of the LIGHT layer. It was built from Console
+  classes, which drew "Not now" at 1.03:1 on the landing canvas; it now uses
+  landing tokens at 17.93:1 with 44px targets. Anything added to that banner
+  must take its colour from `--landing-*`.
+
+- The Console preview is static, and is labelled as such. Real Run data lives
+  behind the landing, on the Console routes.
+- No live updates anywhere: there is no stream, so a Run surface reads once.
 - No browser E2E coverage yet (task #60).
 - The opening window is wider than the visual reference, which sits nearer 56%
   of viewport width. `min(72vw, 1080px)` was specified directly.

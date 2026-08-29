@@ -70,10 +70,27 @@ Landing implementation, the visual system, the onboarding visual pass, and the
 Console shell are separate pull requests. A visual change should not carry
 routing or backend behaviour, and vice versa.
 
+## Terminal Runs have no edge to follow
+
+`COMPLETED`, `FAILED` and `CANCELLED` all end a Run. Each opens the timeline in
+`ENDED`, and the return-to-latest control is removed rather than disabled,
+because there is no latest to return to. Treating only `COMPLETED` as terminal
+left a failed Run claiming to follow an edge that had stopped.
+
+## Origin is a fact about the Run
+
+`CONSOLE`, `AGENT` and `FIXTURE` survive from the API through the fold to the
+screen. An agent-opened Run is not a Console-opened one, and neither is "the
+API": the API is the transport that carried the Run, not the actor that started
+it. Collapsing them hid that the example Run was example data in the one field
+that names its origin.
+
 ## Deferred work
 
-- Replayable Run timeline; the fold and transport state exist and are tested,
-  but nothing can feed them until an events endpoint exists (Tracking task #30).
-- Run skeleton and replayable event shell (Tracking task #30).
-- Replace the `/runs/new` and `/runs/example` unavailable states with real Run surfaces (Tracking task #61; depends on #30).
+- Live updates. `GET /api/runs/{run_id}/stream` does not exist, so a Run surface
+  reads its events once. The transport reports `LATEST SNAPSHOT`, never `LIVE`.
+- Replay progression. The playhead can be scrubbed and held, but nothing
+  advances it on a timer, so `Play` and `Pause` are disabled on a Run that has
+  ended and on the example fixture. A control that says it is playing while
+  nothing moves is worse than no control.
 - Browser E2E for onboarding and landing, including real routing and console errors (Tracking task #60).

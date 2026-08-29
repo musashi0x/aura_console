@@ -13,7 +13,7 @@ import { stageFor } from "./stage-map";
 export interface FoldSeed {
   runId: string;
   objective: string;
-  source: "CONSOLE" | "API" | "FIXTURE";
+  source: "CONSOLE" | "AGENT" | "API" | "FIXTURE";
   environment: string;
   budgetUsdc: string | null;
 }

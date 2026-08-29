@@ -1631,12 +1631,47 @@ body:has(.lp) {
     gap: 4px;
   }
 
-  /* The bar carries three mono labels. At 390px the default tracking wraps each
-     of them onto two lines, so tighten the type rather than drop a label: the
-     environment and the readiness result both have to stay readable. */
+  /* The bar carries the brand, the surface, a Run reference, the environment and
+     the readiness result. At 390px those together measured 428px against a
+     390px viewport, so the whole document scrolled sideways. Tighten the type,
+     let the bar wrap, and allow every part to shrink: dropping a label would
+     hide either which Run is open or whether the system is degraded. */
   .cs__bar {
-    gap: var(--space-3);
-    padding: 0 var(--space-4);
+    height: auto;
+    min-height: 56px;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-3);
+    padding: var(--space-2) var(--space-4);
+  }
+
+  .cs__bar > *,
+  .cs__bar-right {
+    min-width: 0;
+  }
+
+  .cs__bar-right {
+    /* Takes the full second row rather than being pushed past the right edge. */
+    margin-left: 0;
+    flex: 1 0 100%;
+    justify-content: space-between;
+  }
+
+  .cs__run-ref {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+  }
+
+  /* A grid item defaults to min-width:auto, which lets its content set the
+     track width. Without this the nav's own overflow-x never engages and the
+     strip widens the page instead of scrolling inside itself. */
+  .cs__body > * {
+    min-width: 0;
+  }
+
+  .cs__nav {
+    max-width: 100%;
   }
 
   .cs__brand,
