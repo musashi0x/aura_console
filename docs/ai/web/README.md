@@ -12,3 +12,4 @@ Run timeline are the next slices and are not implemented yet.
 - [Home page](home.md) — how `/` composes the first-run gate and the landing page.
 - [API client and environment](api-client.md) — typed request handling and `NEXT_PUBLIC_API_URL` validation.
 - [Layout and visual system](layout-and-visuals.md) — metadata, global CSS, design tokens, and the two visual layers.
+- [React Bits](react-bits.md) — what a decorative library may and may not touch.

@@ -88,6 +88,27 @@ including the landing brand mark.
 and event emphasis without removing any content or state. Verified in a real
 browser by forcing the media query before hydration.
 
+That guarantee is a CSS rule, so it covers CSS animation only. Anything that
+animates in JavaScript — a `requestAnimationFrame` loop, canvas, WebGL, spring
+physics — bypasses it entirely and has to check `matchMedia` itself. Prefer CSS
+motion for that reason, and treat a JS-driven effect as owing its own
+reduced-motion path before it ships.
+
+## Borrowed motion
+
+A third-party animation library may decorate a surface that carries no
+operational claim: the landing, onboarding, a readiness check still in flight.
+It may not decorate a surface that reports a Run.
+
+Two rules make that concrete. Continuous motion — pulsing, flowing, anything
+that redraws forever — is never used anywhere in the Console, because Aura shows
+recorded Runs on a non-mainnet demo and perpetual motion reads as something
+executing. And borrowed CSS arrives with hardcoded colours, which the token test
+rejects outright; it is rewritten against tokens or it does not land.
+
+The evaluation, the accepted and rejected components, and the acceptance
+criteria are in [React Bits](../ai/web/react-bits.md).
+
 On the landing route `html:has(.lp)` repaints the document background, otherwise
 overscroll flashes the Console canvas behind the light page.
 
