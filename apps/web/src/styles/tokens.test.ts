@@ -94,6 +94,12 @@ describe("landing surface", () => {
     expect(globals).toMatch(/\.lp a\.lp-btn--primary\s*\{[^}]*color:\s*var\(--landing-surface\)/);
   });
 
+  it("keeps Console navigation out of the global anchor colour", () => {
+    // Same specificity trap as the landing buttons: `a:not(.btn)` beats a bare
+    // class, so nav links would render accent cyan instead of muted.
+    expect(globals).toMatch(/\.cs a\.cs__nav-link[\s\S]{0,120}color:\s*var\(--color-text-muted\)/);
+  });
+
   it("paints the document itself on the landing route so overscroll is not dark", () => {
     // Without this the Console canvas shows through when rubber-band scrolling
     // past the top or bottom of the light page.

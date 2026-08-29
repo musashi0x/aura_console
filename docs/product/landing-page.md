@@ -166,11 +166,22 @@ The landing page must never claim what the product cannot do.
 - No authentication, pricing, testimonials, workspaces, or invented users. A
   test greps for all of them.
 
+## Handoff into the Console
+
+Both landing calls to action lead into the Console shell: the header and closing
+primary action open `/runs/example`, the secondary action opens `/runs/new`. The
+shell takes over the visual layer at that boundary, from the bright editorial
+surface to the dark operational one, and states the environment and readiness
+itself. Following either action still creates nothing; both destinations render
+an explicit unavailable state until the run skeleton (task #30) lands. The
+Console shell is documented in [console-shell.md](../ai/web/console-shell.md).
+
 ## Known gaps
 
-- The Console preview is static. Real Run data depends on the Console shell
-  (task #44) and the run skeleton (task #30).
-- `/runs/new` and `/runs/example` are labelled placeholders (task #61).
+- The Console preview is static. Real Run data depends on the run skeleton
+  (task #30).
+- `/runs/new` and `/runs/example` render the shell with an explicit
+  unavailable state; real Run surfaces are task #61.
 - No browser E2E coverage yet (task #60).
 - The opening window is wider than the visual reference, which sits nearer 56%
   of viewport width. `min(72vw, 1080px)` was specified directly.

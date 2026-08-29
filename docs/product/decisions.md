@@ -29,6 +29,28 @@ label and a note that it is not live data and not a Run. Readiness shown to an
 operator must come from a real check; policy and agent identity stay
 **Not checked** while no endpoint exists.
 
+## The Console lives under its own routes, not at the root
+
+The Console shell is served from `/runs`, `/counterparties`, `/policies`, and
+`/system`. It did not take over `/`, which stays the landing page, and it did
+not weaken `FirstRunGate`. Database and API readiness moved from the old root
+health card to `/system`.
+
+## The shell renders state, it does not own data
+
+`ConsoleShell` takes `surface`, a `readiness` result, and an optional Run
+reference. It computes none of them. Readiness is a real check result passed in,
+never assumed, and never borrowed from a previous surface: while a check is in
+flight the shell says `CHECKING` rather than `SYSTEM READY`. Every visible
+string lives in `apps/web/src/features/console/copy.ts` so the claims the
+product makes are reviewed in one file.
+
+## Unavailable is not empty
+
+A surface whose data source does not exist says so and names the task that owns
+it. It never renders an empty list, because an empty list claims a verified
+empty result from a query that never happened.
+
 ## Privacy acknowledgement is not consent
 
 The onboarding disclosure may be acknowledged in browser storage to avoid
@@ -50,7 +72,8 @@ routing or backend behaviour, and vice versa.
 
 ## Deferred work
 
-- Console shell and replayable Run timeline (Tracking task #44).
+- Replayable Run timeline; the fold and transport state exist and are tested,
+  but nothing can feed them until an events endpoint exists (Tracking task #30).
 - Run skeleton and replayable event shell (Tracking task #30).
-- Replace `/runs/new` and `/runs/example` placeholders with real Run surfaces (Tracking task #61; depends on #30 and #44).
+- Replace the `/runs/new` and `/runs/example` unavailable states with real Run surfaces (Tracking task #61; depends on #30).
 - Browser E2E for onboarding and landing, including real routing and console errors (Tracking task #60).
