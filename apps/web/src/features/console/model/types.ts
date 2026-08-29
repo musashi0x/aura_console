@@ -80,7 +80,7 @@ export interface RunView {
   runId: string;
   objective: string;
   status: RunStatus;
-  source: "CONSOLE" | "API";
+  source: "CONSOLE" | "API" | "FIXTURE";
   environment: string;
   isMainnet: false;
   budgetUsdc: string | null;

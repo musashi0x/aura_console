@@ -13,7 +13,7 @@ import { stageFor } from "./stage-map";
 export interface FoldSeed {
   runId: string;
   objective: string;
-  source: "CONSOLE" | "API";
+  source: "CONSOLE" | "API" | "FIXTURE";
   environment: string;
   budgetUsdc: string | null;
 }
@@ -106,7 +106,14 @@ export function foldRun(
       type: event.type,
       eventTime: event.event_time,
       stage,
-      support: stage === null ? "UNSUPPORTED_TYPE" : "SUPPORTED",
+      // A lifecycle type has no stage in the decision story, but the fold
+      // reads it to derive status, so it is understood. Marking it
+      // UNSUPPORTED_TYPE told the operator the Console did not recognise an
+      // event it had just acted on.
+      support:
+        stage === null && RUN_STATUS_BY_TYPE[event.type] === undefined
+          ? "UNSUPPORTED_TYPE"
+          : "SUPPORTED",
       summary: str(event.data?.summary) ?? event.type,
     };
   });

@@ -28,7 +28,18 @@ export interface RunTimelineProps {
  * which is what stops replay and live drifting apart.
  */
 export function RunTimeline({ events, seed, fixtureLabel }: RunTimelineProps) {
-  const [presentation, dispatch] = useReducer(presentationReducer, initialPresentation);
+  // A finished recording must not open claiming LIVE. "Live" means following a
+  // moving edge; a Run that already ended has no edge to follow, and a fixture
+  // never had one. Opening in LIVE put a "… LIVE" badge on example data, which
+  // is exactly the claim this product may never make.
+  const complete = foldRun(events, seed, null);
+  const ended = complete.status === "COMPLETED" || fixtureLabel !== undefined;
+  const [presentation, dispatch] = useReducer(
+    presentationReducer,
+    ended && complete.lastSequence !== null
+      ? ({ mode: "ENDED", finalSequence: complete.lastSequence } as const)
+      : initialPresentation,
+  );
   const at = playhead(presentation);
   const view: RunView = foldRun(events, seed, at);
   const historical = isHistorical(presentation);
@@ -126,7 +137,13 @@ export function RunTimeline({ events, seed, fixtureLabel }: RunTimelineProps) {
               <span className="run__event-body">
                 <span className="run__event-title">{entry.summary}</span>
                 <span className="run__event-meta">
-                  {entry.stage ?? "UNRECOGNISED"} · {entry.type}
+                  {/* Three different answers, and they were collapsed into one.
+                      A stage is where the event sits in the decision story. A
+                      lifecycle event has no stage but is fully understood.
+                      UNRECOGNISED is reserved for a type the fold knows nothing
+                      about, which is the only case worth a warning. */}
+                  {entry.stage ?? (entry.support === "SUPPORTED" ? "LIFECYCLE" : "UNRECOGNISED")} ·{" "}
+                  {entry.type}
                 </span>
               </span>
             </button>

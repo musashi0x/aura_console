@@ -262,8 +262,14 @@ code {
   margin-top: 1.5rem;
 }
 
+/* The first-run banner renders on `/`, which is the BRIGHT editorial landing.
+   It was built from the Console's `.banner` and `.btn` classes, so `--fg`
+   resolved to the dark layer's near-white text and "Not now" drew at 1.03:1 on
+   the landing canvas. It was in the DOM, it was focusable, and it was invisible
+   — worst on a phone, where it is the only way to dismiss the banner. Every
+   colour here is a landing token for that reason. */
 .banner {
-  border: 1px solid var(--border);
+  border: 1px solid var(--landing-line);
   border-radius: 0.5rem;
   padding: 0.875rem 1rem;
   margin-bottom: 1.5rem;
@@ -271,6 +277,42 @@ code {
   gap: 0.75rem;
   align-items: center;
   flex-wrap: wrap;
+  background: var(--landing-surface);
+  color: var(--landing-ink);
+}
+
+.banner .btn {
+  /* 44px is the touch minimum. Padding rather than height, so a label that
+     wraps on a narrow screen still grows its control instead of clipping. */
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  border-color: var(--landing-line);
+  color: var(--landing-ink);
+  background: transparent;
+}
+
+.banner .btn--primary {
+  background: var(--landing-ink);
+  color: var(--landing-surface);
+  border-color: var(--landing-ink);
+}
+
+.banner .btn:focus-visible {
+  outline: 2px solid var(--landing-ink);
+  outline-offset: 2px;
+}
+
+@media (max-width: 30rem) {
+  /* Stacked, so neither action is squeezed under the other's label. */
+  .banner {
+    align-items: stretch;
+  }
+
+  .banner .btn {
+    justify-content: center;
+    flex: 1 1 auto;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1583,6 +1625,12 @@ body:has(.lp) {
     display: none;
   }
 
+  /* A Run row stacks rather than squeezing its objective against its metadata. */
+  .cs a.cs__row {
+    flex-direction: column;
+    gap: 4px;
+  }
+
   /* The bar carries three mono labels. At 390px the default tracking wraps each
      of them onto two lines, so tighten the type rather than drop a label: the
      environment and the readiness result both have to stay readable. */
@@ -1598,4 +1646,122 @@ body:has(.lp) {
     letter-spacing: 0.06em;
     white-space: nowrap;
   }
+}
+
+/* A degraded badge is a link to the readiness detail. It must look like the
+   badge it wraps, not like body text with a badge inside it. */
+.cs a.cs__status-link {
+  display: inline-flex;
+  text-decoration: none;
+  border-radius: 999px;
+  color: inherit;
+}
+
+.cs a.cs__status-link:focus-visible {
+  outline: 2px solid var(--color-error);
+  outline-offset: 2px;
+}
+
+/* ── Run surfaces ───────────────────────────────────────────────────────────
+   The Runs list, and the form that creates one. Colour comes from the Console
+   token layer only: a literal hex here fails the token test. */
+
+.cs__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.cs a.cs__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  /* 44px minimum, through padding so a long objective still grows the row. */
+  min-height: 44px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.cs a.cs__row:hover {
+  border-color: var(--color-cyan);
+}
+
+.cs a.cs__row:focus-visible {
+  outline: 2px solid var(--color-cyan);
+  outline-offset: 2px;
+}
+
+.cs__row-objective {
+  flex: 1 1 18rem;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.cs__row-meta {
+  display: flex;
+  gap: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.cs__lede {
+  max-width: 62ch;
+  margin: 0 0 var(--space-5);
+  color: var(--color-text-muted);
+}
+
+.cs__form {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 34rem;
+}
+
+.cs__field {
+  display: grid;
+  gap: 6px;
+}
+
+.cs__label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.cs__input {
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.cs__input:focus-visible {
+  outline: 2px solid var(--color-cyan);
+  outline-offset: 1px;
+}
+
+.cs__hint {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.cs__form-error {
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-error);
+  border-radius: 8px;
+  color: var(--color-error);
 }

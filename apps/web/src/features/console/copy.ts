@@ -10,6 +10,10 @@ export const console_ = {
     ready: "SYSTEM READY",
     degraded: "SYSTEM DEGRADED",
     checking: "CHECKING",
+    /* The accessible name for the degraded badge, which links to the detail.
+       "SYSTEM DEGRADED" alone tells a screen reader nothing about where the
+       link goes. */
+    degradedAction: "System degraded. See what failed on the readiness page.",
   },
   nav: {
     label: "Console",

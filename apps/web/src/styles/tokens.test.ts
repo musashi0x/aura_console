@@ -122,3 +122,29 @@ describe("reduced motion", () => {
     expect(block).toContain(".panel--active");
   });
 });
+
+
+describe("the first-run banner belongs to the light layer", () => {
+  // FirstRunGate renders on `/`, which is the bright editorial landing, but it
+  // was built from the Console's `.banner` and `.btn` classes. Those resolve
+  // `--fg` to the dark layer's near-white text, so "Not now" rendered at
+  // 1.03:1 on the landing canvas: present in the DOM, invisible to a reader,
+  // and worst on a phone where it is the only way out of the banner.
+  it("draws its text from landing tokens, not Console tokens", () => {
+    const block = globals.slice(globals.indexOf(".banner {"));
+    const banner = block.slice(0, block.indexOf("}"));
+    expect(banner).toMatch(/--landing-/);
+    expect(banner).not.toMatch(/var\(--fg\)|var\(--border\)(?!-)/);
+  });
+
+  it("gives its dismiss action AA contrast against the landing surface", () => {
+    // The dismiss action is the one a reader needs when they do not want the
+    // tour. It must clear AA, not merely exist.
+    expect(contrast(value("landing-ink"), value("landing-surface"))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("keeps both banner actions at the 44px touch minimum", () => {
+    const block = globals.slice(globals.indexOf(".banner .btn"));
+    expect(block.slice(0, 200)).toMatch(/min-height:\s*44px/);
+  });
+});
