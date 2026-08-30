@@ -83,7 +83,7 @@ inspectable rather than dropped.
 | State | Component | What it may claim |
 |---|---|---|
 | Empty | `ConsoleEmptyState` | Explains what a Run is and links only to destinations that exist |
-| Loading | `ConsoleLoadingState` | `role="status"` skeletons; never a status word such as ready or healthy |
+| Loading | `ConsoleLoadingState` | `role="status"` skeletons; never a status word such as ready or healthy. Rendered by `runs/loading.tsx` and `runs/[runId]/loading.tsx` |
 | Degraded | `ConsoleErrorState` | Names the failed dependency, the consequence, and a retry |
 | Unavailable memory | `ConsoleUnavailableMemory` | States memory could not be read; infers no history |
 | Latest snapshot / history | `ConsoleTransportLabel` | History always carries its timestamp so it cannot read as current |
@@ -92,6 +92,21 @@ inspectable rather than dropped.
 yet" would claim a verified empty list. On `/runs` the API now answers, so an
 empty list is a real empty list; on a surface with no endpoint the unavailable
 state still stands. Do not swap one for the other.
+
+## Loading
+
+Every Run route is an async server component, so without a Suspense fallback a
+slow database gave a blank page and then a finished one, with nothing between.
+`ConsoleLoadingState` existed and was tested while no route rendered it.
+
+`apps/web/src/app/runs/loading.tsx` and `runs/[runId]/loading.tsx` render the
+shell with `readiness="checking"`. The check has not answered yet, so borrowing
+`ready` would report a verified result the page does not have. That is the whole
+reason `checking` exists as a third state rather than a default to `ready`.
+
+The detail segment makes two requests and is the slowest, so its label names
+what is being read instead of saying "Loading", which tells a reader nothing
+about whether to wait.
 
 ## Transport
 
