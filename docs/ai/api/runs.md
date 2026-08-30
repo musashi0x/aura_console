@@ -80,8 +80,23 @@ derived from `DATABASE_URL` by appending `_test`, and
 `apps/api/src/test/global-setup.ts` creates and migrates it once per suite.
 Set `TEST_DATABASE_URL` to override.
 
+## What the Console does with these
+
+`RunTimeline` is mounted against them. `/runs` lists from `GET /api/runs`,
+`/runs/[runId]` folds `GET /api/runs/{id}/events`, and `/runs/new` creates
+through `POST /api/runs`. `/runs/example` renders a labelled fixture through the
+same fold, so the example cannot drift from the product.
+
+`source` reaches the screen unchanged: `CONSOLE`, `AGENT` and `FIXTURE` stay
+distinct, because who opened a Run is a fact about it and the API is the
+transport that carried it, not the actor that started it.
+
 ## Not here yet
 
 - `GET /api/runs/:runId/stream` — SSE with `Last-Event-ID` replay.
-- Mounting the Console's `RunTimeline` against these endpoints.
-- The labelled example Run fixture.
+
+Its absence is visible in the product, not hidden: a Run surface reads once and
+reports `LATEST SNAPSHOT` rather than `LIVE`, and there is no Play or Pause
+because nothing advances the playhead. `?after=<sequence>` already exists for
+the resume-without-duplicates path a stream will need, so adding one should not
+require changing how events are read.

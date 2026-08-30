@@ -9,16 +9,20 @@ organisation switcher, workspace switcher, or billing, because v0.1 is
 single-operator and unauthenticated.
 
 The shell is a frame, not a data source. It never asserts a value it has not
-been given: readiness comes in as a prop from a real check, a Run reference is
-shown only when one is selected, and every surface without an endpoint renders
-an explicit unavailable state rather than an empty one.
+been given: readiness comes in as a prop from a real check, and a Run reference
+is shown only when one is selected.
+
+The Run surfaces are now backed by the API. A surface that still has no endpoint
+behind it renders an explicit unavailable state rather than an empty one, which
+is a different claim: "we could not look" is not "we looked and there is
+nothing".
 
 ## Routes
 
 | Route | File | State |
 |---|---|---|
-| `/runs` | `apps/web/src/app/runs/page.tsx` | Shell renders; no Runs endpoint |
-| `/runs/[runId]` | `apps/web/src/app/runs/[runId]/page.tsx` | Shell renders; no events endpoint |
+| `/runs` | `apps/web/src/app/runs/page.tsx` | Lists real Runs from `GET /api/runs` |
+| `/runs/[runId]` | `apps/web/src/app/runs/[runId]/page.tsx` | Folds real events from `GET /api/runs/{id}/events` |
 | `/runs/new` | `apps/web/src/app/runs/new/page.tsx` | Creates a Run through `POST /api/runs` |
 | `/runs/example` | `apps/web/src/app/runs/example/page.tsx` | Labelled fixture through the real fold |
 | `/counterparties` | `apps/web/src/app/counterparties/page.tsx` | Shell renders; no projection |
@@ -45,7 +49,13 @@ an explicit unavailable state rather than an empty one.
 - `apps/web/src/features/console/copy.ts` — `console_`; every visible string in
   the shell, so wording is reviewed in one place rather than per component.
 - `apps/web/src/features/console/components/run-timeline.tsx` — `RunTimeline`;
-  implemented and tested, currently unmounted because nothing can feed it.
+  mounted on `/runs/[runId]` with real events and on `/runs/example` with a
+  labelled fixture. Both go through the same fold, so the example cannot
+  diverge from the product it demonstrates.
+- `apps/web/src/features/console/model/from-api.ts` — the only place the API's
+  wire shape meets the projection's input shape.
+- `apps/web/src/features/console/fixtures/example-run.ts` — the example Run.
+  `source: "FIXTURE"` reaches the fold, so the origin field says so on screen.
 - `apps/web/src/features/console/model/types.ts` — `RunView`, `RunStatus`,
   `RetrievalStatus`, `CanonicalStage`, `ContextEnvelope`, `CanonicalEvent`,
   `TimelineEntry`, `RunAttention`.
@@ -76,11 +86,41 @@ inspectable rather than dropped.
 | Loading | `ConsoleLoadingState` | `role="status"` skeletons; never a status word such as ready or healthy |
 | Degraded | `ConsoleErrorState` | Names the failed dependency, the consequence, and a retry |
 | Unavailable memory | `ConsoleUnavailableMemory` | States memory could not be read; infers no history |
-| Live / paused / history | `ConsoleTransportLabel` | History always carries its timestamp so it cannot read as current |
+| Latest snapshot / history | `ConsoleTransportLabel` | History always carries its timestamp so it cannot read as current |
 
 `ConsoleUnavailableMemory` and the unavailable states exist because "no runs
-yet" would claim a verified empty list. Nothing has been queried. Do not replace
-these with empty states until a real endpoint returns a real empty result.
+yet" would claim a verified empty list. On `/runs` the API now answers, so an
+empty list is a real empty list; on a surface with no endpoint the unavailable
+state still stands. Do not swap one for the other.
+
+## Transport
+
+There is no stream, so a Run surface reads once. What it offers reflects that.
+
+| Control | When | What it does |
+|---|---|---|
+| Event row | Always | Scrubs to that event and enters `HISTORY`, labelled with the event's exact timestamp |
+| `Back to latest` | Run in progress | Returns to `LATEST SNAPSHOT` |
+| `Back to the end` | Terminal Run | Returns to `ENDED` at the final event |
+
+**There is no Play and no Pause, deliberately.** Nothing advances the playhead:
+no timer, no stream. Pressing Play changed a badge to `PLAYING` over a still
+timeline and removed the way back, which is worse than offering nothing. The
+`play` and `pause` commands are removed from `TransportCommand`, so `PLAYING`
+and `PAUSED` cannot be reached: a caller that dispatches one does not typecheck.
+Both remain in the `PresentationState` union as states the product will have
+once the playhead can advance.
+
+The return control is ALWAYS present. It was briefly removed on a terminal Run,
+reasoning that a finished Run has no live edge to return to. It has an END, and
+without the control a reader who scrubbed into `HISTORY` had no way out short of
+reloading. The label names the real destination rather than implying an edge
+that is still moving.
+
+`LIVE` remains the internal mode name in `PresentationState` because it means
+"no ceiling on the playhead", which is the fold's own vocabulary. The
+user-facing label is `LATEST SNAPSHOT`. Do not rename the projection concept to
+fix a label.
 
 ## Responsive
 
@@ -92,7 +132,7 @@ hidden state is worth a toggle that can desynchronise. Reduced motion is handled
 by the global `prefers-reduced-motion` rule, which removes shell transitions
 without removing any content or state.
 
-## Missing endpoints
+## Endpoints
 
 Four of the five exist and are mounted: `POST /api/runs`, `GET /api/runs`,
 `GET /api/runs/{id}` and `GET /api/runs/{id}/events`.

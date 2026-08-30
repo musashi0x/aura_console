@@ -36,11 +36,18 @@ Seven scenes, one per idea.
 | 3 | Principles | `PrinciplesGrid` | `01` trace the decision, `02` keep memory private, `03` know what is ready |
 | 4 | Console reveal | `ConsoleStory` | The dark product window enters the bright page |
 | 5 | Causal story | `ConsoleStory` + `ConsolePreview` | Five events take turns being emphasised while the window is sticky |
-| 6 | Replay | `ReplayCounterfactual` | LIVE / PAUSED / HISTORY, and the memory counterfactual |
+| 6 | Replay | `ReplayCounterfactual` | LIVE / PAUSED / HISTORY chips, and the memory counterfactual. **Illustration, not the Console's transport** |
 | 7 | Close | `FinalCta` + `SiteFooter` | Calls to action and the non-mainnet footer |
 
 The opening scene carries no buttons on purpose. Every action appears later,
 after the story has been told.
+
+Scene 6's `LIVE` and `PAUSED` chips are static illustration inside the labelled
+preview window. The Console itself says neither: without a stream a Run reads
+once and reports `LATEST SNAPSHOT`, and there is no Play or Pause because nothing
+advances the playhead. Keep the chips only while the window stays visibly a
+preview, and never copy that vocabulary onto a real Run surface. See
+[console-shell.md](../ai/web/console-shell.md).
 
 ## Component map
 

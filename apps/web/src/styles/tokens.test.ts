@@ -148,3 +148,37 @@ describe("the first-run banner belongs to the light layer", () => {
     expect(block.slice(0, 200)).toMatch(/min-height:\s*44px/);
   });
 });
+
+describe("the Console fits a 390px viewport", () => {
+  /**
+   * At 390x844 the Console measured scrollWidth 428 against clientWidth 390 and
+   * the whole document scrolled sideways. Two causes, both easy to reintroduce:
+   * the topbar carries brand, surface, Run reference, environment and readiness
+   * with nothing allowed to shrink, and a grid item defaults to
+   * `min-width: auto`, which lets its content set the track width so the nav's
+   * own `overflow-x` never engages.
+   *
+   * A browser measurement is the real proof and is recorded in the handback.
+   * This guards the rules that make it true, because deleting one of them is
+   * silent until someone opens a phone.
+   */
+  const mobile = globals.slice(globals.lastIndexOf("@media (max-width: 47.99rem)"));
+
+  it("lets the topbar wrap instead of overflowing", () => {
+    expect(mobile).toMatch(/\.cs__bar\s*{[^}]*flex-wrap:\s*wrap/);
+  });
+
+  it("allows every part of the topbar to shrink", () => {
+    // Without this a flex item refuses to go below its content width.
+    expect(mobile).toMatch(/\.cs__bar\s*>\s*\*,[\s\S]{0,80}min-width:\s*0/);
+  });
+
+  it("keeps a long Run reference from setting the page width", () => {
+    expect(mobile).toMatch(/\.cs__run-ref\s*{[^}]*text-overflow:\s*ellipsis/);
+  });
+
+  it("lets the body grid tracks be narrower than their content", () => {
+    // This is what makes the nav strip's own overflow-x engage.
+    expect(mobile).toMatch(/\.cs__body\s*>\s*\*\s*{[^}]*min-width:\s*0/);
+  });
+});
