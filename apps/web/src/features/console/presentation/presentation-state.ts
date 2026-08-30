@@ -7,14 +7,19 @@
  */
 export type PresentationState =
   | { mode: "LIVE" }
+  /* Kept in the union because they are real presentation states the product
+     will have once the playhead can advance. Nothing produces them today: the
+     reducer has no command that returns either. */
   | { mode: "PLAYING"; sequence: number }
   | { mode: "PAUSED"; sequence: number }
   | { mode: "HISTORY"; sequence: number; atTime: string }
   | { mode: "ENDED"; finalSequence: number };
 
 export type TransportCommand =
-  | { kind: "play" }
-  | { kind: "pause" }
+  /* No `play` or `pause`. Removing the commands rather than ignoring them
+     makes PLAYING and PAUSED unreachable at COMPILE time: a caller that tries
+     to dispatch one does not typecheck, so the states cannot come back by
+     accident before the progression that justifies them. */
   | { kind: "scrubTo"; sequence: number; atTime: string }
   | { kind: "jumpToLive" }
   | { kind: "ended"; finalSequence: number };
@@ -57,20 +62,6 @@ export function presentationReducer(
   command: TransportCommand,
 ): PresentationState {
   switch (command.kind) {
-    case "play": {
-      // PLAYING is a claim that the playhead is advancing. Nothing advances it
-      // from ENDED — the Run has no further events — so entering PLAYING there
-      // would leave a control that says it is playing while nothing moves.
-      if (state.mode === "ENDED") return state;
-      const at = playhead(state);
-      return at === null ? state : { mode: "PLAYING", sequence: at };
-    }
-    case "pause": {
-      // Pausing something that is not running is not a state, it is a no-op.
-      if (state.mode === "ENDED") return state;
-      const at = playhead(state);
-      return at === null ? state : { mode: "PAUSED", sequence: at };
-    }
     case "scrubTo":
       // Scrubbing always lands in HISTORY, never in a mode that could read as
       // live, and it carries the timestamp the banner has to show.

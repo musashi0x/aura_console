@@ -100,8 +100,11 @@ describe("accessibility", () => {
     timeline();
     const group = screen.getByRole("group", { name: /timeline transport/i });
     expect(group).toBeInTheDocument();
-    for (const name of [/pause/i, /play/i, /back to latest/i]) {
-      expect(screen.getByRole("button", { name })).toBeInTheDocument();
+    // Back to latest is the only transport control, because it is the only one
+    // that does what its label says.
+    expect(screen.getByRole("button", { name: /back to latest/i })).toBeInTheDocument();
+    for (const name of [/^play$/i, /^pause$/i]) {
+      expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
     }
   });
 });

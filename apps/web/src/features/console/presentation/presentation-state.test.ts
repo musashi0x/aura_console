@@ -1,3 +1,4 @@
+import type { TransportCommand } from "./presentation-state";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -36,15 +37,24 @@ describe("presentation state", () => {
     expect(isHistorical(live)).toBe(false);
   });
 
-  it("pausing while live is a no-op, because there is no playhead yet", () => {
-    expect(presentationReducer(initialPresentation, { kind: "pause" })).toEqual(initialPresentation);
-  });
+  it("has no command that reaches PLAYING or PAUSED", () => {
+    // Nothing advances the playhead, so a PLAYING badge over a still timeline
+    // was a claim the product could not keep. The commands are gone rather than
+    // ignored, which makes those states unreachable at COMPILE time: a caller
+    // that dispatches `play` no longer typechecks. Removing this guard would
+    // fail to build rather than fail quietly.
+    const commands: TransportCommand["kind"][] = ["scrubTo", "jumpToLive", "ended"];
+    expect(commands).not.toContain("play");
+    expect(commands).not.toContain("pause");
 
-  it("pauses and resumes from a scrubbed position", () => {
-    const scrubbed = presentationReducer(initialPresentation, { kind: "scrubTo", sequence: 3, atTime: "t" });
-    const paused = presentationReducer(scrubbed, { kind: "pause" });
-    expect(paused).toEqual({ mode: "PAUSED", sequence: 3 });
-    expect(presentationReducer(paused, { kind: "play" })).toEqual({ mode: "PLAYING", sequence: 3 });
+    // And every state the reducer can produce from a scrub is one of the
+    // honest ones.
+    const scrubbed = presentationReducer(initialPresentation, {
+      kind: "scrubTo",
+      sequence: 3,
+      atTime: "t",
+    });
+    expect(scrubbed.mode).toBe("HISTORY");
   });
 
   it("ended is its own mode, not live with the pulse removed", () => {

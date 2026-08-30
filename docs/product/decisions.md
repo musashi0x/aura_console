@@ -90,7 +90,12 @@ that names its origin.
 - Live updates. `GET /api/runs/{run_id}/stream` does not exist, so a Run surface
   reads its events once. The transport reports `LATEST SNAPSHOT`, never `LIVE`.
 - Replay progression. The playhead can be scrubbed and held, but nothing
-  advances it on a timer, so `Play` and `Pause` are disabled on a Run that has
-  ended and on the example fixture. A control that says it is playing while
-  nothing moves is worse than no control.
+  advances it: there is no timer and no stream. `Play` and `Pause` are therefore
+  ABSENT from the Run surface, not merely disabled. Pressing Play changed the
+  badge to PLAYING over a still timeline and took `Back to latest` away with it,
+  which is worse than offering nothing. The `play` and `pause` commands are gone
+  from `TransportCommand`, so `PLAYING` and `PAUSED` are unreachable at compile
+  time and cannot return by accident before the progression that justifies them.
+  Scrubbing, the `HISTORY` label with its timestamp, and `Back to latest` all
+  remain.
 - Browser E2E for onboarding and landing, including real routing and console errors (Tracking task #60).

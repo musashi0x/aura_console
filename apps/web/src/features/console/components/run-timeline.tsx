@@ -97,37 +97,30 @@ export function RunTimeline({ events, seed, fixtureLabel }: RunTimelineProps) {
         </div>
       </dl>
 
+      {/* No Play or Pause. Nothing advances the playhead: there is no timer and
+          no stream, so pressing Play changed a badge to PLAYING while the
+          timeline sat still, and took the way back with it. Scrubbing and
+          returning to the latest are the two things that actually work, so they
+          are the two things offered. The controls return with progression. */}
       <div className="run__transport" role="group" aria-label="Timeline transport">
+        {/* Scrubbing must always be reversible. This was removed on an ended
+            Run, reasoning that there is no live edge to return to — true, but
+            there IS an end, and without the control a reader who scrubbed into
+            HISTORY had no way out short of reloading. The destination differs,
+            so the label does too: a finished Run has an end, not a moving edge,
+            and calling it "latest" would imply one. */}
         <button
           type="button"
           className="btn"
-          onClick={() => dispatch({ kind: "pause" })}
-          disabled={ended || at === null}
+          onClick={() =>
+            ended && complete.lastSequence !== null
+              ? dispatch({ kind: "ended", finalSequence: complete.lastSequence })
+              : dispatch({ kind: "jumpToLive" })
+          }
+          disabled={!historical}
         >
-          Pause
+          {ended ? "Back to the end" : "Back to latest"}
         </button>
-        <button
-          type="button"
-          className="btn"
-          onClick={() => dispatch({ kind: "play" })}
-          disabled={ended || at === null}
-        >
-          Play
-        </button>
-        {/* Offered only where it means something. Without a stream there is no
-            live edge to return to on an unfinished Run, and an ended Run has
-            none at all. The control is removed rather than disabled, so it does
-            not advertise a capability the Console does not have. */}
-        {ended ? null : (
-          <button
-            type="button"
-            className="btn"
-            onClick={() => dispatch({ kind: "jumpToLive" })}
-            disabled={!historical}
-          >
-            Back to latest
-          </button>
-        )}
       </div>
 
       <ol className="run__events">

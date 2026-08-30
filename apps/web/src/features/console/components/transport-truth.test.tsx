@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import type { RunEvent } from "@/lib/api-client";
@@ -74,23 +75,6 @@ describe("an unfinished Run is a snapshot, not a live feed", () => {
  * Playback that cannot advance must not offer itself. PLAYING with no
  * progression is a control that lies about what pressing it does.
  */
-describe("playback is offered only when it can advance", () => {
-  it("disables Play on an ended Run", () => {
-    mount(["run.created", "run.completed"]);
-    expect(screen.getByRole("button", { name: "Play" })).toBeDisabled();
-  });
-
-  it("disables Pause on an ended Run", () => {
-    mount(["run.created", "run.completed"]);
-    expect(screen.getByRole("button", { name: "Pause" })).toBeDisabled();
-  });
-
-  it("disables playback on a fixture", () => {
-    mount(["run.created", "run.completed"], {}, "Example data.");
-    expect(screen.getByRole("button", { name: "Play" })).toBeDisabled();
-  });
-});
-
 /**
  * The footer counts events. `lastSequence` is the highest sequence NUMBER, and
  * sequences are zero-based, so it read one short of the truth on every Run.
@@ -115,5 +99,91 @@ describe("origin survives transport", () => {
     mount(["run.created"], { source: "AGENT" });
     expect(screen.getByText("AGENT")).toBeInTheDocument();
     expect(screen.queryByText("API")).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Playback is not implemented.
+ *
+ * Scrubbing works, and holding the playhead at an earlier event works. Nothing
+ * advances it: there is no timer and no stream. `Play` therefore changed a
+ * badge to PLAYING while the timeline sat still, and it took `Back to latest`
+ * away on the way. A control that reports motion and delivers none is worse
+ * than no control, so the two are removed until progression exists.
+ */
+describe("playback is not offered while it does not exist", () => {
+  it("exposes no Play control on a Run still in progress", () => {
+    mount(["run.created", "run.started"]);
+    expect(screen.queryByRole("button", { name: /^play$/i })).not.toBeInTheDocument();
+  });
+
+  it("exposes no Pause control on a Run still in progress", () => {
+    mount(["run.created", "run.started"]);
+    expect(screen.queryByRole("button", { name: /^pause$/i })).not.toBeInTheDocument();
+  });
+
+  it("exposes no Play or Pause on an ended Run either", () => {
+    mount(["run.created", "run.completed"]);
+    expect(screen.queryByRole("button", { name: /^play$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^pause$/i })).not.toBeInTheDocument();
+  });
+
+  it("never claims playback is active", () => {
+    const { container } = mount(["run.created", "run.started"]);
+    expect(container.textContent).not.toMatch(/PLAYING|PAUSED/);
+  });
+});
+
+/** What survives: scrubbing, the history label, and the way back. */
+describe("scrubbing still works without playback", () => {
+  it("enters HISTORY when an earlier event is selected", async () => {
+    const user = userEvent.setup();
+    mount(["run.created", "run.started", "decision.made"]);
+    await user.click(screen.getAllByRole("button", { name: /show the run as of/i })[0]!);
+    expect(screen.getByText(/HISTORY/)).toBeInTheDocument();
+  });
+
+  it("carries the timestamp, so history cannot read as current", async () => {
+    const user = userEvent.setup();
+    mount(["run.created", "run.started", "decision.made"]);
+    await user.click(screen.getAllByRole("button", { name: /show the run as of/i })[0]!);
+    expect(screen.getByText(/HISTORY · 2026-08-29/)).toBeInTheDocument();
+  });
+
+  it("returns to the latest snapshot", async () => {
+    const user = userEvent.setup();
+    mount(["run.created", "run.started", "decision.made"]);
+    await user.click(screen.getAllByRole("button", { name: /show the run as of/i })[0]!);
+    await user.click(screen.getByRole("button", { name: /back to latest/i }));
+    expect(screen.getByText("LATEST SNAPSHOT")).toBeInTheDocument();
+    expect(screen.queryByText(/HISTORY/)).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Scrubbing must always be reversible.
+ *
+ * The return control was removed on an ended Run, reasoning that there is no
+ * live edge to go back to. There is not — but there IS an end, and without the
+ * control a reader who scrubbed into HISTORY had no way out short of reloading.
+ * A one-way door is worse than a slightly redundant button.
+ */
+describe("history is always escapable", () => {
+  it("offers a way out of HISTORY on an ended Run", async () => {
+    const user = userEvent.setup();
+    mount(["run.created", "run.started", "run.completed"]);
+    await user.click(screen.getAllByRole("button", { name: /show the run as of/i })[0]!);
+    expect(screen.getByText(/HISTORY/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /back to the end/i }));
+    expect(screen.getByText("ENDED")).toBeInTheDocument();
+    expect(screen.queryByText(/HISTORY/)).not.toBeInTheDocument();
+  });
+
+  it("names the destination for what it is on an ended Run", () => {
+    mount(["run.created", "run.completed"]);
+    // Not "latest": a finished Run has an end, not a moving edge.
+    expect(screen.getByRole("button", { name: /back to the end/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /back to latest/i })).not.toBeInTheDocument();
   });
 });
