@@ -2,9 +2,9 @@
 
 import { useReducer } from "react";
 
-import { MonoRef, StatusBadge } from "@/components/primitives";
+import { MonoRef, StatusBadge, type StatusTone } from "@/components/primitives";
 
-import { isTerminal, type RunView } from "../model/types";
+import { isTerminal, type RunStatus, type RunView } from "../model/types";
 import { foldRun, type FoldSeed } from "../projection/fold-run";
 import type { CanonicalEvent } from "../model/types";
 import {
@@ -28,6 +28,18 @@ export interface RunTimelineProps {
  * playhead)`; live is the same call with `null`. There is no second code path,
  * which is what stops replay and live drifting apart.
  */
+/**
+ * COMPLETED is a settled success; FAILED and CANCELLED are settled too, and
+ * neither is "pending". Only a Run that is genuinely still moving gets the
+ * in-progress tone.
+ */
+function statusTone(status: RunStatus): StatusTone {
+  if (status === "COMPLETED") return "ready";
+  if (status === "FAILED") return "error";
+  if (status === "CANCELLED") return "neutral";
+  return "pending";
+}
+
 export function RunTimeline({ events, seed, fixtureLabel }: RunTimelineProps) {
   // A finished recording must not open claiming LIVE. "Live" means following a
   // moving edge; a Run that already ended has no edge to follow, and a fixture
@@ -42,7 +54,9 @@ export function RunTimeline({ events, seed, fixtureLabel }: RunTimelineProps) {
       : initialPresentation,
   );
   const at = playhead(presentation);
-  const view: RunView = foldRun(events, seed, at);
+  // `complete` is already the unfiltered projection, so folding a second time
+  // for the same playhead is pure duplicate work on every scrub.
+  const view: RunView = at === null ? complete : foldRun(events, seed, at);
   const historical = isHistorical(presentation);
   // The COUNT of events, not the highest sequence NUMBER. Sequences are
   // zero-based, so `lastSequence` reported one fewer than the Run contains, and
@@ -63,15 +77,16 @@ export function RunTimeline({ events, seed, fixtureLabel }: RunTimelineProps) {
           </p>
         </div>
         <div className="run__states">
-          <StatusBadge tone={view.status === "COMPLETED" ? "ready" : "pending"}>
-            {view.status}
-          </StatusBadge>
+          {/* FAILED and CANCELLED are as finished as COMPLETED. Giving them the
+              in-progress tone made a failed Run look like one still working,
+              which is the opposite of what an operator is scanning for. */}
+          <StatusBadge tone={statusTone(view.status)}>{view.status}</StatusBadge>
           {/* Historical state must never be mistaken for live state. */}
-          {historical ? (
-            <StatusBadge tone="warning">
-              HISTORY
-              {presentation.mode === "HISTORY" ? ` · ${presentation.atTime}` : ""}
-            </StatusBadge>
+          {isHistorical(presentation) ? (
+            /* The timestamp is not optional here. `isHistorical` narrows to the
+               one state that carries `atTime`, so a HISTORY badge without its
+               point in time is now a type error rather than a silent gap. */
+            <StatusBadge tone="warning">{`HISTORY · ${presentation.atTime}`}</StatusBadge>
           ) : (
             <StatusBadge tone="pending">{transportLabel(presentation)}</StatusBadge>
           )}

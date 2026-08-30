@@ -54,7 +54,15 @@ export default async function RunPage({ params }: { params: Promise<{ runId: str
 
   return (
     <ConsoleShell surface="Runs" readiness={readiness} runRef={run.data.run.id}>
-      <RunTimeline events={eventsFromApi(events.data.events)} seed={seedFromRun(run.data.run)} />
+      {/* Keyed by Run. Both /runs/A and /runs/B render this component at the
+          same position, so without a key React reconciles instead of
+          remounting and the playhead — plus the other Run's timestamp —
+          survives the navigation. */}
+      <RunTimeline
+        key={runId}
+        events={eventsFromApi(events.data.events)}
+        seed={seedFromRun(run.data.run)}
+      />
     </ConsoleShell>
   );
 }

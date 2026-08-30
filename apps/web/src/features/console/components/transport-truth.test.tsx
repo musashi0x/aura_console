@@ -187,3 +187,37 @@ describe("history is always escapable", () => {
     expect(screen.queryByRole("button", { name: /back to latest/i })).not.toBeInTheDocument();
   });
 });
+
+/** Terminal is terminal. A Run that failed is not a Run still working. */
+describe("terminal statuses are visually distinct from in-progress ones", () => {
+  const toneOf = (text: string) =>
+    screen.getByText(text).closest("[class*='badge']")?.className ?? "";
+
+  it("does not dress a failed Run as pending", () => {
+    mount(["run.created", "run.failed"]);
+    expect(toneOf("FAILED")).not.toMatch(/pending/);
+  });
+
+  it("does not dress a cancelled Run as pending", () => {
+    mount(["run.created", "run.cancelled"]);
+    expect(toneOf("CANCELLED")).not.toMatch(/pending/);
+  });
+
+  it("still marks a completed Run as the settled success it is", () => {
+    mount(["run.created", "run.completed"]);
+    expect(toneOf("COMPLETED")).toMatch(/ready/);
+  });
+});
+
+/** A point in the past that does not say which point is not history, it is a guess. */
+describe("the historical badge always carries its timestamp", () => {
+  it("never renders a bare HISTORY label", async () => {
+    const user = userEvent.setup();
+    const { container } = mount(["run.created", "run.started", "decision.made"]);
+    await user.click(screen.getAllByRole("button", { name: /show the run as of/i })[0]!);
+    const badge = [...container.querySelectorAll(".status-badge")].find((b) =>
+      b.textContent?.includes("HISTORY"),
+    );
+    expect(badge?.textContent).toMatch(/HISTORY · \d{4}-\d{2}-\d{2}T/);
+  });
+});

@@ -13,7 +13,10 @@ import { stageFor } from "./stage-map";
 export interface FoldSeed {
   runId: string;
   objective: string;
-  source: "CONSOLE" | "AGENT" | "API" | "FIXTURE";
+  // Who STARTED the Run. "API" would name the transport that carried it
+  // rather than the actor, and would make a fixture and a real agent Run
+  // indistinguishable on the SOURCE line.
+  source: "CONSOLE" | "AGENT" | "FIXTURE";
   environment: string;
   budgetUsdc: string | null;
 }
@@ -78,7 +81,11 @@ export function foldRun(
     if (retrieval) retrievalStatus = retrieval;
 
     if (event.type === "decision.context.built") {
-      contextEnvelope = envelopeFrom(event.data);
+      // A later event that does not parse must not erase one that did. A
+      // partial write or a trimmed retry would otherwise hide a decision
+      // context that is still sitting in the event log.
+      const next = envelopeFrom(event.data);
+      if (next) contextEnvelope = next;
     }
 
     // Money is copied from a projection-bearing event, never computed here.

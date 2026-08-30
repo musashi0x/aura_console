@@ -127,3 +127,45 @@ describe("honest state", () => {
     expect(foldRun(base, seed).isMainnet).toBe(false);
   });
 });
+
+describe("a later malformed context event", () => {
+  it("does not erase an envelope the Run already proved", () => {
+    // A partial write, a schema change, or a retry with a trimmed payload can
+    // deliver a second context event that no longer parses. Dropping the good
+    // envelope would hide a decision context that is still in the event log.
+    const good = {
+      context_id: "ctx-1",
+      context_schema_version: "1",
+      context_hash: "h1",
+      summary: "Chose the cheaper provider",
+      input_refs: ["ref-1"],
+    };
+    const view = foldRun(
+      [
+        ev(0, "run.created"),
+        ev(1, "decision.context.built", good),
+        ev(2, "decision.context.built", { context_id: "ctx-1", summary: "half-written" }),
+      ],
+      seed,
+    );
+    expect(view.contextEnvelope).toEqual(good);
+  });
+
+  it("still takes a later envelope that does parse", () => {
+    const second = {
+      context_id: "ctx-2",
+      context_schema_version: "1",
+      context_hash: "h2",
+      summary: "Revised after approval",
+      input_refs: [],
+    };
+    const view = foldRun(
+      [
+        ev(1, "decision.context.built", { context_id: "ctx-1", context_schema_version: "1", context_hash: "h1", summary: "First", input_refs: [] }),
+        ev(2, "decision.context.built", second),
+      ],
+      seed,
+    );
+    expect(view.contextEnvelope).toEqual(second);
+  });
+});

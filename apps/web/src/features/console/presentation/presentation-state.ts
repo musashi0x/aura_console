@@ -41,9 +41,17 @@ export const initialPresentation: PresentationState = { mode: "LIVE" };
 export const transportLabel = (state: PresentationState): string =>
   state.mode === "LIVE" ? "LATEST SNAPSHOT" : state.mode;
 
-/** True when the operator is not looking at the newest event. */
-export const isHistorical = (state: PresentationState): boolean =>
-  state.mode === "PAUSED" || state.mode === "HISTORY";
+/**
+ * True when the operator is not looking at the newest event.
+ *
+ * Only HISTORY qualifies, because only HISTORY carries the `atTime` the badge
+ * has to show. PAUSED was included here once, and since it has no timestamp the
+ * badge rendered a bare "HISTORY" — an earlier point in the Run with nothing on
+ * screen saying which point. If PAUSED returns it must carry its own timestamp
+ * before it can claim this label.
+ */
+export const isHistorical = (state: PresentationState): state is Extract<PresentationState, { mode: "HISTORY" }> =>
+  state.mode === "HISTORY";
 
 /** The playhead, or null when following live. */
 export function playhead(state: PresentationState): number | null {
