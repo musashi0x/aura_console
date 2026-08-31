@@ -29,6 +29,28 @@ label and a note that it is not live data and not a Run. Readiness shown to an
 operator must come from a real check; policy and agent identity stay
 **Not checked** while no endpoint exists.
 
+## The Console lives under its own routes, not at the root
+
+The Console shell is served from `/runs`, `/counterparties`, `/policies`, and
+`/system`. It did not take over `/`, which stays the landing page, and it did
+not weaken `FirstRunGate`. Database and API readiness moved from the old root
+health card to `/system`.
+
+## The shell renders state, it does not own data
+
+`ConsoleShell` takes `surface`, a `readiness` result, and an optional Run
+reference. It computes none of them. Readiness is a real check result passed in,
+never assumed, and never borrowed from a previous surface: while a check is in
+flight the shell says `CHECKING` rather than `SYSTEM READY`. Every visible
+string lives in `apps/web/src/features/console/copy.ts` so the claims the
+product makes are reviewed in one file.
+
+## Unavailable is not empty
+
+A surface whose data source does not exist says so and names the task that owns
+it. It never renders an empty list, because an empty list claims a verified
+empty result from a query that never happened.
+
 ## Privacy acknowledgement is not consent
 
 The onboarding disclosure may be acknowledged in browser storage to avoid
@@ -48,9 +70,32 @@ Landing implementation, the visual system, the onboarding visual pass, and the
 Console shell are separate pull requests. A visual change should not carry
 routing or backend behaviour, and vice versa.
 
+## Terminal Runs have no edge to follow
+
+`COMPLETED`, `FAILED` and `CANCELLED` all end a Run. Each opens the timeline in
+`ENDED`, and the return-to-latest control is removed rather than disabled,
+because there is no latest to return to. Treating only `COMPLETED` as terminal
+left a failed Run claiming to follow an edge that had stopped.
+
+## Origin is a fact about the Run
+
+`CONSOLE`, `AGENT` and `FIXTURE` survive from the API through the fold to the
+screen. An agent-opened Run is not a Console-opened one, and neither is "the
+API": the API is the transport that carried the Run, not the actor that started
+it. Collapsing them hid that the example Run was example data in the one field
+that names its origin.
+
 ## Deferred work
 
-- Console shell and replayable Run timeline (Tracking task #44).
-- Run skeleton and replayable event shell (Tracking task #30).
-- Replace `/runs/new` and `/runs/example` placeholders with real Run surfaces (Tracking task #61; depends on #30 and #44).
+- Live updates. `GET /api/runs/{run_id}/stream` does not exist, so a Run surface
+  reads its events once. The transport reports `LATEST SNAPSHOT`, never `LIVE`.
+- Replay progression. The playhead can be scrubbed and held, but nothing
+  advances it: there is no timer and no stream. `Play` and `Pause` are therefore
+  ABSENT from the Run surface, not merely disabled. Pressing Play changed the
+  badge to PLAYING over a still timeline and took `Back to latest` away with it,
+  which is worse than offering nothing. The `play` and `pause` commands are gone
+  from `TransportCommand`, so `PLAYING` and `PAUSED` are unreachable at compile
+  time and cannot return by accident before the progression that justifies them.
+  Scrubbing, the `HISTORY` label with its timestamp, and `Back to latest` all
+  remain.
 - Browser E2E for onboarding and landing, including real routing and console errors (Tracking task #60).

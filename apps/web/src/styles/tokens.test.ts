@@ -94,6 +94,12 @@ describe("landing surface", () => {
     expect(globals).toMatch(/\.lp a\.lp-btn--primary\s*\{[^}]*color:\s*var\(--landing-surface\)/);
   });
 
+  it("keeps Console navigation out of the global anchor colour", () => {
+    // Same specificity trap as the landing buttons: `a:not(.btn)` beats a bare
+    // class, so nav links would render accent cyan instead of muted.
+    expect(globals).toMatch(/\.cs a\.cs__nav-link[\s\S]{0,120}color:\s*var\(--color-text-muted\)/);
+  });
+
   it("paints the document itself on the landing route so overscroll is not dark", () => {
     // Without this the Console canvas shows through when rubber-band scrolling
     // past the top or bottom of the light page.
@@ -114,5 +120,65 @@ describe("reduced motion", () => {
     const block = globals.slice(globals.indexOf("@media (prefers-reduced-motion: reduce)"));
     expect(block).toContain(".backdrop");
     expect(block).toContain(".panel--active");
+  });
+});
+
+
+describe("the first-run banner belongs to the light layer", () => {
+  // FirstRunGate renders on `/`, which is the bright editorial landing, but it
+  // was built from the Console's `.banner` and `.btn` classes. Those resolve
+  // `--fg` to the dark layer's near-white text, so "Not now" rendered at
+  // 1.03:1 on the landing canvas: present in the DOM, invisible to a reader,
+  // and worst on a phone where it is the only way out of the banner.
+  it("draws its text from landing tokens, not Console tokens", () => {
+    const block = globals.slice(globals.indexOf(".banner {"));
+    const banner = block.slice(0, block.indexOf("}"));
+    expect(banner).toMatch(/--landing-/);
+    expect(banner).not.toMatch(/var\(--fg\)|var\(--border\)(?!-)/);
+  });
+
+  it("gives its dismiss action AA contrast against the landing surface", () => {
+    // The dismiss action is the one a reader needs when they do not want the
+    // tour. It must clear AA, not merely exist.
+    expect(contrast(value("landing-ink"), value("landing-surface"))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("keeps both banner actions at the 44px touch minimum", () => {
+    const block = globals.slice(globals.indexOf(".banner .btn"));
+    expect(block.slice(0, 200)).toMatch(/min-height:\s*44px/);
+  });
+});
+
+describe("the Console fits a 390px viewport", () => {
+  /**
+   * At 390x844 the Console measured scrollWidth 428 against clientWidth 390 and
+   * the whole document scrolled sideways. Two causes, both easy to reintroduce:
+   * the topbar carries brand, surface, Run reference, environment and readiness
+   * with nothing allowed to shrink, and a grid item defaults to
+   * `min-width: auto`, which lets its content set the track width so the nav's
+   * own `overflow-x` never engages.
+   *
+   * A browser measurement is the real proof and is recorded in the handback.
+   * This guards the rules that make it true, because deleting one of them is
+   * silent until someone opens a phone.
+   */
+  const mobile = globals.slice(globals.lastIndexOf("@media (max-width: 47.99rem)"));
+
+  it("lets the topbar wrap instead of overflowing", () => {
+    expect(mobile).toMatch(/\.cs__bar\s*{[^}]*flex-wrap:\s*wrap/);
+  });
+
+  it("allows every part of the topbar to shrink", () => {
+    // Without this a flex item refuses to go below its content width.
+    expect(mobile).toMatch(/\.cs__bar\s*>\s*\*,[\s\S]{0,80}min-width:\s*0/);
+  });
+
+  it("keeps a long Run reference from setting the page width", () => {
+    expect(mobile).toMatch(/\.cs__run-ref\s*{[^}]*text-overflow:\s*ellipsis/);
+  });
+
+  it("lets the body grid tracks be narrower than their content", () => {
+    // This is what makes the nav strip's own overflow-x engage.
+    expect(mobile).toMatch(/\.cs__body\s*>\s*\*\s*{[^}]*min-width:\s*0/);
   });
 });

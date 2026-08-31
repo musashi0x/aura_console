@@ -36,11 +36,18 @@ Seven scenes, one per idea.
 | 3 | Principles | `PrinciplesGrid` | `01` trace the decision, `02` keep memory private, `03` know what is ready |
 | 4 | Console reveal | `ConsoleStory` | The dark product window enters the bright page |
 | 5 | Causal story | `ConsoleStory` + `ConsolePreview` | Five events take turns being emphasised while the window is sticky |
-| 6 | Replay | `ReplayCounterfactual` | LIVE / PAUSED / HISTORY, and the memory counterfactual |
+| 6 | Replay | `ReplayCounterfactual` | LIVE / PAUSED / HISTORY chips, and the memory counterfactual. **Illustration, not the Console's transport** |
 | 7 | Close | `FinalCta` + `SiteFooter` | Calls to action and the non-mainnet footer |
 
 The opening scene carries no buttons on purpose. Every action appears later,
 after the story has been told.
+
+Scene 6's `LIVE` and `PAUSED` chips are static illustration inside the labelled
+preview window. The Console itself says neither: without a stream a Run reads
+once and reports `LATEST SNAPSHOT`, and there is no Play or Pause because nothing
+advances the playhead. Keep the chips only while the window stays visibly a
+preview, and never copy that vocabulary onto a real Run surface. See
+[console-shell.md](../ai/web/console-shell.md).
 
 ## Component map
 
@@ -166,11 +173,30 @@ The landing page must never claim what the product cannot do.
 - No authentication, pricing, testimonials, workspaces, or invented users. A
   test greps for all of them.
 
+## Handoff into the Console
+
+Both landing calls to action lead into the Console shell: the header and closing
+primary action open `/runs/example`, the secondary action opens `/runs/new`. The
+shell takes over the visual layer at that boundary, from the bright editorial
+surface to the dark operational one, and states the environment and readiness
+itself.
+
+Both destinations are now real. `/runs/example` renders a labelled fixture
+through the production fold, and `/runs/new` creates a Run through
+`POST /api/runs`. Creating a Run records an objective and a ceiling; it
+authorizes no spending and takes no economic action. The Console shell is
+documented in [console-shell.md](../ai/web/console-shell.md).
+
 ## Known gaps
 
-- The Console preview is static. Real Run data depends on the Console shell
-  (task #44) and the run skeleton (task #30).
-- `/runs/new` and `/runs/example` are labelled placeholders (task #61).
+- The first-run banner is part of the LIGHT layer. It was built from Console
+  classes, which drew "Not now" at 1.03:1 on the landing canvas; it now uses
+  landing tokens at 17.93:1 with 44px targets. Anything added to that banner
+  must take its colour from `--landing-*`.
+
+- The Console preview is static, and is labelled as such. Real Run data lives
+  behind the landing, on the Console routes.
+- No live updates anywhere: there is no stream, so a Run surface reads once.
 - No browser E2E coverage yet (task #60).
 - The opening window is wider than the visual reference, which sits nearer 56%
   of viewport width. `min(72vw, 1080px)` was specified directly.

@@ -4,10 +4,11 @@ Aura Console is a pnpm/Turborepo monorepo for a single-operator console, its
 Hono API, and a Drizzle/Postgres data layer.
 
 Implemented today: the editorial landing page at `/`, the first-run onboarding
-flow at `/onboarding`, labelled placeholders for the Run destinations, and
-health endpoints. Not implemented: the Console shell, the real Run timeline,
-authentication, and any economic action. Do not invent backend state to fill
-those gaps.
+flow at `/onboarding`, the Console shell at `/runs`, `/counterparties`,
+`/policies`, and `/system`, and health endpoints. The Console renders honest
+unavailable states because no Run endpoints exist. Not implemented: Run
+creation, the events and stream endpoints, real Run data, authentication, and
+any economic action. Do not invent backend state to fill those gaps.
 
 ## Areas
 

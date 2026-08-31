@@ -1,32 +1,38 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
+import { ConsoleShell } from "@/features/console/components/console-shell";
+import { RunTimeline } from "@/features/console/components/run-timeline";
+import { exampleEvents, exampleRun } from "@/features/console/fixtures/example-run";
+import { eventsFromApi, seedFromRun } from "@/features/console/model/from-api";
+import { apiClient } from "@/lib/api-client";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = { title: "Example Run — Aura Console" };
 
 /**
- * Placeholder. The example Run replays the canonical Alpha and Beta fixture
- * through the same projection as a live Run, which does not exist yet. It is
- * labelled an example here for the same reason it will be later: it must never
- * be mistaken for live commerce.
+ * The example Run: fixture data through the real projection.
+ *
+ * It does not call the API for its events, and it says so. Everything else on
+ * the page behaves exactly as a real Run does, because it is the same
+ * component and the same fold. Readiness is still the live check: the example
+ * works whether or not the store is reachable, and claiming otherwise would
+ * make the badge a decoration.
  */
-export default function ExampleRunPlaceholder() {
+export default async function ExampleRunPage() {
+  const health = await apiClient.dbHealth();
+
   return (
-    <main id="main">
-      <h1>Example Run</h1>
-      <p className="subtitle">Not built yet. This is an example, not live commerce.</p>
-      <section className="card">
-        <p>
-          The example Run replays the canonical fixture through the same projection as a
-          real Run. That timeline is part of the Console shell and is still in progress.
-        </p>
-        <p className="detail">
-          Tracked by task #44 (Console shell and replayable Run timeline) and task #30
-          (run skeleton and replayable event shell).
-        </p>
-        <p>
-          <Link href="/">Back to the Console</Link>
-        </p>
-      </section>
-    </main>
+    <ConsoleShell
+      surface="Example Run"
+      readiness={health.ok ? "ready" : "degraded"}
+      runRef={exampleRun.id}
+    >
+      <RunTimeline
+        events={eventsFromApi(exampleEvents)}
+        seed={seedFromRun(exampleRun)}
+        fixtureLabel="Example data. This Run was not executed and no economic action was taken."
+      />
+    </ConsoleShell>
   );
 }

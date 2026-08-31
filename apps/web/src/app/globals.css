@@ -262,8 +262,14 @@ code {
   margin-top: 1.5rem;
 }
 
+/* The first-run banner renders on `/`, which is the BRIGHT editorial landing.
+   It was built from the Console's `.banner` and `.btn` classes, so `--fg`
+   resolved to the dark layer's near-white text and "Not now" drew at 1.03:1 on
+   the landing canvas. It was in the DOM, it was focusable, and it was invisible
+   — worst on a phone, where it is the only way to dismiss the banner. Every
+   colour here is a landing token for that reason. */
 .banner {
-  border: 1px solid var(--border);
+  border: 1px solid var(--landing-line);
   border-radius: 0.5rem;
   padding: 0.875rem 1rem;
   margin-bottom: 1.5rem;
@@ -271,6 +277,42 @@ code {
   gap: 0.75rem;
   align-items: center;
   flex-wrap: wrap;
+  background: var(--landing-surface);
+  color: var(--landing-ink);
+}
+
+.banner .btn {
+  /* 44px is the touch minimum. Padding rather than height, so a label that
+     wraps on a narrow screen still grows its control instead of clipping. */
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  border-color: var(--landing-line);
+  color: var(--landing-ink);
+  background: transparent;
+}
+
+.banner .btn--primary {
+  background: var(--landing-ink);
+  color: var(--landing-surface);
+  border-color: var(--landing-ink);
+}
+
+.banner .btn:focus-visible {
+  outline: 2px solid var(--landing-ink);
+  outline-offset: 2px;
+}
+
+@media (max-width: 30rem) {
+  /* Stacked, so neither action is squeezed under the other's label. */
+  .banner {
+    align-items: stretch;
+  }
+
+  .banner .btn {
+    justify-content: center;
+    flex: 1 1 auto;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1194,4 +1236,567 @@ body:has(.lp) {
   .lp-story__sticky {
     position: static;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Console shell. The operational layer: dark, dense, monospace metadata.
+   Distinct from the editorial landing surface by design.
+--------------------------------------------------------------------------- */
+
+.cs {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-canvas);
+  color: var(--color-text);
+}
+
+.cs__bar {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: 0 var(--space-6);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.cs__brand {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.16em;
+  text-decoration: none;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.cs__surface {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.1em;
+  color: var(--color-text-muted);
+}
+
+.cs__bar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.cs__env {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.1em;
+  color: var(--color-text-muted);
+}
+
+.cs__body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 13rem minmax(0, 1fr);
+}
+
+.cs__nav {
+  border-right: 1px solid var(--color-border);
+  padding: var(--space-6) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.cs__nav-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+/* The global `a:not(.btn)` rule out-specifies a bare class, so Console links
+   need the extra qualifier or the navigation renders in accent cyan. Same
+   trap the landing surface hit. */
+.cs a.cs__brand,
+.cs a.cs__nav-link,
+.cs a.cs__nav-secondary {
+  color: var(--color-text-muted);
+}
+
+.cs a.cs__nav-link[aria-current="page"] {
+  color: var(--color-text);
+}
+
+.cs a.cs__nav-link:hover,
+.cs a.cs__nav-secondary:hover {
+  color: var(--color-text);
+}
+
+.cs__nav-link,
+.cs__nav-secondary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  color: var(--color-text-muted);
+  font-size: var(--text-base);
+}
+
+.cs__nav-link[aria-current="page"] {
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+}
+
+/* Secondary destinations sit apart and never compete with the three product
+   destinations. */
+.cs__nav-list--secondary {
+  margin-top: auto;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.cs__nav-secondary {
+  font-size: var(--text-sm);
+}
+
+.cs__run-ref {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-cyan);
+}
+
+.cs__actions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.cs__action-link {
+  text-decoration: none;
+}
+
+.cs__muted {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.cs__detail {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  margin: 0 0 var(--space-3);
+}
+
+.cs__state-badge {
+  margin: 0 0 var(--space-3);
+}
+
+.cs__deferred {
+  margin-top: var(--space-6);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  max-width: 46rem;
+}
+
+.cs__loading {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 40rem;
+}
+
+.cs__loading-label {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+/* Static placeholders. No shimmer loop, and never a fabricated status value. */
+.cs__skeleton {
+  height: 1.25rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+}
+
+.cs__skeleton--short {
+  width: 40%;
+}
+
+.cs__main {
+  max-width: none;
+  padding: var(--space-8) var(--space-8) var(--space-12);
+}
+
+.cs__title {
+  font-size: var(--text-xl);
+  margin: 0 0 var(--space-2);
+}
+
+.cs__lede {
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-6);
+  max-width: 46rem;
+}
+
+.cs__owner {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.cs__link {
+  font-size: var(--text-sm);
+}
+
+.sys {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+  max-width: 52rem;
+}
+
+.sys__state {
+  margin: 0 0 var(--space-2);
+}
+
+.sys__detail {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.run__head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.run__objective {
+  font-size: var(--text-xl);
+  margin: 0 0 var(--space-2);
+}
+
+.run__meta {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin: 0;
+}
+
+.run__states {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.run__fixture {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-warning);
+}
+
+.run__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--space-4);
+  margin: var(--space-6) 0;
+  padding: var(--space-4) 0;
+  border-block: 1px solid var(--color-border);
+}
+
+.run__facts dt {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+}
+
+.run__facts dd {
+  margin: var(--space-1) 0 0;
+}
+
+.run__transport {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-6);
+}
+
+.run__events {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.run__event-btn {
+  width: 100%;
+  display: flex;
+  gap: var(--space-4);
+  align-items: baseline;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.run__event-btn:hover {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+}
+
+.run__seq {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-cyan);
+}
+
+.run__event-body {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.run__event-meta {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.run__foot {
+  margin-top: var(--space-6);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 47.99rem) {
+  .cs__body {
+    grid-template-columns: minmax(0, 1fr);
+    /* The rail becomes a row. Without explicit rows the auto row absorbs the
+       grid's free height and the strip grows far past its content. */
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .cs__nav {
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-2);
+    overflow-x: auto;
+    padding: var(--space-2) var(--space-4);
+  }
+
+  .cs__nav-list {
+    grid-auto-flow: column;
+    gap: var(--space-2);
+  }
+
+  /* Destinations scroll inside the strip; wrapping one onto two lines would
+     make the strip taller for every surface. */
+  .cs__nav a {
+    white-space: nowrap;
+  }
+
+  .cs__nav-list--secondary {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+    border-left: 1px solid var(--color-border);
+    padding-left: var(--space-2);
+  }
+
+  .cs__main {
+    padding: var(--space-6) var(--space-4) var(--space-12);
+  }
+
+  .cs__surface {
+    display: none;
+  }
+
+  /* A Run row stacks rather than squeezing its objective against its metadata. */
+  .cs a.cs__row {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  /* The bar carries the brand, the surface, a Run reference, the environment and
+     the readiness result. At 390px those together measured 428px against a
+     390px viewport, so the whole document scrolled sideways. Tighten the type,
+     let the bar wrap, and allow every part to shrink: dropping a label would
+     hide either which Run is open or whether the system is degraded. */
+  .cs__bar {
+    height: auto;
+    min-height: 56px;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-3);
+    padding: var(--space-2) var(--space-4);
+  }
+
+  .cs__bar > *,
+  .cs__bar-right {
+    min-width: 0;
+  }
+
+  .cs__bar-right {
+    /* Takes the full second row rather than being pushed past the right edge. */
+    margin-left: 0;
+    flex: 1 0 100%;
+    justify-content: space-between;
+  }
+
+  .cs__run-ref {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+  }
+
+  /* A grid item defaults to min-width:auto, which lets its content set the
+     track width. Without this the nav's own overflow-x never engages and the
+     strip widens the page instead of scrolling inside itself. */
+  .cs__body > * {
+    min-width: 0;
+  }
+
+  .cs__nav {
+    max-width: 100%;
+  }
+
+  .cs__brand,
+  .cs__env,
+  .cs__bar .status-badge {
+    font-size: 0.625rem;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+  }
+}
+
+/* A degraded badge is a link to the readiness detail. It must look like the
+   badge it wraps, not like body text with a badge inside it. */
+.cs a.cs__status-link {
+  display: inline-flex;
+  text-decoration: none;
+  border-radius: 999px;
+  color: inherit;
+}
+
+.cs a.cs__status-link:focus-visible {
+  outline: 2px solid var(--color-error);
+  outline-offset: 2px;
+}
+
+/* ── Run surfaces ───────────────────────────────────────────────────────────
+   The Runs list, and the form that creates one. Colour comes from the Console
+   token layer only: a literal hex here fails the token test. */
+
+.cs__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.cs a.cs__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  /* 44px minimum, through padding so a long objective still grows the row. */
+  min-height: 44px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.cs a.cs__row:hover {
+  border-color: var(--color-cyan);
+}
+
+.cs a.cs__row:focus-visible {
+  outline: 2px solid var(--color-cyan);
+  outline-offset: 2px;
+}
+
+.cs__row-objective {
+  flex: 1 1 18rem;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.cs__row-meta {
+  display: flex;
+  gap: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.cs__lede {
+  max-width: 62ch;
+  margin: 0 0 var(--space-5);
+  color: var(--color-text-muted);
+}
+
+.cs__form {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 34rem;
+}
+
+.cs__field {
+  display: grid;
+  gap: 6px;
+}
+
+.cs__label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.cs__input {
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.cs__input:focus-visible {
+  outline: 2px solid var(--color-cyan);
+  outline-offset: 1px;
+}
+
+.cs__hint {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.cs__form-error {
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-error);
+  border-radius: 8px;
+  color: var(--color-error);
 }

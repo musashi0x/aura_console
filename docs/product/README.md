@@ -22,7 +22,8 @@ in the Tracking project and should be kept in sync.
 | Landing page at `/` | Implemented ([PR #4](https://github.com/musashi0x/aura_console/pull/4)) |
 | Onboarding at `/onboarding` | Implemented |
 | `/runs/new`, `/runs/example` | Labelled placeholders, task #61 |
-| Console shell and Run timeline | Not implemented, task #44 and task #30 |
+| Console shell | Implemented ([PR #6](https://github.com/musashi0x/aura_console/pull/6)), task #44 |
+| Run timeline | Folded and tested, unmounted until an events endpoint exists, task #30 |
 | Browser E2E | Not implemented, task #60 |
 
 ## Source of truth
