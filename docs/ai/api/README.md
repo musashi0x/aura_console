@@ -7,6 +7,7 @@ The API is a Hono server running on Node. It exposes liveness and database readi
 - [Application and server lifecycle](application.md) — middleware, routes, errors, startup, and graceful shutdown.
 - [Health contract](health.md) — `/health` and `/health/db` semantics.
 - [Runs and events](runs.md) — the Run skeleton, the event store, and append semantics.
+- [ACP runtime](acp.md) — the verified ACP SDK surface, the client runtime, and the bridge that records its stream as Run events.
 
 ## What the Console still cannot call
 

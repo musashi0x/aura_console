@@ -244,3 +244,110 @@ build. `apps/api` is NodeNext ESM already, so the import is direct and needs no
 map. `pnpm add` reported two unmet peers from the Solana branch of the SDK
 (`ws@^8.18.0` against `ws@7.5.13`, and `utf-8-validate`); the EVM path does not
 load `@solana/rpc-subscriptions`, so they are noted rather than pinned around.
+
+---
+
+# The ACP runtime in this repository
+
+## What
+
+A client-role ACP agent that watches the job event stream and records what it
+observes as `run_events`. It buys nothing on its own: it never funds escrow,
+settles a job, proposes a price, or submits a deliverable.
+
+## Where
+
+- `apps/api/src/acp/env.ts` — the five variables, Zod-validated, exit 1 naming
+  the offender.
+- `apps/api/src/acp/provider.ts` — `LocalKeyEvmProviderAdapter`, the local-key
+  `IEvmProviderAdapter` the SDK does not ship.
+- `apps/api/src/acp/agent.ts` — builds `AcpAgent` with an explicit transport and
+  API client so the host is never the SDK's production default.
+- `apps/api/src/acp/translate.ts` — one stream entry to one event row.
+- `apps/api/src/acp/bridge.ts` — job identity, per-job ordering, appends.
+- `apps/api/src/acp/worker.ts` — the entrypoint and process lifecycle.
+- `apps/api/src/acp/create-job.ts` — the operator's manual job command.
+- `packages/db/src/schema/acp-jobs.ts` — the `(chain_id, job_id)` → `run_id` map.
+
+## Running it
+
+```bash
+pnpm --filter @aura/api acp
+```
+
+Its own process. `apps/api/src/server.ts` imports nothing from `src/acp/`, and
+`src/acp/isolation.test.ts` holds that: the API boots, serves `/health`, and
+passes its suite with every `ACP_*` variable unset. "The API is up" and "the ACP
+stream is connected" are two facts, and nothing in the code lets them collapse
+into one.
+
+## Event catalogue
+
+Every row's `data` carries `chain_id` and `job_id`. Amounts are six-decimal
+strings; see the float note above for what that precision does and does not
+mean.
+
+| `run_events.type` | Additional `data` |
+|---|---|
+| `acp.job.created` | `client`, `provider`, `evaluator`, `expired_at`, `hook` |
+| `acp.budget.set` | `amount_usdc`, optional `fund_request` |
+| `acp.job.funded` | `client`, `amount_usdc` |
+| `acp.job.submitted` | `provider`, `deliverable_hash`, `deliverable`, optional `fund_transfer` |
+| `acp.job.completed` | `evaluator`, `reason` |
+| `acp.job.rejected` | `rejector`, `reason` |
+| `acp.job.expired` | — |
+| `acp.message` | `from`, `content_type`, `content`, optional `package_id` |
+
+A `fund_request` / `fund_transfer` object holds `amount_usdc`, `token_address`,
+`symbol` and `recipient`.
+
+`event_time` is the entry's own `timestamp`, never arrival time. `sequence` is
+allocated by `RunStore` inside the insert transaction — the bridge never
+supplies one.
+
+## Run identity
+
+One ACP job is one Run. The Run and its `acp_jobs` mapping commit in a single
+transaction, so a crash cannot leave a Run nothing points at; if a concurrent
+writer wins the unique index first, its Run is the one both use.
+
+An ACP Run's seed is `source: "AGENT"`, `environment: "base-sepolia"`,
+`budget_usdc: null`. The provider's proposed price is an event, not a declared
+ceiling — the two are different claims and the seed does not blur them.
+
+Entries for one job are appended through a per-job promise chain. The row lock
+in `RunStore.appendEvent` already keeps sequences distinct; the chain is what
+keeps them in arrival order. Different jobs never wait on each other.
+
+## What it will not do
+
+`fund`, `complete`, `reject`, `setBudget`, `submit` and `executeTool` are never
+called from the handler path. `src/acp/never-automatic.test.ts` holds this two
+ways: a lifecycle driven against a recording Proxy session, and a source scan of
+every file an entry can reach.
+
+Job creation is `pnpm --filter @aura/api acp:create-job`, run by a person. It
+always passes an explicit evaluator, because omitting it selects the mode that
+releases escrow the moment a provider submits.
+
+## Operator setup
+
+1. Register an agent at <https://app.virtuals.io/acp/new> and note its wallet
+   address.
+2. Fund that wallet on Base Sepolia with test ETH and test USDC. Use a throwaway
+   key that controls nothing else.
+3. Fill `ACP_CHAIN_ID`, `ACP_WALLET_ADDRESS`, `ACP_WALLET_PRIVATE_KEY`,
+   `ACP_RPC_URL` and `ACP_SERVER_URL` in the root `.env` — see `.env.example`.
+   The runtime rejects any chain but Base Sepolia.
+4. `pnpm db:migrate`, then `pnpm --filter @aura/api acp`.
+5. To exercise it end to end, create a job with `acp:create-job` and watch the
+   entries land as `run_events`.
+
+## Not verified against a live agent
+
+Everything above is covered by tests, including the bridge against real
+Postgres. What has **not** run is the whole path against a registered agent on
+a funded wallet: no such agent exists for this repository yet. Two questions
+stay open until it does — how far back the transport replays a hydrated job's
+entries on `start()`, and whether the dev host rate-limits the `getJob` fetch
+the bridge makes on first sight of a job.

@@ -224,3 +224,32 @@ direction in the canonical UX spec, which needs the same change.
   Scrubbing, the `HISTORY` label with its timestamp, and `Back to latest` all
   remain.
 - Browser E2E for onboarding and landing, including real routing and console errors (Tracking task #60).
+
+## The ACP runtime observes; it does not spend
+
+The Virtuals ACP client runtime (`pnpm --filter @aura/api acp`) connects to the
+Agent Commerce Protocol event stream and records what it sees as `run_events`.
+It calls no method that moves money: not `fund`, `complete`, `reject`,
+`setBudget`, `submit`, or `executeTool`, which reaches all five by name. A
+provider's `budget.set` is recorded as a proposal awaiting authorization, and
+authorizing it is a separate change with its own operator surface.
+
+Creating a job is a command a person runs, and it always passes an explicit
+evaluator. The SDK's default is skip-evaluation, where a provider's submit
+auto-completes the job and releases escrow with nobody in the loop; that is
+precisely the automatic economic action the product forbids, so the unsafe
+default is refused in code rather than avoided by convention.
+
+## An ACP job is an AGENT Run
+
+One ACP job maps to exactly one Run, seeded `source: "AGENT"`,
+`environment: "base-sepolia"`, `budget_usdc: null`. It was not opened by the
+Console and the API did not open it either — origin stays a fact about the Run.
+
+`budget_usdc` is the ceiling an operator declares. A provider's proposed price
+is a different claim, so it lives in an event and never in the seed.
+
+The runtime is its own process. "The API is up" and "the ACP stream is
+connected" are two facts, and the API boots, serves, and passes its tests with
+the runtime stopped. Nothing in the Console reads ACP data yet, so nothing on
+screen claims an ACP timeline is complete.
