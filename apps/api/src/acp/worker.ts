@@ -4,6 +4,7 @@ import type { AcpAgent } from "@virtuals-protocol/acp-node-v2";
 import { createAcpAgent } from "./agent.js";
 import { AcpBridge } from "./bridge.js";
 import { loadAcpEnv } from "./env.js";
+import { jsonLogger as log } from "./log.js";
 import { AcpSpendExecutor } from "./spender.js";
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
@@ -26,32 +27,28 @@ const SWEEP_INTERVAL_MS = 30_000;
  * The runtime observes. It never funds, completes, rejects, sets a budget,
  * submits, or calls executeTool — see docs/ai/api/acp.md.
  */
-function log(level: "info" | "error", msg: string, fields: Record<string, unknown> = {}): void {
-  const line = JSON.stringify({ level, msg, ...fields });
-  if (level === "error") console.error(line);
-  else console.log(line);
-}
-
-async function main(): Promise<void> {
-  const env = loadAcpEnv();
-
-  // Bound below, before any entry can arrive: the agent is not started until
-  // after createAcpAgent returns, and only a started agent emits entries.
-  let agent: AcpAgent | undefined;
-
-  const bridge = new AcpBridge({
-    fetchJobDescription: async (chainId, jobId) => {
-      const job = await agent?.getApi().getJob(chainId, jobId);
-      return job?.description ?? null;
-    },
-    log,
-  });
-
+/**
+ * Connects, or exits. Split out so the rest of `main` holds a definitely
+ * connected agent rather than a possibly-undefined one.
+ *
+ * `onCreated` hands the agent back before `start`, because the bridge's
+ * description fetch closes over it and the agent must exist before the first
+ * entry can arrive.
+ */
+async function connect(
+  env: ReturnType<typeof loadAcpEnv>,
+  bridge: AcpBridge,
+  onCreated: (agent: AcpAgent) => void,
+): Promise<AcpAgent> {
   try {
-    agent = await createAcpAgent(env, (_session, entry) => bridge.handleEntry(entry));
+    const agent = await createAcpAgent(env, (_session, entry) => bridge.handleEntry(entry));
+    onCreated(agent);
+
     await agent.start(() => {
       log("info", "acp connected", { serverUrl: env.ACP_SERVER_URL, chainId: env.ACP_CHAIN_ID });
     });
+
+    return agent;
   } catch (error) {
     // Never report connected on the way out: a runtime that logs a failure and
     // keeps running would leave an operator believing a stream exists.
@@ -59,8 +56,26 @@ async function main(): Promise<void> {
     await closeDb();
     process.exit(1);
   }
+}
 
-  const connected = agent;
+async function main(): Promise<void> {
+  const env = loadAcpEnv();
+
+  // Bound below, before any entry can arrive: the agent is not started until
+  // after createAcpAgent returns, and only a started agent emits entries.
+  let pending: AcpAgent | undefined;
+
+  const bridge = new AcpBridge({
+    fetchJobDescription: async (chainId, jobId) => {
+      const job = await pending?.getApi().getJob(chainId, jobId);
+      return job?.description ?? null;
+    },
+    log,
+  });
+
+  const agent = await connect(env, bridge, (created) => {
+    pending = created;
+  });
 
   // Whatever a crash or an outage left behind, before anything new arrives.
   await bridge.sweep();
@@ -68,7 +83,7 @@ async function main(): Promise<void> {
   // Nothing is constructed when spending is off, so there is no code path from
   // a running worker to session.fund() at all.
   const spender = env.ACP_SPEND_ENABLED
-    ? new AcpSpendExecutor({ agent: connected, log })
+    ? new AcpSpendExecutor({ agent, log })
     : null;
 
   log("info", "acp spend executor", {
@@ -88,7 +103,7 @@ async function main(): Promise<void> {
   }, SWEEP_INTERVAL_MS);
   sweepTimer.unref();
 
-  log("info", "acp listening", { address: await connected.getAddress() });
+  log("info", "acp listening", { address: await agent.getAddress() });
 
   let shuttingDown = false;
 
@@ -104,7 +119,7 @@ async function main(): Promise<void> {
     forceExit.unref();
 
     clearInterval(sweepTimer);
-    await connected.stop();
+    await agent.stop();
     await closeDb();
 
     clearTimeout(forceExit);

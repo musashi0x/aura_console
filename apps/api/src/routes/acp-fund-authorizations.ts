@@ -1,7 +1,7 @@
 import { and, eq, getDb, schema } from "@aura/db";
 import { z } from "zod";
 
-import { fundAuthorizedEvent } from "../acp/translate.js";
+import { fundAuthorizedEvent } from "../acp/events.js";
 import { httpError } from "../errors.js";
 import { RunStore } from "../services/run-store.js";
 

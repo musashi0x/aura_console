@@ -2,15 +2,10 @@ import { and, asc, eq, getDb, isNull, schema, sql, type Database } from "@aura/d
 import type { JobRoomEntry } from "@virtuals-protocol/acp-node-v2";
 
 import { RunStore } from "../services/run-store.js";
-import { describedEvent, runSeedForJob, translateEntry } from "./translate.js";
+import { describedEvent, runSeedForJob, translateEntry } from "./events.js";
+import { jsonLogger, type AcpLogger } from "./log.js";
 
 export type JobDescriptionFetcher = (chainId: number, jobId: string) => Promise<string | null>;
-
-export type BridgeLogger = (
-  level: "info" | "error",
-  msg: string,
-  fields: Record<string, unknown>,
-) => void;
 
 export type AcpBridgeOptions = {
   /**
@@ -20,13 +15,7 @@ export type AcpBridgeOptions = {
   fetchJobDescription?: JobDescriptionFetcher;
   db?: Database;
   runStore?: RunStore;
-  log?: BridgeLogger;
-};
-
-const defaultLog: BridgeLogger = (level, msg, fields) => {
-  const line = JSON.stringify({ level, msg, ...fields });
-  if (level === "error") console.error(line);
-  else console.log(line);
+  log?: AcpLogger;
 };
 
 /** How many unprocessed rows one retry sweep will attempt. */
@@ -56,7 +45,7 @@ export class AcpBridge {
   private readonly db: Database;
   private readonly runStore: RunStore;
   private readonly fetchJobDescription: JobDescriptionFetcher | undefined;
-  private readonly log: BridgeLogger;
+  private readonly log: AcpLogger;
 
   /**
    * One promise chain per job. The database serialises appends for a Run
@@ -73,7 +62,7 @@ export class AcpBridge {
     this.db = options.db ?? getDb();
     this.runStore = options.runStore ?? new RunStore(this.db);
     this.fetchJobDescription = options.fetchJobDescription;
-    this.log = options.log ?? defaultLog;
+    this.log = options.log ?? jsonLogger;
   }
 
   private static key(chainId: number, jobId: string): string {
@@ -95,19 +84,20 @@ export class AcpBridge {
    */
   async handleEntry(entry: JobRoomEntry): Promise<void> {
     const captured = await this.capture(entry);
-    if (!captured) return;
+    if (captured.status !== "captured") return;
 
-    await this.enqueue(entry.chainId, entry.onChainJobId, () => this.project(captured));
+    await this.enqueue(entry.chainId, entry.onChainJobId, () => this.project(captured.row));
   }
 
   /**
    * One insert, no external calls, no transaction spanning anything else. A
    * duplicate delivery collides on the primary key and is skipped.
    *
-   * Returns null when the row is already captured, or when capture itself
-   * failed — the only genuinely lossy outcome, and the one worth shouting about.
+   * Three outcomes, named rather than collapsed into a null: a fresh row to
+   * project now, a row someone already captured, and a failure to capture at
+   * all. Only the last one loses anything.
    */
-  private async capture(entry: JobRoomEntry): Promise<InboxRow | null> {
+  private async capture(entry: JobRoomEntry): Promise<CaptureResult> {
     const { eventId } = translateEntry(entry);
 
     try {
@@ -122,11 +112,16 @@ export class AcpBridge {
         .onConflictDoNothing()
         .returning();
 
-      if (row) return { eventId, chainId: entry.chainId, jobId: entry.onChainJobId, entry };
+      if (row) {
+        return {
+          status: "captured",
+          row: { eventId, chainId: entry.chainId, jobId: entry.onChainJobId, entry },
+        };
+      }
 
-      // Already captured. It may still be unprocessed, so let the sweep own it
-      // rather than racing a second projection for the same row here.
-      return null;
+      // It may still be unprocessed, so let the sweep own it rather than
+      // racing a second projection for the same row here.
+      return { status: "already_captured" };
     } catch (error) {
       this.log("error", "acp entry capture failed", {
         chainId: entry.chainId,
@@ -135,7 +130,7 @@ export class AcpBridge {
         error: String(error),
         lost: true,
       });
-      return null;
+      return { status: "lost" };
     }
   }
 
@@ -178,18 +173,17 @@ export class AcpBridge {
     const key = AcpBridge.key(chainId, jobId);
     const previous = this.queues.get(key) ?? Promise.resolve();
     const next = previous.then(work);
+    const settled = next.catch(() => undefined);
 
-    this.queues.set(
-      key,
-      next.catch(() => undefined),
-    );
+    this.queues.set(key, settled);
 
     try {
       return await next;
     } finally {
-      if (this.queues.get(key) === next || this.queues.get(key) === undefined) {
-        this.queues.delete(key);
-      }
+      // Only the tail clears itself. If something was chained behind us the map
+      // now holds that instead, and deleting it would let the next caller start
+      // a parallel chain for the same job.
+      if (this.queues.get(key) === settled) this.queues.delete(key);
     }
   }
 
@@ -337,3 +331,8 @@ type InboxRow = {
   jobId: string;
   entry: JobRoomEntry;
 };
+
+type CaptureResult =
+  | { status: "captured"; row: InboxRow }
+  | { status: "already_captured" }
+  | { status: "lost" };

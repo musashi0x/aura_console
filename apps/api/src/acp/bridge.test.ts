@@ -3,8 +3,9 @@ import type { JobRoomEntry } from "@virtuals-protocol/acp-node-v2";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { RunStore } from "../services/run-store.js";
-import { AcpBridge, type AcpBridgeOptions, type BridgeLogger } from "./bridge.js";
-import { translateEntry } from "./translate.js";
+import { AcpBridge, type AcpBridgeOptions } from "./bridge.js";
+import type { AcpLogger } from "./log.js";
+import { translateEntry } from "./events.js";
 
 const CHAIN_ID = 84_532;
 const OTHER_CHAIN_ID = 97;
@@ -247,7 +248,7 @@ describe("AcpBridge", () => {
     });
 
     it("records the entry anyway when the fetch fails", async () => {
-      const log: BridgeLogger = () => {};
+      const log: AcpLogger = () => {};
       const enriching = makeBridge({
         log,
         fetchJobDescription: async () => {

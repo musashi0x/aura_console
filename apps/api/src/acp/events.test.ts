@@ -1,16 +1,7 @@
 import type { JobRoomEntry } from "@virtuals-protocol/acp-node-v2";
 import { describe, expect, it } from "vitest";
 
-import {
-  canonicalJson,
-  describedEvent,
-  environmentForChain,
-  runSeedForJob,
-  translateEntry,
-  usdcString,
-  usdcStringFromRaw,
-  uuidV5,
-} from "./translate.js";
+import { describedEvent, environmentForChain, runSeedForJob, translateEntry } from "./events.js";
 
 const CHAIN_ID = 84_532;
 const JOB_ID = "42";
@@ -63,45 +54,6 @@ const systemEvents = [
   { type: "job.rejected", jobId: JOB_ID, rejector: "0xe", reason: "no" },
   { type: "job.expired", jobId: JOB_ID },
 ] as const satisfies readonly Extract<JobRoomEntry, { kind: "system" }>["event"][];
-
-describe("canonicalJson", () => {
-  it("is stable under key reordering", () => {
-    expect(canonicalJson({ b: 1, a: { d: 2, c: 3 } })).toBe(canonicalJson({ a: { c: 3, d: 2 }, b: 1 }));
-  });
-
-  it("does not conflate an omitted key with a null one", () => {
-    expect(canonicalJson({ a: 1 })).not.toBe(canonicalJson({ a: 1, b: null }));
-  });
-});
-
-describe("uuidV5", () => {
-  it("produces a stable version 5 uuid", () => {
-    const id = uuidV5("acp");
-
-    expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
-    expect(uuidV5("acp")).toBe(id);
-    expect(uuidV5("acp!")).not.toBe(id);
-  });
-});
-
-describe("usdc formatting", () => {
-  it("renders six decimals", () => {
-    expect(usdcString(1.5)).toBe("1.500000");
-    expect(usdcString(0)).toBe("0.000000");
-  });
-
-  it("refuses a non-finite amount rather than storing NaN", () => {
-    expect(() => usdcString(Number.NaN)).toThrow(/non-finite/);
-  });
-
-  it("converts a raw integer without going through a float", () => {
-    expect(usdcStringFromRaw(1_500_000n)).toBe("1.500000");
-    expect(usdcStringFromRaw(1n)).toBe("0.000001");
-    expect(usdcStringFromRaw(0n)).toBe("0.000000");
-    // Beyond Number.MAX_SAFE_INTEGER: a float round-trip would lose this.
-    expect(usdcStringFromRaw(9_007_199_254_740_993_000_000n)).toBe("9007199254740993.000000");
-  });
-});
 
 describe("translateEntry", () => {
   it.each(systemEvents.map((event) => [event.type, event] as const))(

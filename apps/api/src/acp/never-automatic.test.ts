@@ -21,7 +21,7 @@ const FORBIDDEN = ["fund", "complete", "reject", "setBudget", "submit", "execute
  * entry does reaches it. Its only input is an `acp_spend_intents` row that an
  * operator created, which is the whole point of the split.
  */
-const HANDLER_PATH = ["./worker.ts", "./bridge.ts", "./translate.ts", "./agent.ts"];
+const HANDLER_PATH = ["./worker.ts", "./bridge.ts", "./events.ts", "./agent.ts"];
 
 const read = (relative: string) =>
   readFile(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
@@ -110,7 +110,7 @@ describe("the runtime never acts on its own", () => {
   it("reaches the spender only from an operator's instruction, never from an entry", async () => {
     // The handler path does not import the executor at all, so there is no
     // call graph from an observed entry to session.fund().
-    for (const file of ["./bridge.ts", "./translate.ts", "./agent.ts"]) {
+    for (const file of ["./bridge.ts", "./events.ts", "./agent.ts"]) {
       expect(code(await read(file)), `${file} imports the spender`).not.toMatch(/spender/);
     }
 

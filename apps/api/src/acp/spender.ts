@@ -2,8 +2,9 @@ import { eq, getDb, schema, sql, type Database } from "@aura/db";
 import { AssetToken, type AcpAgent } from "@virtuals-protocol/acp-node-v2";
 
 import { RunStore } from "../services/run-store.js";
-import type { BridgeLogger } from "./bridge.js";
-import { fundFailedEvent, fundSubmittedEvent, usdcRawFromString } from "./translate.js";
+import { fundFailedEvent, fundSubmittedEvent } from "./events.js";
+import { jsonLogger, type AcpLogger } from "./log.js";
+import { usdcRawFromString } from "./usdc.js";
 
 /**
  * How many times an authorization is retried before the runtime stops and
@@ -16,13 +17,7 @@ export type SpendExecutorOptions = {
   agent: Pick<AcpAgent, "getSession">;
   db?: Database;
   runStore?: RunStore;
-  log?: BridgeLogger;
-};
-
-const defaultLog: BridgeLogger = (level, msg, fields) => {
-  const line = JSON.stringify({ level, msg, ...fields });
-  if (level === "error") console.error(line);
-  else console.log(line);
+  log?: AcpLogger;
 };
 
 /**
@@ -43,13 +38,13 @@ export class AcpSpendExecutor {
   private readonly db: Database;
   private readonly runStore: RunStore;
   private readonly agent: Pick<AcpAgent, "getSession">;
-  private readonly log: BridgeLogger;
+  private readonly log: AcpLogger;
 
   constructor(options: SpendExecutorOptions) {
     this.db = options.db ?? getDb();
     this.runStore = options.runStore ?? new RunStore(this.db);
     this.agent = options.agent;
-    this.log = options.log ?? defaultLog;
+    this.log = options.log ?? jsonLogger;
   }
 
   /** Executes every authorization waiting. Returns what it managed to do. */
@@ -74,7 +69,7 @@ export class AcpSpendExecutor {
    * one it must not also execute.
    */
   private async claim(): Promise<Claimed | null> {
-    const result = await this.db.execute<Claimed>(sql`
+    const result = await this.db.execute<Omit<Claimed, "chainId"> & { chainId: string }>(sql`
       update acp_spend_intents
       set claimed_at = now(), attempts = attempts + 1
       where authorization_event_id = (
@@ -96,12 +91,16 @@ export class AcpSpendExecutor {
         attempts
     `);
 
-    return result.rows[0] ?? null;
+    const row = result.rows[0];
+    if (!row) return null;
+
+    // Postgres returns bigint as a string over the wire. Normalising here keeps
+    // the union out of every downstream signature.
+    return { ...row, chainId: Number(row.chainId) };
   }
 
   private async execute(intent: Claimed): Promise<boolean> {
-    const chainId = Number(intent.chainId);
-    const amountUsdc = intent.amountUsdc;
+    const { chainId, amountUsdc } = intent;
 
     try {
       const session = this.agent.getSession(chainId, intent.jobId);
@@ -145,7 +144,7 @@ export class AcpSpendExecutor {
       });
       return true;
     } catch (error) {
-      await this.recordFailure(intent, chainId, String(error));
+      await this.recordFailure(intent, String(error));
       return false;
     }
   }
@@ -155,7 +154,8 @@ export class AcpSpendExecutor {
    * Only the final failure becomes an event: a retry is operational noise, a
    * giving-up is history an operator needs.
    */
-  private async recordFailure(intent: Claimed, chainId: number, reason: string): Promise<void> {
+  private async recordFailure(intent: Claimed, reason: string): Promise<void> {
+    const { chainId } = intent;
     const exhausted = intent.attempts >= MAX_ATTEMPTS;
 
     await this.db
@@ -194,7 +194,7 @@ export class AcpSpendExecutor {
 type Claimed = {
   authorizationEventId: string;
   runId: string;
-  chainId: number | string;
+  chainId: number;
   jobId: string;
   amountUsdc: string;
   attempts: number;
