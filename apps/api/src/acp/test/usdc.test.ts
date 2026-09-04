@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { usdcRawFromString, usdcString, usdcStringFromRaw } from "./usdc.js";
+import { usdcRawFromString, usdcString, usdcStringFromRaw } from "../domain/usdc.js";
 
 describe("usdc formatting", () => {
   it("renders six decimals", () => {

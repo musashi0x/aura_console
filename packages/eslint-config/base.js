@@ -55,6 +55,30 @@ export const base = tseslint.config(
     },
     rules: strictOverrides.rules,
   },
+  {
+    /**
+     * A test directory one level below its subject reaches its own package's
+     * siblings with `../../`, which the pattern above cannot tell apart from a
+     * genuine cross-package import. Only `../../*` is relaxed, and only for
+     * tests: `../../../*` and deeper stay banned, so the escape hatch still
+     * cannot leave the package.
+     */
+    files: ["**/src/*/test/**/*.test.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["../../../*", "../../../../*"],
+              message:
+                "Do not import across package boundaries with relative paths. Use the workspace package name (e.g. @aura/db).",
+            },
+          ],
+        },
+      ],
+    },
+  },
 );
 
 export default base;

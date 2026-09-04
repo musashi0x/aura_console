@@ -5,7 +5,7 @@ import { getDb, schema } from "@aura/db";
 import type { JobRoomEntry, JobSession } from "@virtuals-protocol/acp-node-v2";
 import { describe, expect, it } from "vitest";
 
-import { AcpBridge } from "./bridge.js";
+import { AcpBridge } from "../bridge.js";
 
 /**
  * The five session methods that move money or commit to a price, plus
@@ -32,15 +32,15 @@ const resolve = (relative: string) => fileURLToPath(new URL(relative, import.met
 const read = (relative: string) => readFile(resolve(relative), "utf8");
 
 async function sourcesIn(dir: string): Promise<string[]> {
-  const entries = await readdir(resolve(`./${dir}`));
+  const entries = await readdir(resolve(`../${dir}`));
   return entries
     .filter((name) => name.endsWith(".ts") && !name.endsWith(".test.ts"))
-    .map((name) => `./${dir}/${name}`);
+    .map((name) => `../${dir}/${name}`);
 }
 
 async function entryPathSources(): Promise<string[]> {
   const nested = await Promise.all(ENTRY_PATH_DIRS.map(sourcesIn));
-  return [...ENTRY_PATH_FILES.map((name) => `./${name}`), ...nested.flat()];
+  return [...ENTRY_PATH_FILES.map((name) => `../${name}`), ...nested.flat()];
 }
 
 /** Strips comments so prose about what we never call is not mistaken for a call. */
@@ -131,20 +131,20 @@ describe("the runtime never acts on its own", () => {
   it("lets nothing on the inbound side reach the spender", async () => {
     // No import edge means no call graph from an observed entry to
     // session.fund(), whatever anyone writes inside the bridge.
-    for (const file of ["./bridge.ts", ...(await sourcesIn("domain")), ...(await sourcesIn("connection"))]) {
+    for (const file of ["../bridge.ts", ...(await sourcesIn("domain")), ...(await sourcesIn("connection"))]) {
       expect(code(await read(file)), `${file} imports the spender`).not.toMatch(/spender/);
     }
   });
 
   it("reaches the spender only from an operator's instruction", async () => {
     // The worker holds it, and only builds one when the operator opted in.
-    const worker = code(await read("./worker.ts"));
+    const worker = code(await read("../worker.ts"));
     expect(worker).toMatch(/ACP_SPEND_ENABLED/);
     expect(worker).toMatch(/env\.ACP_SPEND_ENABLED\s*\?/);
   });
 
   it("makes the spender act on an instruction row, not on an event", async () => {
-    const spender = code(await read("./spender.ts"));
+    const spender = code(await read("../spender.ts"));
 
     // Reading run_events for something to do would make a forgeable event an
     // instruction. The only source of work is the intents table.

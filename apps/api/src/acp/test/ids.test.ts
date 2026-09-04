@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { canonicalJson, derivedEventId, uuidV5 } from "./ids.js";
+import { canonicalJson, derivedEventId, uuidV5 } from "../domain/ids.js";
 
 describe("canonicalJson", () => {
   it("is stable under key reordering", () => {

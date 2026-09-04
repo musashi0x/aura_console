@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { BASE_SEPOLIA_CHAIN_ID, loadAcpEnv, parseAcpEnv } from "./env.js";
+import { BASE_SEPOLIA_CHAIN_ID, loadAcpEnv, parseAcpEnv } from "../connection/env.js";
 
 const validEnv = {
   ACP_CHAIN_ID: String(BASE_SEPOLIA_CHAIN_ID),

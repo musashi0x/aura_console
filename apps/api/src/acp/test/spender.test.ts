@@ -2,9 +2,9 @@ import { eq, getDb, schema } from "@aura/db";
 import type { AcpAgent, JobSession } from "@virtuals-protocol/acp-node-v2";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { authorizeFund } from "../routes/acp-fund-authorizations.js";
-import { RunStore } from "../services/run-store.js";
-import { AcpSpendExecutor } from "./spender.js";
+import { authorizeFund } from "../../routes/acp-fund-authorizations.js";
+import { RunStore } from "../../services/run-store.js";
+import { AcpSpendExecutor } from "../spender.js";
 
 const CHAIN_ID = 84_532;
 const JOB_ID = "42";

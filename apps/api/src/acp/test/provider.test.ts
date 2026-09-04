@@ -3,7 +3,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { baseSepolia } from "viem/chains";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { LocalKeyEvmProviderAdapter } from "./provider.js";
+import { LocalKeyEvmProviderAdapter } from "../connection/provider.js";
 
 const privateKey = `0x${"7".repeat(64)}` as Hex;
 const account = privateKeyToAccount(privateKey);

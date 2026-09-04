@@ -276,8 +276,15 @@ settles a job, proposes a price, or submits a deliverable.
 
 Layout: the two pipelines and the entrypoint sit at the module root, where a
 reader lands. `connection/` is how we reach ACP, `domain/` is what we record and
-is pure. Nothing nests deeper, because a file two levels below `src/` cannot
-reach `src/services` without the relative import the repo's ESLint config bans.
+is pure, and `test/` holds every test in the module. No source file nests
+deeper, because a file two levels below `src/` cannot reach `src/services`
+without the relative import the repo's ESLint config bans.
+
+`test/` is the one exception, and the config says so: `**/src/*/test/**/*.test.ts`
+may use `../../` and nothing deeper, so a test can reach its own package's
+siblings but still cannot leave the package. This module keeps its tests in one
+folder rather than beside each source file; the rest of the repository
+co-locates.
 - `packages/db/src/schema/acp-jobs.ts` — the `(chain_id, job_id)` → `run_id` map.
 - `packages/db/src/schema/acp-inbox.ts` — raw captured entries awaiting projection.
 
@@ -288,7 +295,7 @@ pnpm --filter @aura/api acp
 ```
 
 Its own process. `apps/api/src/server.ts` imports nothing from `src/acp/`, and
-`src/acp/isolation.test.ts` holds that: the API boots, serves `/health`, and
+`src/acp/test/isolation.test.ts` holds that: the API boots, serves `/health`, and
 passes its suite with every `ACP_*` variable unset. "The API is up" and "the ACP
 stream is connected" are two facts, and nothing in the code lets them collapse
 into one.
@@ -413,7 +420,7 @@ prerequisite for anything beyond a single operator on one machine.
 ## What it will not do
 
 `fund`, `complete`, `reject`, `setBudget`, `submit` and `executeTool` are never
-called from the handler path. `src/acp/never-automatic.test.ts` holds this
+called from the handler path. `src/acp/test/never-automatic.test.ts` holds this
 several ways: a lifecycle driven against a recording Proxy session, a source
 scan of every file an entry can reach, a check that no handler-path file even
 imports the executor, and a check that the executor works from the intents table

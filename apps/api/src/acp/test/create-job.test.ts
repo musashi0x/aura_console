@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { evaluatorOptions, NO_EVALUATOR_ADDRESS, parseCreateJobArgs } from "./create-job.js";
+import { evaluatorOptions, NO_EVALUATOR_ADDRESS, parseCreateJobArgs } from "../create-job.js";
 
 const provider = "0x1111111111111111111111111111111111111111";
 

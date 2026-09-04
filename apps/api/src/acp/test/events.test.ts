@@ -1,7 +1,7 @@
 import type { JobRoomEntry } from "@virtuals-protocol/acp-node-v2";
 import { describe, expect, it } from "vitest";
 
-import { describedEvent, environmentForChain, runSeedForJob, translateEntry } from "./events.js";
+import { describedEvent, environmentForChain, runSeedForJob, translateEntry } from "../domain/events.js";
 
 const CHAIN_ID = 84_532;
 const JOB_ID = "42";

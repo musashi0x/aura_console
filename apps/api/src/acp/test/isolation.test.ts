@@ -14,14 +14,14 @@ const read = (relative: string) =>
  */
 describe("ACP runtime isolation", () => {
   it("keeps src/acp out of the HTTP server's module graph", async () => {
-    for (const file of ["../server.ts", "../app.ts"]) {
+    for (const file of ["../../server.ts", "../../app.ts"]) {
       const source = await read(file);
       expect(source).not.toMatch(/from\s+["'].*\bacp\b/);
     }
   });
 
   it("keeps ACP variables out of the API environment schema", async () => {
-    const source = await read("../env.ts");
+    const source = await read("../../env.ts");
 
     expect(source).not.toContain("ACP_");
   });
@@ -31,7 +31,7 @@ describe("ACP runtime isolation", () => {
       if (key.startsWith("ACP_")) delete process.env[key];
     }
 
-    const { app } = await import("../app.js");
+    const { app } = await import("../../app.js");
     const response = await app.request("/health");
 
     expect(response.status).toBe(200);
