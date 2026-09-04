@@ -1,4 +1,5 @@
 import type { CanonicalStage } from "../model/types";
+import { ACP_STAGE_PREFIXES } from "./acp-events";
 
 /** Event type prefix to the stage it belongs to in the operator's story. */
 const STAGE_BY_PREFIX: [string, CanonicalStage][] = [
@@ -12,8 +13,9 @@ const STAGE_BY_PREFIX: [string, CanonicalStage][] = [
   ["decision.", "DECIDE"],
   ["approval.", "DECIDE"],
   ["override.", "DECIDE"],
-  ["acp.job.funded", "FUND"],
-  ["acp.job", "FUND"],
+  // ACP types translate into the same stages as everything else; the list
+  // lives with the rest of the Console's ACP knowledge.
+  ...ACP_STAGE_PREFIXES,
   ["evaluation.", "EVALUATE"],
   ["outcome.", "DELIVER"],
   ["memory.episode", "LEARN"],

@@ -253,3 +253,41 @@ The runtime is its own process. "The API is up" and "the ACP stream is
 connected" are two facts, and the API boots, serves, and passes its tests with
 the runtime stopped. Nothing in the Console reads ACP data yet, so nothing on
 screen claims an ACP timeline is complete.
+
+## Spending is authorized in the log, executed by the runtime
+
+The ACP runtime can now fund a job. It still decides nothing: an operator
+authorizes through `POST /api/runs/:id/acp/fund-authorizations`, which writes
+the `acp.fund.authorized` event and an `acp_spend_intents` row in one
+transaction. The event is the record of the decision; the row is the
+instruction, and it is the only thing the executor reads.
+
+That separation is load-bearing rather than tidy. `POST /:id/events` accepts any
+event type, so an authorization event is forgeable — and inert, because nothing
+scans `run_events` for work to do. The four never-automatic rules survive
+intact: the runtime never authorizes spending, and it executes no economic
+action that a person did not already authorize.
+
+Spending is off unless `ACP_SPEND_ENABLED=true`. With it unset the worker builds
+no executor, so a running process has no path to `fund` at all.
+
+This is the first endpoint that can lead to money moving, and v0.1 still has no
+authentication — a decision taken when nothing could spend. Anyone who can reach
+the API port can authorize a testnet spend. The port stays local, and
+authentication is a prerequisite for anything beyond one operator on one
+machine.
+
+## ACP is a Run, not a second vocabulary
+
+`acp.` is a storage namespace that says where a fact came from. It reaches the
+screen as the Console's own language: `WAITING_APPROVAL` when a provider
+proposes a price, `FUND` and `DELIVER` and `EVALUATE` stages, `BLOCKED` when
+funding gave up. There is no ACP surface and no ACP component.
+
+`spentUsdc` moves only on an observed `acp.job.funded`. A proposed price, an
+operator's authorization and the runtime's own "we sent it" are three different
+claims, and none of them is money that left.
+
+Understood-but-stageless types (`acp.message`, `acp.job.expired`) render as
+`SUPPORTED` without a stage. Marking them unrecognised told the operator the
+Console did not understand an event it had just shown them.

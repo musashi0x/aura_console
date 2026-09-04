@@ -299,6 +299,9 @@ mean.
 | `acp.job.expired` | — |
 | `acp.job.described` | `description` |
 | `acp.message` | `from`, `content_type`, `content`, optional `package_id` |
+| `acp.fund.authorized` | `amount_usdc` — an operator's decision, not the runtime's |
+| `acp.fund.submitted` | `amount_usdc`, `authorization_event_id` |
+| `acp.fund.failed` | `amount_usdc`, `authorization_event_id`, `reason`, `attempts` |
 
 A `fund_request` / `fund_transfer` object holds `amount_usdc`, `token_address`,
 `symbol` and `recipient`.
@@ -359,12 +362,51 @@ Entries for one job are appended through a per-job promise chain. The row lock
 in `RunStore.appendEvent` already keeps sequences distinct; the chain is what
 keeps them in arrival order. Different jobs never wait on each other.
 
+## Spending: the operator decides, the runtime executes
+
+The runtime can fund a job. It still decides nothing.
+
+```
+operator ─► POST /api/runs/:id/acp/fund-authorizations
+              ├─ acp.fund.authorized   the decision, as history
+              └─ acp_spend_intents     the instruction        (one transaction)
+
+worker   ─► claim a row (FOR UPDATE SKIP LOCKED)
+              └─ session.fund() ─► acp.fund.submitted
+```
+
+The split is the point. `POST /api/runs/:id/events` accepts any event type, so
+an `acp.fund.authorized` event is trivially forgeable — and buys nothing,
+because the executor reads only `acp_spend_intents` and never scans `run_events`
+for work. The route is the only writer of that table.
+
+A row is claimed before the chain is touched, so two workers cannot fund one job
+twice. Amounts reach the chain as integers: the decimal string becomes a bigint
+by integer arithmetic and goes through `AssetToken.usdcFromRaw`, never
+`AssetToken.usdc`, which takes a `number`. Three attempts, then a single
+`acp.fund.failed` event; retries stay on the row.
+
+`acp.fund.submitted` means the runtime called `fund` and it returned. It carries
+no `tx_hash`, because the SDK's `fund` resolves to void and a field that can
+never be filled is worse than no field. The chain's own account arrives
+separately, as an observed `acp.job.funded` entry.
+
+**Off by default.** Without `ACP_SPEND_ENABLED=true` the worker constructs no
+executor, so a running process has no code path to `session.fund()` at all.
+
+**No authentication.** v0.1 has none by decision, and that decision was taken
+when nothing here could spend. Anyone who can reach the API port can now
+authorize a testnet spend. Keep the port local, and treat auth as a
+prerequisite for anything beyond a single operator on one machine.
+
 ## What it will not do
 
 `fund`, `complete`, `reject`, `setBudget`, `submit` and `executeTool` are never
-called from the handler path. `src/acp/never-automatic.test.ts` holds this two
-ways: a lifecycle driven against a recording Proxy session, and a source scan of
-every file an entry can reach.
+called from the handler path. `src/acp/never-automatic.test.ts` holds this
+several ways: a lifecycle driven against a recording Proxy session, a source
+scan of every file an entry can reach, a check that no handler-path file even
+imports the executor, and a check that the executor works from the intents table
+rather than from any event.
 
 Job creation is `pnpm --filter @aura/api acp:create-job`, run by a person. It
 always passes an explicit evaluator, because omitting it selects the mode that
@@ -392,3 +434,62 @@ stay open until it does — how far back the transport replays a hydrated job's
 entries on `start()`, and whether the dev host rate-limits the `getJob` fetch.
 Neither can now lose an entry: replay depth only affects what a first run
 backfills, and the fetch sits behind capture with a timeout.
+
+
+---
+
+# ACP in the Console
+
+## What
+
+Nothing. There is no ACP surface, no ACP component, and no ACP vocabulary on
+screen. The `acp.` namespace says where a fact came from; it is not a second
+language for the operator.
+
+## Where
+
+- `apps/web/src/features/console/projection/acp-events.ts` — every ACP mapping
+  the Console has, in one file.
+- `apps/web/src/features/console/projection/fold-run.ts` — the one projection,
+  which consumes those maps like any other.
+- `apps/web/src/features/console/projection/stage-map.ts` — merges the ACP stage
+  prefixes into the shared list.
+
+## How ACP reads as a Run
+
+| ACP event | Status | Stage |
+|---|---|---|
+| `acp.job.created` | `RUNNING` | `COMMIT` |
+| `acp.job.described` | — | `COMMIT` |
+| `acp.budget.set` | `WAITING_APPROVAL` | `FUND` |
+| `acp.fund.authorized` | `RUNNING` | `FUND` |
+| `acp.fund.submitted` | — | `FUND` |
+| `acp.fund.failed` | `BLOCKED` | `FUND` |
+| `acp.job.funded` | `RUNNING` | `FUND` |
+| `acp.job.submitted` | `RUNNING` | `DELIVER` |
+| `acp.job.completed` | `COMPLETED` | `EVALUATE` |
+| `acp.job.rejected` | `FAILED` | `EVALUATE` |
+| `acp.job.expired` | `FAILED` | — |
+| `acp.message` | — | — |
+
+`acp.message` and `acp.job.expired` have no stage but are still `SUPPORTED`.
+Telling an operator the Console does not recognise an event it just rendered is
+worse than showing it without a stage.
+
+## Spend is only what the chain says
+
+`spentUsdc` moves on `acp.job.funded` alone. `acp.budget.set` is a proposal,
+`acp.fund.authorized` is a decision, and `acp.fund.submitted` is our own claim
+that we sent it — none of those is money that left. Nothing is summed; the fold
+copies a projection-bearing value and never computes one.
+
+## Attention
+
+`acp.budget.set` puts the Run in `AWAITING_APPROVAL`, naming the proposed
+amount, which is exactly what the operator has to act on. `acp.fund.authorized`
+and `acp.job.funded` clear it. `acp.fund.failed` blocks with domain `funding`
+and `retryable: false`, because the runtime already exhausted its retries before
+recording that event.
+
+Replay is unchanged: the same fold, with a playhead. There is no second code
+path for ACP.
