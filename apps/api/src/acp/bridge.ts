@@ -83,6 +83,15 @@ export class AcpBridge {
   /**
    * Capture, then project. Never rejects: a projection failure must not tear
    * down the stream handler, and the captured row outlives it either way.
+   *
+   * Capture happens *before* the per-job queue on purpose. Behind the queue, a
+   * hung projection would block the capture of everything after it — the exact
+   * loss this design exists to prevent. The cost is that two `handleEntry`
+   * calls racing for the same job reach the queue in whichever order their
+   * inserts return, so arrival order is preserved for sequential delivery (how
+   * the stream actually delivers) and not guaranteed under concurrent dispatch.
+   * Domain time is the ordering fact either way; `sequence` records the order
+   * we saw.
    */
   async handleEntry(entry: JobRoomEntry): Promise<void> {
     const captured = await this.capture(entry);

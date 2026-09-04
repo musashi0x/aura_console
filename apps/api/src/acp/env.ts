@@ -39,6 +39,16 @@ const acpEnvSchema = z.object({
       (value) => value.startsWith("http://") || value.startsWith("https://"),
       "ACP_SERVER_URL must be an http:// or https:// URL",
     ),
+  /**
+   * Off unless the operator says otherwise. With it unset the runtime cannot
+   * move money at all, whatever is sitting in `acp_spend_intents` — which
+   * matters because the API has no authentication and the authorization route
+   * is reachable by anyone who can reach the port.
+   */
+  ACP_SPEND_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
 });
 
 export type AcpEnv = z.infer<typeof acpEnvSchema>;

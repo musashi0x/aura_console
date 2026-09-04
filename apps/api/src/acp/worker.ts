@@ -4,6 +4,7 @@ import type { AcpAgent } from "@virtuals-protocol/acp-node-v2";
 import { createAcpAgent } from "./agent.js";
 import { AcpBridge } from "./bridge.js";
 import { loadAcpEnv } from "./env.js";
+import { AcpSpendExecutor } from "./spender.js";
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 
@@ -64,9 +65,25 @@ async function main(): Promise<void> {
   // Whatever a crash or an outage left behind, before anything new arrives.
   await bridge.sweep();
 
+  // Nothing is constructed when spending is off, so there is no code path from
+  // a running worker to session.fund() at all.
+  const spender = env.ACP_SPEND_ENABLED
+    ? new AcpSpendExecutor({ agent: connected, log })
+    : null;
+
+  log("info", "acp spend executor", {
+    enabled: env.ACP_SPEND_ENABLED,
+    note: spender ? "operator authorizations will be executed" : "ACP_SPEND_ENABLED is not true",
+  });
+
+  if (spender) await spender.sweep();
+
   const sweepTimer = setInterval(() => {
     void bridge.sweep().catch((error: unknown) => {
       log("error", "acp inbox sweep failed", { error: String(error) });
+    });
+    void spender?.sweep().catch((error: unknown) => {
+      log("error", "acp spend sweep failed", { error: String(error) });
     });
   }, SWEEP_INTERVAL_MS);
   sweepTimer.unref();

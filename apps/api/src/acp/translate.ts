@@ -70,6 +70,23 @@ export function usdcStringFromRaw(rawAmount: bigint): string {
   return `${negative ? "-" : ""}${whole}.${fraction}`;
 }
 
+/**
+ * Decimal string to raw on-chain integer, by integer arithmetic only.
+ *
+ * `Number(amount) * 1e6` would put the value through a double on the way to
+ * the chain, which is the one place this repository's string rule is actually
+ * protecting something: the SDK's own `AssetToken.usdc` takes a `number`, so
+ * the exact path is to build the bigint ourselves and use `usdcFromRaw`.
+ */
+export function usdcRawFromString(amount: string): bigint {
+  const match = /^(\d+)(?:\.(\d{1,6}))?$/.exec(amount.trim());
+  if (!match) {
+    throw new Error(`Not a USDC decimal amount: ${amount}`);
+  }
+  const [, whole = "0", fraction = ""] = match;
+  return BigInt(whole) * 10n ** BigInt(USDC_DECIMALS) + BigInt(fraction.padEnd(USDC_DECIMALS, "0"));
+}
+
 export type TranslatedEvent = {
   eventId: string;
   type: string;
@@ -217,6 +234,92 @@ export function describedEvent(input: {
     eventId: uuidV5(canonicalJson({ type: "acp.job.described", data })),
     type: "acp.job.described",
     eventTime: input.observedAt,
+    data,
+  };
+}
+
+/**
+ * The operator's decision to spend, as history.
+ *
+ * This event records that someone authorized a fund. It does not cause one:
+ * the instruction the runtime acts on is the `acp_spend_intents` row written
+ * in the same transaction. An authorization event appended through the generic
+ * events route therefore appears in history and buys nothing, which is the
+ * property that keeps "the runtime never decides to spend" true.
+ */
+export function fundAuthorizedEvent(input: {
+  eventId: string;
+  chainId: number;
+  jobId: string;
+  amountUsdc: string;
+  authorizedAt: Date;
+}): TranslatedEvent {
+  return {
+    eventId: input.eventId,
+    type: "acp.fund.authorized",
+    eventTime: input.authorizedAt,
+    data: {
+      chain_id: input.chainId,
+      job_id: input.jobId,
+      amount_usdc: input.amountUsdc,
+    },
+  };
+}
+
+/**
+ * We called `fund` and it returned. Not "the chain agrees" — that claim
+ * arrives separately as an observed `acp.job.funded` entry, carrying the
+ * chain's own account of it. Two different facts, both recorded.
+ *
+ * The SDK's `fund` resolves to void, so there is no transaction hash to store.
+ * A `tx_hash: null` would be a field that can never be filled, so there is
+ * none.
+ */
+export function fundSubmittedEvent(input: {
+  authorizationEventId: string;
+  chainId: number;
+  jobId: string;
+  amountUsdc: string;
+  submittedAt: Date;
+}): TranslatedEvent {
+  const data = {
+    chain_id: input.chainId,
+    job_id: input.jobId,
+    amount_usdc: input.amountUsdc,
+    authorization_event_id: input.authorizationEventId,
+  };
+
+  return {
+    eventId: uuidV5(canonicalJson({ type: "acp.fund.submitted", data })),
+    type: "acp.fund.submitted",
+    eventTime: input.submittedAt,
+    data,
+  };
+}
+
+/** Recorded once, when the runtime stops retrying. Retries stay on the row. */
+export function fundFailedEvent(input: {
+  authorizationEventId: string;
+  chainId: number;
+  jobId: string;
+  amountUsdc: string;
+  reason: string;
+  attempts: number;
+  failedAt: Date;
+}): TranslatedEvent {
+  const data = {
+    chain_id: input.chainId,
+    job_id: input.jobId,
+    amount_usdc: input.amountUsdc,
+    authorization_event_id: input.authorizationEventId,
+    reason: input.reason,
+    attempts: input.attempts,
+  };
+
+  return {
+    eventId: uuidV5(canonicalJson({ type: "acp.fund.failed", data })),
+    type: "acp.fund.failed",
+    eventTime: input.failedAt,
     data,
   };
 }

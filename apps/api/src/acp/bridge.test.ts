@@ -299,12 +299,11 @@ describe("AcpBridge", () => {
       expect(event?.eventTime.getTime()).toBe(1_767_225_600_000);
     });
 
-    it("appends entries for one job in arrival order with consecutive sequences", async () => {
-      await Promise.all([
-        bridge.handleEntry(systemEntry(createdEvent)),
-        bridge.handleEntry(systemEntry(budgetSet)),
-        bridge.handleEntry(systemEntry(funded)),
-      ]);
+    it("appends sequentially delivered entries in arrival order", async () => {
+      // How the stream actually delivers: one entry at a time.
+      for (const event of [createdEvent, budgetSet, funded]) {
+        await bridge.handleEntry(systemEntry(event));
+      }
 
       const runId = (await listRuns())[0]?.id as string;
       const events = (await listEvents(runId)).sort((a, b) => a.sequence - b.sequence);
@@ -315,6 +314,28 @@ describe("AcpBridge", () => {
         "acp.job.created",
         "acp.budget.set",
         "acp.job.funded",
+      ]);
+    });
+
+    it("lands every concurrently dispatched entry once, with distinct sequences", async () => {
+      // Capture runs before the per-job queue so a hung projection cannot block
+      // it, which means a racing dispatch can reach the queue out of order.
+      // What still holds: each entry lands exactly once, with its own sequence.
+      await Promise.all([
+        bridge.handleEntry(systemEntry(createdEvent)),
+        bridge.handleEntry(systemEntry(budgetSet)),
+        bridge.handleEntry(systemEntry(funded)),
+      ]);
+
+      const runId = (await listRuns())[0]?.id as string;
+      const events = (await listEvents(runId)).sort((a, b) => a.sequence - b.sequence);
+
+      expect(events.map((event) => event.sequence)).toEqual([0, 1, 2, 3]);
+      expect(events.map((event) => event.type).sort()).toEqual([
+        "acp.budget.set",
+        "acp.job.created",
+        "acp.job.funded",
+        "run.created",
       ]);
     });
 

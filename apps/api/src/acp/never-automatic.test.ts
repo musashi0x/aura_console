@@ -16,6 +16,10 @@ const FORBIDDEN = ["fund", "complete", "reject", "setBudget", "submit", "execute
 /**
  * Every file that a stream entry can reach. `agent.ts` is included because it
  * is where a handler could be swapped for one that acts.
+ *
+ * `spender.ts` is deliberately absent: it does call `fund`, but nothing an
+ * entry does reaches it. Its only input is an `acp_spend_intents` row that an
+ * operator created, which is the whole point of the split.
  */
 const HANDLER_PATH = ["./worker.ts", "./bridge.ts", "./translate.ts", "./agent.ts"];
 
@@ -101,5 +105,28 @@ describe("the runtime never acts on its own", () => {
 
       expect(source, `${file} creates jobs`).not.toMatch(/\.\s*create(Job|FundTransferJob)/);
     }
+  });
+
+  it("reaches the spender only from an operator's instruction, never from an entry", async () => {
+    // The handler path does not import the executor at all, so there is no
+    // call graph from an observed entry to session.fund().
+    for (const file of ["./bridge.ts", "./translate.ts", "./agent.ts"]) {
+      expect(code(await read(file)), `${file} imports the spender`).not.toMatch(/spender/);
+    }
+
+    // The worker holds it, and only builds one when the operator opted in.
+    const worker = code(await read("./worker.ts"));
+    expect(worker).toMatch(/ACP_SPEND_ENABLED/);
+    expect(worker).toMatch(/env\.ACP_SPEND_ENABLED\s*\?/);
+  });
+
+  it("makes the spender act on an instruction row, not on an event", async () => {
+    const spender = code(await read("./spender.ts"));
+
+    // Reading run_events for something to do would make a forgeable event an
+    // instruction. The only source of work is the intents table.
+    expect(spender).toMatch(/acp_spend_intents/);
+    expect(spender).not.toMatch(/runEvents/);
+    expect(spender).not.toMatch(/acp\.fund\.authorized/);
   });
 });

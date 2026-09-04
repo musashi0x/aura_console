@@ -121,9 +121,13 @@ export class RunStore {
    * returns the stored event; replaying it with different content is a
    * conflict, because silently keeping either version would make the history
    * depend on delivery order.
+   *
+   * As with `createRun`, a caller that must commit something else alongside
+   * the event passes its own transaction in. The spend route does this so an
+   * authorization event and the instruction it creates land together.
    */
-  async appendEvent(input: AppendEventInput) {
-    return this.db.transaction(async (tx) => {
+  async appendEvent(input: AppendEventInput, outerTx?: Tx) {
+    const body = async (tx: Tx) => {
       const existing = await this.findEvent(tx, input.eventId);
       if (existing) return this.reconcile(existing, input);
 
@@ -158,7 +162,9 @@ export class RunStore {
 
       if (!row) throw new Error("insert into run_events returned no row");
       return { event: row, created: true };
-    });
+    };
+
+    return outerTx ? body(outerTx) : this.db.transaction(body);
   }
 
   private async findEvent(tx: Tx, eventId: string) {
