@@ -1,20 +1,33 @@
 # Visual system
 
 Aura Console uses **two related layers**. Keeping them distinct is a product
-decision, not a styling preference: the public page should feel spacious and
-editorial, while the operational surface should feel dense and precise.
+decision, not a styling preference.
+
+The line between them is **what a surface is for**, not which app it belongs to:
 
 ```
-Editorial layer:    light, spacious, Gemini-like        -> the landing page canvas
-Operational layer:  dark, monospace, Antigravity Terminal -> Console UI and the Run preview
+Editorial layer:    light, spacious      -> landing, onboarding, Operator, Board, drawers
+Operational layer:  dark, monospace      -> Trace, and the landing page's Run preview
 ```
 
-Never turn the whole page into a dark terminal dashboard, and never lighten the
-Console surface to match the landing page.
+The product layer is light and approachable; the system layer is dark and
+technical. Dark is a signal that the operator is looking at raw system
+information — canonical events, receipts, tool calls — rather than the ambient
+temperature of the whole Console.
+
+This is a change. The Console was dark throughout, and the canonical UX spec
+still says "dark-first operational canvas"; that document needs the same
+correction. What changes is which surfaces claim which scale. Both scales
+already exist and neither is being redefined.
+
+Never turn the whole page into a dark terminal dashboard, and never lighten
+Trace to match Operator: a reviewer reading raw events should be able to tell
+at a glance that they left the product surface.
 
 ## Operational tokens
 
-Defined in `apps/web/src/styles/tokens.css` as `--color-*`.
+Defined in `apps/web/src/styles/tokens.css` as `--color-*`. These are Trace's
+scale, and the Run preview's on the landing page.
 
 | Role | Value |
 |---|---|
@@ -36,7 +49,10 @@ text colour.
 ## Editorial tokens
 
 Defined as `--landing-*`. The full table and the cascade traps are in
-[Landing page](landing-page.md).
+[Landing page](landing-page.md). The prefix is historical: these tokens now
+carry Operator, Board and the drawers as well as the landing page, and the
+naming should follow when those surfaces are built rather than being renamed
+ahead of a consumer.
 
 | Role | Value |
 |---|---|
@@ -98,7 +114,8 @@ reduced-motion path before it ships.
 
 A third-party animation library may decorate a surface that carries no
 operational claim: the landing, onboarding, a readiness check still in flight.
-It may not decorate a surface that reports a Run.
+It may not decorate a surface that reports a Run — which now includes every
+card in Operator, every column in Board, and all of Trace.
 
 Two rules make that concrete. Continuous motion — pulsing, flowing, anything
 that redraws forever — is never used anywhere in the Console, because Aura shows

@@ -17,6 +17,25 @@ behind it renders an explicit unavailable state rather than an empty one, which
 is a different claim: "we could not look" is not "we looked and there is
 nothing".
 
+## Where this is going
+
+The Run surfaces are being rebuilt into the
+[Mission workspace](../../product/mission-workspace.md): one Mission screen with
+`Operator`, `Board` and `Trace` modes, a persistent composer, and a conversation
+that renders cards folded from canonical events. None of it exists yet. This
+document describes the code that does.
+
+Two things about that redesign matter when changing anything below.
+
+`foldRun` is reused unchanged. All three modes read the same projection with the
+same playhead argument, so the change is entirely above the fold boundary. A
+patch that adds a second way to derive Run state is going the wrong way.
+
+The navigation labels move but the routes do not. Missions, Agents, Network and
+Guardrails are operator-facing names for `/runs`, `/counterparties`, `/system`
+and `/policies`. `Run` stays the system word everywhere in code, the same way
+`LIVE` stays the projection's mode name under the `LATEST SNAPSHOT` label.
+
 ## Routes
 
 | Route | File | State |
@@ -40,7 +59,10 @@ nothing".
   `ConsoleTopbar`; brand, environment label, Run reference, readiness.
 - `apps/web/src/features/console/components/console-navigation.tsx` —
   `ConsoleNavigation`; primary list (Runs, Counterparties, Policies) and a
-  secondary list (Example Run, Readiness, Back to landing).
+  secondary list (Example Run, Readiness, Back to landing). The secondary list
+  is scheduled to disappear: the example Mission moves into the primary list
+  with a `Demo` badge, readiness moves to the Network status chip, and the
+  landing page is reached from the brand mark.
 - `apps/web/src/features/console/components/console-status.tsx` —
   `ConsoleStatus`, `ReadinessState` = `"ready" | "degraded" | "checking"`.
 - `apps/web/src/features/console/components/console-states.tsx` —

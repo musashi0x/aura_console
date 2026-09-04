@@ -5,6 +5,7 @@ A pnpm + Turborepo monorepo: a Next.js web app, a Hono API, and Postgres through
 ## Documentation
 
 - [Product documentation](docs/product/README.md) — scope, onboarding, visual system, demo choreography, and decisions.
+- [Mission workspace](docs/product/mission-workspace.md) — the target design for the Console's main screen. Read before changing the Run surfaces.
 - [AI code map](docs/ai/README.md) — progressive-disclosure map from product areas to source files and symbols.
 
 ## Prerequisites

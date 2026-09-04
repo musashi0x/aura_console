@@ -16,6 +16,7 @@ any economic action. Do not invent backend state to fill those gaps.
 - [API](api/README.md) — Hono application, CORS/error handling, request logging, and health routes.
 - [Database](db/README.md) — Drizzle client, environment loading, schema, and migrations.
 - [Product documentation](../product/README.md) — scope, onboarding, landing page, visual direction, demo choreography, and decisions.
+- [Mission workspace](../product/mission-workspace.md) — the target design for the Run surfaces. It reuses `foldRun` unchanged; the change is what renders above it.
 - [Repository README](../../README.md) — local setup, scripts, environment, health checks, and CI.
 
 ## Source of truth
