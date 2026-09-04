@@ -264,10 +264,11 @@ settles a job, proposes a price, or submits a deliverable.
 - `apps/api/src/acp/agent.ts` — builds `AcpAgent` with an explicit transport and
   API client so the host is never the SDK's production default.
 - `apps/api/src/acp/translate.ts` — one stream entry to one event row.
-- `apps/api/src/acp/bridge.ts` — job identity, per-job ordering, appends.
+- `apps/api/src/acp/bridge.ts` — capture, projection, retry, job identity, per-job ordering.
 - `apps/api/src/acp/worker.ts` — the entrypoint and process lifecycle.
 - `apps/api/src/acp/create-job.ts` — the operator's manual job command.
 - `packages/db/src/schema/acp-jobs.ts` — the `(chain_id, job_id)` → `run_id` map.
+- `packages/db/src/schema/acp-inbox.ts` — raw captured entries awaiting projection.
 
 ## Running it
 
@@ -296,6 +297,7 @@ mean.
 | `acp.job.completed` | `evaluator`, `reason` |
 | `acp.job.rejected` | `rejector`, `reason` |
 | `acp.job.expired` | — |
+| `acp.job.described` | `description` |
 | `acp.message` | `from`, `content_type`, `content`, optional `package_id` |
 
 A `fund_request` / `fund_transfer` object holds `amount_usdc`, `token_address`,
@@ -305,6 +307,34 @@ A `fund_request` / `fund_transfer` object holds `amount_usdc`, `token_address`,
 allocated by `RunStore` inside the insert transaction — the bridge never
 supplies one.
 
+## Capture, then project
+
+The ACP stream is lossy at its edge. `agent.start()` hydrates from
+`getActiveJobs()`, so an entry missed during an outage on a job that has since
+finished never comes back. Recording is therefore two steps:
+
+```
+entry ─► acp_inbox      one insert, no external calls, PK = derived event_id
+      ─► run_events     via RunStore; retryable, idempotent
+```
+
+**Capture** is the only moment an entry can be lost, and it is a single
+statement. A duplicate delivery collides on the primary key and is skipped. If
+capture itself fails the log line carries `lost: true`, because that is the one
+outcome nothing downstream can repair.
+
+**Projection** resolves the Run, appends through `RunStore`, then stamps
+`processed_at`. A failure leaves `processed_at` null and writes `attempts` and
+`last_error` onto the row, so a stuck entry explains itself without a log
+search.
+
+**Sweeping** retries whatever is unprocessed, oldest first. The worker sweeps
+once at startup — picking up anything a crash left behind — and every 30s after
+that, so a transient database or ACP outage heals without an operator.
+
+`acp_inbox` is a staging buffer, not history. `run_events` remains the record,
+and a processed row is deletable without changing what the Console reads.
+
 ## Run identity
 
 One ACP job is one Run. The Run and its `acp_jobs` mapping commit in a single
@@ -312,8 +342,18 @@ transaction, so a crash cannot leave a Run nothing points at; if a concurrent
 writer wins the unique index first, its Run is the one both use.
 
 An ACP Run's seed is `source: "AGENT"`, `environment: "base-sepolia"`,
-`budget_usdc: null`. The provider's proposed price is an event, not a declared
-ceiling — the two are different claims and the seed does not blur them.
+`budget_usdc: null`, and an objective of `ACP job <id> on <environment>`. The
+provider's proposed price is an event, not a declared ceiling — the two are
+different claims and the seed does not blur them.
+
+The objective is deliberately not the job's real description. A client-side
+`job.created` carries no description, so getting one means an off-chain
+`getJob`, and putting that call in front of Run creation would let a slow or
+rate-limited ACP host lose the entry that triggered it. Instead the description
+arrives afterwards as an `acp.job.described` event: it is a fact that was
+observed at a time and may change, which is what an event is for and what an
+immutable seed is not. The fetch runs once per job, after the entry is durable,
+under a 5s ceiling, and a failure costs a description rather than an event.
 
 Entries for one job are appended through a per-job promise chain. The row lock
 in `RunStore.appendEvent` already keeps sequences distinct; the chain is what
@@ -349,5 +389,6 @@ Everything above is covered by tests, including the bridge against real
 Postgres. What has **not** run is the whole path against a registered agent on
 a funded wallet: no such agent exists for this repository yet. Two questions
 stay open until it does — how far back the transport replays a hydrated job's
-entries on `start()`, and whether the dev host rate-limits the `getJob` fetch
-the bridge makes on first sight of a job.
+entries on `start()`, and whether the dev host rate-limits the `getJob` fetch.
+Neither can now lose an entry: replay depth only affects what a first run
+backfills, and the fetch sits behind capture with a timeout.

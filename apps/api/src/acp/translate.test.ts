@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   canonicalJson,
+  describedEvent,
   environmentForChain,
   runSeedForJob,
   translateEntry,
@@ -183,24 +184,56 @@ describe("translateEntry", () => {
 });
 
 describe("runSeedForJob", () => {
-  it("carries AGENT origin and no budget ceiling", () => {
-    const seed = runSeedForJob({ chainId: CHAIN_ID, jobId: JOB_ID, description: "Generate a meme" });
-
-    expect(seed).toEqual({
-      objective: "Generate a meme",
+  it("derives everything from the entry, with no description and no fetch", () => {
+    expect(runSeedForJob({ chainId: CHAIN_ID, jobId: JOB_ID })).toEqual({
+      objective: "ACP job 42 on base-sepolia",
       source: "AGENT",
       environment: "base-sepolia",
       budgetUsdc: null,
     });
   });
 
-  it.each([null, "", "   "])("falls back to a deterministic label for %p", (description) => {
-    const seed = runSeedForJob({ chainId: CHAIN_ID, jobId: JOB_ID, description });
-
-    expect(seed.objective).toBe("ACP job 42 on base-sepolia");
-  });
-
   it("names an unmapped chain rather than guessing one", () => {
     expect(environmentForChain(999)).toBe("evm-999");
+  });
+});
+
+describe("describedEvent", () => {
+  const observedAt = new Date(TIMESTAMP);
+
+  it("records the description as an event with the observing entry's time", () => {
+    const event = describedEvent({
+      chainId: CHAIN_ID,
+      jobId: JOB_ID,
+      description: "Generate a meme",
+      observedAt,
+    });
+
+    expect(event.type).toBe("acp.job.described");
+    expect(event.eventTime.getTime()).toBe(TIMESTAMP);
+    expect(event.data).toEqual({
+      chain_id: CHAIN_ID,
+      job_id: JOB_ID,
+      description: "Generate a meme",
+    });
+  });
+
+  it("is idempotent for an unchanged description, regardless of when it was observed", () => {
+    const first = describedEvent({ chainId: CHAIN_ID, jobId: JOB_ID, description: "same", observedAt });
+    const later = describedEvent({
+      chainId: CHAIN_ID,
+      jobId: JOB_ID,
+      description: "same",
+      observedAt: new Date(TIMESTAMP + 60_000),
+    });
+
+    expect(later.eventId).toBe(first.eventId);
+  });
+
+  it("records a changed description as a new event", () => {
+    const first = describedEvent({ chainId: CHAIN_ID, jobId: JOB_ID, description: "before", observedAt });
+    const changed = describedEvent({ chainId: CHAIN_ID, jobId: JOB_ID, description: "after", observedAt });
+
+    expect(changed.eventId).not.toBe(first.eventId);
   });
 });

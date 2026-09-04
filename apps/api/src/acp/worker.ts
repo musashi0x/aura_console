@@ -8,6 +8,12 @@ import { loadAcpEnv } from "./env.js";
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 
 /**
+ * How often to retry entries captured but not yet projected. A transient
+ * database or ACP outage should heal without an operator noticing.
+ */
+const SWEEP_INTERVAL_MS = 30_000;
+
+/**
  * The ACP runtime, in its own process.
  *
  * It is deliberately not part of `server.ts`: the SDK holds a persistent event
@@ -54,6 +60,17 @@ async function main(): Promise<void> {
   }
 
   const connected = agent;
+
+  // Whatever a crash or an outage left behind, before anything new arrives.
+  await bridge.sweep();
+
+  const sweepTimer = setInterval(() => {
+    void bridge.sweep().catch((error: unknown) => {
+      log("error", "acp inbox sweep failed", { error: String(error) });
+    });
+  }, SWEEP_INTERVAL_MS);
+  sweepTimer.unref();
+
   log("info", "acp listening", { address: await connected.getAddress() });
 
   let shuttingDown = false;
@@ -69,6 +86,7 @@ async function main(): Promise<void> {
     }, SHUTDOWN_TIMEOUT_MS);
     forceExit.unref();
 
+    clearInterval(sweepTimer);
     await connected.stop();
     await closeDb();
 

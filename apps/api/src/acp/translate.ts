@@ -173,25 +173,50 @@ export type AcpRunSeed = {
 };
 
 /**
- * A client-side `job.created` entry carries addresses and an expiry — no
- * description and no offering name — so the objective comes from the job
- * fetched off-chain. That description is nullable, and the fallback is a
- * deterministic label rather than an invented sentence.
+ * The seed is derived from the entry alone, with no network call.
+ *
+ * A client-side `job.created` entry carries addresses and an expiry, not a
+ * description, so an off-chain fetch is the only way to get one. Putting that
+ * fetch in front of Run creation would let a slow or rate-limited ACP host lose
+ * the entry that triggered it. The objective is therefore always this
+ * deterministic label, and the description arrives later as its own event.
  */
-export function runSeedForJob(input: {
-  chainId: number;
-  jobId: string;
-  description: string | null;
-}): AcpRunSeed {
-  const description = input.description?.trim();
-
+export function runSeedForJob(input: { chainId: number; jobId: string }): AcpRunSeed {
   return {
-    objective:
-      description && description.length > 0
-        ? description
-        : `ACP job ${input.jobId} on ${environmentForChain(input.chainId)}`,
+    objective: `ACP job ${input.jobId} on ${environmentForChain(input.chainId)}`,
     source: "AGENT",
     environment: environmentForChain(input.chainId),
     budgetUsdc: null,
+  };
+}
+
+/**
+ * The job description as an event rather than a seed field.
+ *
+ * It is a fact that arrived — at a time, from a fetch that may fail or return
+ * something different later — which is exactly what an event is for and exactly
+ * what an immutable seed is not. `observedAt` is the domain time of the entry
+ * that prompted the fetch, so the claim is "as of this entry, the description
+ * was this".
+ *
+ * Re-fetching an unchanged description derives the same id and appends nothing.
+ */
+export function describedEvent(input: {
+  chainId: number;
+  jobId: string;
+  description: string;
+  observedAt: Date;
+}): TranslatedEvent {
+  const data = {
+    chain_id: input.chainId,
+    job_id: input.jobId,
+    description: input.description,
+  };
+
+  return {
+    eventId: uuidV5(canonicalJson({ type: "acp.job.described", data })),
+    type: "acp.job.described",
+    eventTime: input.observedAt,
+    data,
   };
 }
