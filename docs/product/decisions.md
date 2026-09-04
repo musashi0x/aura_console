@@ -18,9 +18,12 @@ dashboard and not an authenticated console.
 
 ## Two visual layers
 
-The public page is a bright editorial surface; the dark Console styling is
-confined to the product preview and, later, the real Console shell. The contrast
-is intentional. See [Visual system](visual-system.md).
+The public page is a bright editorial surface and the dark styling is
+operational. The contrast is intentional. What changed is where the line falls:
+the dark layer is no longer the whole Console, only its system layer. Operator,
+Board and the drawers are editorial; Trace is dark. See
+[Visual system](visual-system.md) and
+[The dark layer belongs to the system layer only](#the-dark-layer-belongs-to-the-system-layer-only).
 
 ## Static preview must be labelled
 
@@ -35,6 +38,10 @@ The Console shell is served from `/runs`, `/counterparties`, `/policies`, and
 `/system`. It did not take over `/`, which stays the landing page, and it did
 not weaken `FirstRunGate`. Database and API readiness moved from the old root
 health card to `/system`.
+
+The routes are stable; the labels above them are not. Missions, Agents, Network
+and Guardrails are the operator-facing names for those same four routes. A rail
+label is not a reason to move a route.
 
 ## The shell renders state, it does not own data
 
@@ -84,6 +91,124 @@ screen. An agent-opened Run is not a Console-opened one, and neither is "the
 API": the API is the transport that carried the Run, not the actor that started
 it. Collapsing them hid that the example Run was example data in the one field
 that names its origin.
+
+## The Console is a workspace, not a Run inspector
+
+The Run detail screen rendered Aura's implementation model as its information
+architecture: five large stage cards named `Evidence`, `Decision`,
+`Economic action`, `Outcome` and `Memory Diff`, each reporting `NOT REACHED`
+until the corresponding stage fired. It required the operator to learn Aura's
+ontology before they could read the product, and on a fresh Run it used most of
+the viewport to say that nothing had happened.
+
+The default surface is now a live working session: conversation, the cards that
+conversation produces, and a compact progress rail. The ten canonical stages are
+not deleted — they are system ontology, and they live in Trace. See
+[Mission workspace](mission-workspace.md).
+
+## Mission is the operator's word for a Run
+
+`Run` stays the system word: `run_id`, `(run_id, sequence)`, `RunStatus`,
+`POST /api/runs`. `Mission` is the label an operator reads. This is the same
+rule that keeps `LIVE` as the projection's internal mode while the visible label
+is `LATEST SNAPSHOT`. Do not rename a projection concept to change a word on
+screen, and do not introduce a second identifier.
+
+## Conversation is a mode, not a destination
+
+`Chat` is removed from the navigation rail. A rail item called Chat implies a
+place to go and talk to an assistant that is not doing the work; conversation
+is the default mode **inside** every Mission, alongside Board and Trace.
+
+The primary rail becomes Missions, Agents, Network, Guardrails, Docs.
+`Example Run`, `Readiness` and `Back to landing` leave it: the example Mission
+belongs in Missions with a `Demo` badge, readiness belongs to Network and its
+status chip, and the landing page is reachable from the brand mark.
+
+No `Settings` and no user menu are added. With no account model behind them they
+would be navigation that opens nothing, which is the same mistake as a sign-in
+form with no backend (Decision 31).
+
+## A card is a projection, never a message
+
+Every card in the conversation is folded from canonical events. No card is
+authored by a model turn, and no card renders a value the event stream does not
+contain.
+
+This is what carries the Console's existing guarantees into a conversational
+surface. No economic value computed locally, no completion inferred from
+silence, only the five envelope fields exposed, unrecognised event types kept
+inspectable rather than dropped — every one of those leaves through the first
+card a model is allowed to write. An event type with no card yet renders as an
+inspectable raw entry, the treatment `UNSUPPORTED_TYPE` already gets.
+
+## Operator, Board and Trace are three projections of one stream
+
+Switching mode does not re-fetch, fork state, or introduce a second ordering.
+All three read `foldRun(events, seed, upToSequence)`. Board never gains its own
+tasks or its own ordering; a Board card exists because an event created it.
+
+This is the same reason live and replay share one projection: two code paths
+over the same events will drift, and a Board that disagreed with the
+conversation about what happened would be worse than no Board.
+
+## Evidence is attached to a decision, not a stage
+
+`Evidence` as a stage made it a mysterious phase of the system. It is now a
+`Why this?` control on the Decision card that opens a drawer next to the claim
+it supports. Nothing was cut from the evidence set — frozen objective and
+candidate set, versions, candidate comparison, score components, policy results,
+alternatives with rejection reasons, and the no-memory counterfactual all
+survive. They moved.
+
+## Memory is stated causally, and the causal claim must be earned
+
+`Memory: NOT_REQUESTED` is correct and unreadable. The five `RetrievalStatus`
+values are unchanged; only the wording is:
+
+| State | Reads as |
+|---|---|
+| `AVAILABLE`, outcome changed | Memory changed this decision |
+| `AVAILABLE`, outcome held | Memory checked, recommendation unchanged |
+| `NO_HISTORY` | No previous relationship found |
+| `ERROR` | Memory unavailable, historical risk unknown |
+| `NOT_REQUESTED` | Memory has not been consulted for this step yet |
+
+`Memory changed this decision` may only render when the counterfactual actually
+differs. It is the most persuasive line in the product and therefore the most
+tempting to fake; a memory lookup that did not change the outcome is a real
+result and says so.
+
+`NO_HISTORY` and `ERROR` still never collapse into each other, and unavailable
+memory is still never treated as history.
+
+## A control that cannot act is not rendered
+
+`Correct memory` and `Archive relationship` are writes. They stay absent until
+an endpoint and an event exist behind them, for the same reason `Play` and
+`Pause` were removed rather than disabled: a control that changes a label
+without changing the world is worse than no control.
+
+## Not reached is not a state worth rendering
+
+`NOT REACHED` is deleted as a rendering. A stage that has not happened yet gets
+a hollow marker in the progress rail and no card.
+
+The distinction it was protecting is real and stays: *we could not look* is not
+*we looked and there is nothing*. That distinction belongs to a surface whose
+data source failed, which is what `ConsoleUnavailableMemory` and the unavailable
+states are for. A future stage is neither.
+
+## The dark layer belongs to the system layer only
+
+The Console was dark-first throughout. It is now split by what a surface is for:
+Operator, Board and the drawers use the editorial light scale; Trace keeps the
+dark monospace scale.
+
+Dark now signals raw system information rather than setting the temperature of
+the whole product. Both token scales already exist; what changes is which
+surfaces claim which one. This reverses the "dark-first operational canvas"
+direction in the canonical UX spec, which needs the same change.
 
 ## Deferred work
 

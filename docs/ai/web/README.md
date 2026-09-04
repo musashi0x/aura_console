@@ -9,6 +9,7 @@ not exist yet.
 ## Topics
 
 - [Console shell](console-shell.md) — the operator surface, its routes, the projection fold, and transport state.
+- [Mission workspace](../../product/mission-workspace.md) — the Operator/Board/Trace design the Run surfaces are being rebuilt into. Not implemented; read it before changing `/runs/[runId]`.
 - [Landing page](landing.md) — the root route, its scenes, tokens, and the static-preview boundary.
 - [Onboarding](onboarding.md) — first-visit routing, readiness checks, and the browser-local acknowledgement.
 - [Home page](home.md) — how `/` composes the first-run gate and the landing page.
