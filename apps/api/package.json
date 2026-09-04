@@ -6,15 +6,13 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsx watch src/server.ts",
+    "acp": "tsx src/acp/worker.ts",
     "start": "node dist/server.js",
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
-    "@aa-sdk/core": "4.88.5",
-    "@account-kit/infra": "4.88.5",
-    "@account-kit/smart-contracts": "4.88.5",
     "@aura/db": "workspace:*",
     "@hono/node-server": "2.1.1",
     "@virtuals-protocol/acp-node-v2": "0.1.12",

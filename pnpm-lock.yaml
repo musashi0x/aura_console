@@ -26,15 +26,6 @@ importers:
 
   apps/api:
     dependencies:
-      '@aa-sdk/core':
-        specifier: 4.88.5
-        version: 4.88.5(typescript@5.9.3)(viem@2.56.3(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3))
-      '@account-kit/infra':
-        specifier: 4.88.5
-        version: 4.88.5(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(viem@2.56.3(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3))
-      '@account-kit/smart-contracts':
-        specifier: 4.88.5
-        version: 4.88.5(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(viem@2.56.3(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3))
       '@aura/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -43,7 +34,7 @@ importers:
         version: 2.1.1(hono@4.13.5)
       '@virtuals-protocol/acp-node-v2':
         specifier: 0.1.12
-        version: 0.1.12(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(ws@7.5.13(bufferutil@4.1.0)(utf-8-validate@6.0.6))(zod@4.4.3)
+        version: 0.1.12(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(ws@8.21.0(bufferutil@4.1.0)(utf-8-validate@6.0.6))(zod@4.4.3)
       hono:
         specifier: 4.13.5
         version: 4.13.5
@@ -211,11 +202,6 @@ packages:
 
   '@account-kit/logging@4.88.5':
     resolution: {integrity: sha512-ZCgPWp5QbJ0zrjlAQxIZLEJ9+UzJNTp1VJAfVMS1c0sBy3r5YTXEh4SHAh+At4y1r7rVmgKSAGFTdEp0go+aDg==}
-
-  '@account-kit/smart-contracts@4.88.5':
-    resolution: {integrity: sha512-Yctbl1azEUFFIFzTylpJjk+4w3VXc4UiUWdr+SXy/QDibR1/0Xvj5b7sAwFgjK3SjMYitrTrYSgizRMWGTmZGQ==}
-    peerDependencies:
-      viem: ^2.45.0
 
   '@adobe/css-tools@4.5.0':
     resolution: {integrity: sha512-6OzddxPio9UiWTCemp4N8cYLV2ZN1ncRnV1cVGtve7dhPOtRkleRyx32GQCYSwDYgaHU3USMm84tNsvKzRCa1Q==}
@@ -4163,9 +4149,6 @@ packages:
     resolution: {integrity: sha512-o8qghlI8NZHU1lLPrpi2+Uq7abh4GGPpYANlalzWxyWteJOCsr/P+oPBA49TOLu5FTZO4d3F9MnWJfiMo4BkmA==}
     engines: {node: '>=18'}
 
-  webauthn-p256@0.0.10:
-    resolution: {integrity: sha512-EeYD+gmIT80YkSIDb2iWq0lq2zbHo1CxHlQTeJ+KkCILWpVy3zASH3ByD4bopzfk0uCwXxLqKGLqp2W4O28VFA==}
-
   webidl-conversions@3.0.1:
     resolution: {integrity: sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ==}
 
@@ -4343,20 +4326,6 @@ snapshots:
       uuid: 11.1.1
     transitivePeerDependencies:
       - encoding
-
-  '@account-kit/smart-contracts@4.88.5(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(viem@2.56.3(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3))':
-    dependencies:
-      '@aa-sdk/core': 4.88.5(typescript@5.9.3)(viem@2.56.3(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3))
-      '@account-kit/infra': 4.88.5(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(viem@2.56.3(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3))
-      viem: 2.56.3(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3)
-      webauthn-p256: 0.0.10
-    transitivePeerDependencies:
-      - bufferutil
-      - debug
-      - encoding
-      - supports-color
-      - typescript
-      - utf-8-validate
 
   '@adobe/css-tools@4.5.0': {}
 
@@ -5363,7 +5332,7 @@ snapshots:
 
   '@oxc-project/types@0.146.0': {}
 
-  '@privy-io/node@0.16.0(@solana/kit@5.1.0(typescript@5.9.3)(ws@7.5.13(bufferutil@4.1.0)(utf-8-validate@6.0.6)))(viem@2.56.3(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3))':
+  '@privy-io/node@0.16.0(@solana/kit@5.1.0(typescript@5.9.3)(ws@8.21.0(bufferutil@4.1.0)(utf-8-validate@6.0.6)))(viem@2.56.3(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3))':
     dependencies:
       '@hpke/chacha20poly1305': 1.8.0
       '@hpke/core': 1.9.0
@@ -5375,7 +5344,7 @@ snapshots:
       lru-cache: 11.5.2
       svix: 1.99.1
     optionalDependencies:
-      '@solana/kit': 5.1.0(typescript@5.9.3)(ws@7.5.13(bufferutil@4.1.0)(utf-8-validate@6.0.6))
+      '@solana/kit': 5.1.0(typescript@5.9.3)(ws@8.21.0(bufferutil@4.1.0)(utf-8-validate@6.0.6))
       viem: 2.56.3(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3)
 
   '@rolldown/binding-android-arm-eabi@1.2.5':
@@ -5617,7 +5586,7 @@ snapshots:
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/kit@5.1.0(typescript@5.9.3)(ws@7.5.13(bufferutil@4.1.0)(utf-8-validate@6.0.6))':
+  '@solana/kit@5.1.0(typescript@5.9.3)(ws@8.21.0(bufferutil@4.1.0)(utf-8-validate@6.0.6))':
     dependencies:
       '@solana/accounts': 5.1.0(typescript@5.9.3)
       '@solana/addresses': 5.1.0(typescript@5.9.3)
@@ -5632,11 +5601,11 @@ snapshots:
       '@solana/rpc': 5.1.0(typescript@5.9.3)
       '@solana/rpc-parsed-types': 5.1.0(typescript@5.9.3)
       '@solana/rpc-spec-types': 5.1.0(typescript@5.9.3)
-      '@solana/rpc-subscriptions': 5.1.0(typescript@5.9.3)(ws@7.5.13(bufferutil@4.1.0)(utf-8-validate@6.0.6))
+      '@solana/rpc-subscriptions': 5.1.0(typescript@5.9.3)(ws@8.21.0(bufferutil@4.1.0)(utf-8-validate@6.0.6))
       '@solana/rpc-types': 5.1.0(typescript@5.9.3)
       '@solana/signers': 5.1.0(typescript@5.9.3)
       '@solana/sysvars': 5.1.0(typescript@5.9.3)
-      '@solana/transaction-confirmation': 5.1.0(typescript@5.9.3)(ws@7.5.13(bufferutil@4.1.0)(utf-8-validate@6.0.6))
+      '@solana/transaction-confirmation': 5.1.0(typescript@5.9.3)(ws@8.21.0(bufferutil@4.1.0)(utf-8-validate@6.0.6))
       '@solana/transaction-messages': 5.1.0(typescript@5.9.3)
       '@solana/transactions': 5.1.0(typescript@5.9.3)
       typescript: 5.9.3
@@ -5729,7 +5698,7 @@ snapshots:
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/rpc-subscriptions-channel-websocket@5.1.0(typescript@5.9.3)(ws@7.5.13(bufferutil@4.1.0)(utf-8-validate@6.0.6))':
+  '@solana/rpc-subscriptions-channel-websocket@5.1.0(typescript@5.9.3)(ws@8.21.0(bufferutil@4.1.0)(utf-8-validate@6.0.6))':
     dependencies:
       '@solana/errors': 5.1.0(typescript@5.9.3)
       '@solana/functional': 5.1.0(typescript@5.9.3)
@@ -5737,7 +5706,7 @@ snapshots:
       '@solana/subscribable': 5.1.0(typescript@5.9.3)
       typescript: 5.9.3
     optionalDependencies:
-      ws: 7.5.13(bufferutil@4.1.0)(utf-8-validate@6.0.6)
+      ws: 8.21.0(bufferutil@4.1.0)(utf-8-validate@6.0.6)
 
   '@solana/rpc-subscriptions-spec@5.1.0(typescript@5.9.3)':
     dependencies:
@@ -5747,7 +5716,7 @@ snapshots:
       '@solana/subscribable': 5.1.0(typescript@5.9.3)
       typescript: 5.9.3
 
-  '@solana/rpc-subscriptions@5.1.0(typescript@5.9.3)(ws@7.5.13(bufferutil@4.1.0)(utf-8-validate@6.0.6))':
+  '@solana/rpc-subscriptions@5.1.0(typescript@5.9.3)(ws@8.21.0(bufferutil@4.1.0)(utf-8-validate@6.0.6))':
     dependencies:
       '@solana/errors': 5.1.0(typescript@5.9.3)
       '@solana/fast-stable-stringify': 5.1.0(typescript@5.9.3)
@@ -5755,7 +5724,7 @@ snapshots:
       '@solana/promises': 5.1.0(typescript@5.9.3)
       '@solana/rpc-spec-types': 5.1.0(typescript@5.9.3)
       '@solana/rpc-subscriptions-api': 5.1.0(typescript@5.9.3)
-      '@solana/rpc-subscriptions-channel-websocket': 5.1.0(typescript@5.9.3)(ws@7.5.13(bufferutil@4.1.0)(utf-8-validate@6.0.6))
+      '@solana/rpc-subscriptions-channel-websocket': 5.1.0(typescript@5.9.3)(ws@8.21.0(bufferutil@4.1.0)(utf-8-validate@6.0.6))
       '@solana/rpc-subscriptions-spec': 5.1.0(typescript@5.9.3)
       '@solana/rpc-transformers': 5.1.0(typescript@5.9.3)
       '@solana/rpc-types': 5.1.0(typescript@5.9.3)
@@ -5841,7 +5810,7 @@ snapshots:
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/transaction-confirmation@5.1.0(typescript@5.9.3)(ws@7.5.13(bufferutil@4.1.0)(utf-8-validate@6.0.6))':
+  '@solana/transaction-confirmation@5.1.0(typescript@5.9.3)(ws@8.21.0(bufferutil@4.1.0)(utf-8-validate@6.0.6))':
     dependencies:
       '@solana/addresses': 5.1.0(typescript@5.9.3)
       '@solana/codecs-strings': 5.1.0(typescript@5.9.3)
@@ -5849,7 +5818,7 @@ snapshots:
       '@solana/keys': 5.1.0(typescript@5.9.3)
       '@solana/promises': 5.1.0(typescript@5.9.3)
       '@solana/rpc': 5.1.0(typescript@5.9.3)
-      '@solana/rpc-subscriptions': 5.1.0(typescript@5.9.3)(ws@7.5.13(bufferutil@4.1.0)(utf-8-validate@6.0.6))
+      '@solana/rpc-subscriptions': 5.1.0(typescript@5.9.3)(ws@8.21.0(bufferutil@4.1.0)(utf-8-validate@6.0.6))
       '@solana/rpc-types': 5.1.0(typescript@5.9.3)
       '@solana/transaction-messages': 5.1.0(typescript@5.9.3)
       '@solana/transactions': 5.1.0(typescript@5.9.3)
@@ -6198,12 +6167,12 @@ snapshots:
   '@unrs/resolver-binding-win32-x64-msvc@1.12.2':
     optional: true
 
-  '@virtuals-protocol/acp-node-v2@0.1.12(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(ws@7.5.13(bufferutil@4.1.0)(utf-8-validate@6.0.6))(zod@4.4.3)':
+  '@virtuals-protocol/acp-node-v2@0.1.12(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(ws@8.21.0(bufferutil@4.1.0)(utf-8-validate@6.0.6))(zod@4.4.3)':
     dependencies:
       '@account-kit/infra': 4.88.5(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(viem@2.56.3(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3))
       '@alchemy/wallet-apis': 5.0.0-beta.9(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(viem@2.56.3(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3))(zod@4.4.3)
-      '@privy-io/node': 0.16.0(@solana/kit@5.1.0(typescript@5.9.3)(ws@7.5.13(bufferutil@4.1.0)(utf-8-validate@6.0.6)))(viem@2.56.3(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3))
-      '@solana/kit': 5.1.0(typescript@5.9.3)(ws@7.5.13(bufferutil@4.1.0)(utf-8-validate@6.0.6))
+      '@privy-io/node': 0.16.0(@solana/kit@5.1.0(typescript@5.9.3)(ws@8.21.0(bufferutil@4.1.0)(utf-8-validate@6.0.6)))(viem@2.56.3(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3))
+      '@solana/kit': 5.1.0(typescript@5.9.3)(ws@8.21.0(bufferutil@4.1.0)(utf-8-validate@6.0.6))
       ajv: 8.20.0
       ajv-formats: 3.0.1(ajv@8.20.0)
       eventsource: 4.1.1
@@ -8713,11 +8682,6 @@ snapshots:
   w3c-xmlserializer@5.0.0:
     dependencies:
       xml-name-validator: 5.0.0
-
-  webauthn-p256@0.0.10:
-    dependencies:
-      '@noble/curves': 1.9.7
-      '@noble/hashes': 1.8.0
 
   webidl-conversions@3.0.1: {}
 
