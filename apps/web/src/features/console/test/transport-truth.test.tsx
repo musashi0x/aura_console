@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import type { RunEvent } from "@/lib/api-client";
 
-import { RunTimeline } from "./run-timeline";
+import { RunTimeline } from "../components/run-timeline";
 import { eventsFromApi, seedFromRun } from "../model/from-api";
 import type { RunSummary } from "@/lib/api-client";
 

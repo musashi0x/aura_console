@@ -5,8 +5,8 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const tokens = readFileSync(path.join(here, "tokens.css"), "utf8");
-const globals = readFileSync(path.join(here, "../app/globals.css"), "utf8");
+const tokens = readFileSync(path.join(here, "../tokens.css"), "utf8");
+const globals = readFileSync(path.join(here, "../../app/globals.css"), "utf8");
 
 function value(name: string): string {
   const match = tokens.match(new RegExp(`--${name}:\\s*([^;]+);`));

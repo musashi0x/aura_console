@@ -1,4 +1,4 @@
-import type { TransportCommand } from "./presentation-state";
+import type { TransportCommand } from "../presentation/presentation-state";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -6,7 +6,7 @@ import {
   isHistorical,
   playhead,
   presentationReducer,
-} from "./presentation-state";
+} from "../presentation/presentation-state";
 
 describe("presentation state", () => {
   it("starts live and follows the newest event", () => {

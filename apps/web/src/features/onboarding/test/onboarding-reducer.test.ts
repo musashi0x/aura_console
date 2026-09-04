@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { canContinue, initialState, onboardingReducer } from "./onboarding-reducer";
+import { canContinue, initialState, onboardingReducer } from "../onboarding-reducer";
 
 const at = "2026-08-28T10:00:00.000Z";
 

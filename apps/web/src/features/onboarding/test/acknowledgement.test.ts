@@ -5,7 +5,7 @@ import {
   hasAcknowledged,
   readProgress,
   writeProgress,
-} from "./acknowledgement";
+} from "../acknowledgement";
 
 describe("acknowledgement store", () => {
   it("starts empty and unacknowledged", () => {

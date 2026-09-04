@@ -16,7 +16,7 @@ surface for Console UI and the embedded Run preview.
   `.lp-*` landing styles.
 - `apps/web/src/components/primitives/` — `Panel`, `StatusBadge`, `MonoRef`,
   `EmptyState`, `Button`.
-- `apps/web/src/styles/tokens.test.ts` — asserts no literal hex outside the
+- `apps/web/src/styles/test/tokens.test.ts` — asserts no literal hex outside the
   token layer, WCAG AA contrast for both layers, and no webfont fetch.
 - `docs/product/visual-system.md` — the approved visual requirements.
 

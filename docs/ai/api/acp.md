@@ -280,11 +280,10 @@ is pure, and `test/` holds every test in the module. No source file nests
 deeper, because a file two levels below `src/` cannot reach `src/services`
 without the relative import the repo's ESLint config bans.
 
-`test/` is the one exception, and the config says so: `**/src/*/test/**/*.test.ts`
-may use `../../` and nothing deeper, so a test can reach its own package's
-siblings but still cannot leave the package. This module keeps its tests in one
-folder rather than beside each source file; the rest of the repository
-co-locates.
+`test/` is the one exception, and the config says so: `**/src/**/test/**` may use
+`../../` and nothing deeper, so a test can reach its own package's siblings but
+still cannot leave the package. This is now the whole repository's convention,
+not just this module's.
 - `packages/db/src/schema/acp-jobs.ts` — the `(chain_id, job_id)` → `run_id` map.
 - `packages/db/src/schema/acp-inbox.ts` — raw captured entries awaiting projection.
 

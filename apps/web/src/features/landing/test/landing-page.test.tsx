@@ -1,10 +1,10 @@
 import { act, render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { expectNoAxeViolations } from "@/test/axe";
+import { expectNoAxeViolations } from "@/test-support/axe";
 
 import { landing } from "../copy";
-import { LandingPage } from "./landing-page";
+import { LandingPage } from "../components/landing-page";
 
 describe("scroll architecture", () => {
   it("opens with a single statement and no controls inside the window", () => {
@@ -130,21 +130,21 @@ describe("motion", () => {
   });
 
   it("reveals sections once the observer reports them in view", async () => {
-    const { fireIntersection } = await import("@/test/setup");
+    const { fireIntersection } = await import("@/test-support/setup");
     const { container } = render(<LandingPage ready />);
     act(() => fireIntersection({ isIntersecting: true, top: 120 }));
     expect(container.querySelectorAll('[data-reveal="pending"]')).toHaveLength(0);
   });
 
   it("reveals a section the viewport jumped past without intersecting", async () => {
-    const { fireIntersection } = await import("@/test/setup");
+    const { fireIntersection } = await import("@/test-support/setup");
     const { container } = render(<LandingPage ready />);
     act(() => fireIntersection({ isIntersecting: false, top: -900 }));
     expect(container.querySelectorAll('[data-reveal="pending"]')).toHaveLength(0);
   });
 
   it("never enters the pending state under reduced motion", async () => {
-    const { setReducedMotion } = await import("@/test/setup");
+    const { setReducedMotion } = await import("@/test-support/setup");
     setReducedMotion(true);
     const { container } = render(<LandingPage ready />);
     expect(container.querySelectorAll('[data-reveal="pending"]')).toHaveLength(0);

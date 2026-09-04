@@ -57,13 +57,13 @@ export const base = tseslint.config(
   },
   {
     /**
-     * A test directory one level below its subject reaches its own package's
-     * siblings with `../../`, which the pattern above cannot tell apart from a
-     * genuine cross-package import. Only `../../*` is relaxed, and only for
-     * tests: `../../../*` and deeper stay banned, so the escape hatch still
-     * cannot leave the package.
+     * Tests live in a `test/` folder beside their subject, so reaching a
+     * sibling of that subject costs an extra `../`. The pattern above cannot
+     * tell that apart from a genuine cross-package import. Only `../../*` is
+     * relaxed, and only for tests: `../../../*` and deeper stay banned, so the
+     * escape hatch still cannot leave the package.
      */
-    files: ["**/src/*/test/**/*.test.ts"],
+    files: ["**/src/**/test/**/*.test.ts", "**/src/**/test/**/*.test.tsx"],
     rules: {
       "no-restricted-imports": [
         "error",

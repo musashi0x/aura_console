@@ -2,10 +2,10 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { expectNoAxeViolations } from "@/test/axe";
+import { expectNoAxeViolations } from "@/test-support/axe";
 
 import { writeProgress } from "../acknowledgement";
-import { OnboardingFlow } from "./onboarding-flow";
+import { OnboardingFlow } from "../components/onboarding-flow";
 
 const health = vi.fn();
 const dbHealth = vi.fn();

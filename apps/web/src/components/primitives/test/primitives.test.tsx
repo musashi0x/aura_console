@@ -1,10 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { expectNoAxeViolations } from "@/test/axe";
+import { expectNoAxeViolations } from "@/test-support/axe";
 
-import { Button, EmptyState, MonoRef, Panel, StatusBadge } from ".";
-import type { StatusTone } from "./status-badge";
+import { Button, EmptyState, MonoRef, Panel, StatusBadge } from "..";
+import type { StatusTone } from "../status-badge";
 
 const TONES: StatusTone[] = ["neutral", "ready", "pending", "warning", "error"];
 

@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
 import type { CanonicalEvent } from "../model/types";
-import { foldRun, type FoldSeed } from "./fold-run";
-import { stageFor } from "./stage-map";
+import { foldRun, type FoldSeed } from "../projection/fold-run";
+import { stageFor } from "../projection/stage-map";
 
 const seed: FoldSeed = {
   runId: "run-1",

@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import RunsLoading from "./loading";
+import RunsLoading from "../loading";
 
 /**
  * Acceptance criterion 4 of task #30 asks for loading, empty, terminal and

@@ -5,7 +5,7 @@ vi.mock("@/lib/api-client", () => ({
   apiClient: { dbHealth: async () => ({ ok: true, data: { status: "ok", latencyMs: 1 } }) },
 }));
 
-const { default: ExampleRunPage } = await import("./page");
+const { default: ExampleRunPage } = await import("../page");
 
 /**
  * The example Run is the surface most likely to be mistaken for a real one,

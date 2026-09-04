@@ -11,7 +11,7 @@ vi.mock("@/lib/api-client", () => ({
   },
 }));
 
-const { default: RunsPage } = await import("./page");
+const { default: RunsPage } = await import("../page");
 
 const run = (over: Record<string, unknown> = {}) => ({
   id: "run-1",

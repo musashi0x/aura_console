@@ -5,16 +5,16 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-import { expectNoAxeViolations } from "@/test/axe";
+import { expectNoAxeViolations } from "@/test-support/axe";
 
-import { ConsoleShell } from "./console-shell";
+import { ConsoleShell } from "../components/console-shell";
 import {
   ConsoleEmptyState,
   ConsoleErrorState,
   ConsoleLoadingState,
   ConsoleTransportLabel,
   ConsoleUnavailableMemory,
-} from "./console-states";
+} from "../components/console-states";
 
 const shell = (readiness: "ready" | "degraded" | "checking" = "ready") =>
   render(

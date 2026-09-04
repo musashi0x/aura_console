@@ -24,7 +24,7 @@ Scope to one package: `pnpm --filter @aura/api test`, `--filter @aura/web`, `--f
 Single test file or case:
 
 ```bash
-pnpm --filter @aura/web exec vitest run src/features/console/projection/fold-run.test.ts
+pnpm --filter @aura/web exec vitest run src/features/console/test/fold-run.test.ts
 pnpm --filter @aura/api exec vitest run -t "appends an event"
 ```
 
@@ -77,8 +77,9 @@ These are load-bearing claims about honesty, not style preferences. Docs: `docs/
 ## Tests
 
 - API (`apps/api`): node env, real Postgres. `global-setup.ts` creates and migrates a `_test`-suffixed database derived from `DATABASE_URL` — the suite can never reach the dev database. `setup.ts` truncates `runs` (cascading to `run_events`) before each test. `fileParallelism: false` because files share one pool and schema.
-- Web (`apps/web`): jsdom, Testing Library, axe. `src/test/setup.ts` supplies a deterministic `localStorage`, `matchMedia` (`setReducedMotion`), and `IntersectionObserver`; use those helpers rather than re-stubbing.
-- `src/styles/tokens.test.ts` fails on any literal hex outside `tokens.css`, on WCAG AA contrast regressions, and on a webfont fetch. Every colour resolves from a token; violet is glow/edge accent only, never text.
+- Web (`apps/web`): jsdom, Testing Library, axe. `src/test-support/setup.ts` supplies a deterministic `localStorage`, `matchMedia` (`setReducedMotion`), and `IntersectionObserver`; use those helpers rather than re-stubbing.
+- Tests live in a `test/` folder beside what they cover, never next to the source file: `src/acp/test/`, `src/features/console/test/`, `src/styles/test/`. Test *infrastructure* is `src/test-support/`. ESLint relaxes its `../../*` import ban for `**/src/**/test/**` only, so a test can reach its own package and still cannot leave it.
+- `src/styles/test/tokens.test.ts` fails on any literal hex outside `tokens.css`, on WCAG AA contrast regressions, and on a webfont fetch. Every colour resolves from a token; violet is glow/edge accent only, never text.
 
 ## Docs
 

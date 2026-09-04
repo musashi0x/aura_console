@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { writeProgress } from "../acknowledgement";
-import { FirstRunGate } from "./first-run-gate";
+import { FirstRunGate } from "../components/first-run-gate";
 
 const replace = vi.fn();
 const push = vi.fn();

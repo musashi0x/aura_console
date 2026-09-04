@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { CanonicalEvent } from "../model/types";
-import { foldRun, type FoldSeed } from "./fold-run";
+import { foldRun, type FoldSeed } from "../projection/fold-run";
 
 const seed: FoldSeed = {
   runId: "run_42",

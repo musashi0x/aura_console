@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { writeProgress } from "@/features/onboarding/acknowledgement";
 
-import { OnboardingRoute } from "./onboarding-route";
+import { OnboardingRoute } from "../onboarding-route";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push, replace: vi.fn() }) }));

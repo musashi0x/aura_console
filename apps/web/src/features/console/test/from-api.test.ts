@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { RunEvent, RunSummary } from "@/lib/api-client";
 
-import { eventsFromApi, seedFromRun } from "./from-api";
+import { eventsFromApi, seedFromRun } from "../model/from-api";
 import { foldRun } from "../projection/fold-run";
 
 const run: RunSummary = {

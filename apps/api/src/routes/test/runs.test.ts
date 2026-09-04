@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { app } from "../app.js";
+import { app } from "../../app.js";
 
 interface ErrorShape {
   error: { code: string; message: string };
