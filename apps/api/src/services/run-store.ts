@@ -7,6 +7,8 @@ export type RunSource = "CONSOLE" | "AGENT" | "FIXTURE";
 export interface CreateRunInput {
   objective: string;
   source: RunSource;
+  /** Free text; the column defaults to non-mainnet when this is omitted. */
+  environment?: string;
   budgetUsdc?: string | null;
   /** Domain time for the seed event. Defaults to now, explicitly, not implicitly. */
   occurredAt?: Date;
@@ -34,16 +36,21 @@ export class RunStore {
   /**
    * Creates the Run row and its `run.created` event in one transaction, so a
    * Run can never exist with no history.
+   *
+   * A caller that must commit something else alongside the Run — the ACP
+   * bridge writing its job mapping — passes its own transaction in, so the two
+   * writes land together or not at all.
    */
-  async createRun(input: CreateRunInput) {
+  async createRun(input: CreateRunInput, tx?: Tx) {
     const eventTime = input.occurredAt ?? new Date();
 
-    return this.db.transaction(async (tx) => {
+    const body = async (tx: Tx) => {
       const [run] = await tx
         .insert(schema.runs)
         .values({
           objective: input.objective,
           source: input.source,
+          ...(input.environment === undefined ? {} : { environment: input.environment }),
           budgetUsdc: input.budgetUsdc ?? null,
         })
         .returning();
@@ -65,7 +72,9 @@ export class RunStore {
       });
 
       return run;
-    });
+    };
+
+    return tx ? body(tx) : this.db.transaction(body);
   }
 
   async listRuns(limit: number) {

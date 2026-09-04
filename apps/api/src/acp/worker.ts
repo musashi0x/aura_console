@@ -1,7 +1,8 @@
 import { closeDb } from "@aura/db";
-import type { AcpAgent, EntryHandler } from "@virtuals-protocol/acp-node-v2";
+import type { AcpAgent } from "@virtuals-protocol/acp-node-v2";
 
 import { createAcpAgent } from "./agent.js";
+import { AcpBridge } from "./bridge.js";
 import { loadAcpEnv } from "./env.js";
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
@@ -24,22 +25,23 @@ function log(level: "info" | "error", msg: string, fields: Record<string, unknow
   else console.log(line);
 }
 
-const logEntry: EntryHandler = (session, entry) => {
-  log("info", "acp entry", {
-    chainId: entry.chainId,
-    jobId: entry.onChainJobId,
-    kind: entry.kind,
-    detail: entry.kind === "system" ? entry.event.type : entry.contentType,
-    status: session.status,
-  });
-};
-
 async function main(): Promise<void> {
   const env = loadAcpEnv();
 
-  let agent: AcpAgent;
+  // Bound below, before any entry can arrive: the agent is not started until
+  // after createAcpAgent returns, and only a started agent emits entries.
+  let agent: AcpAgent | undefined;
+
+  const bridge = new AcpBridge({
+    fetchJobDescription: async (chainId, jobId) => {
+      const job = await agent?.getApi().getJob(chainId, jobId);
+      return job?.description ?? null;
+    },
+    log,
+  });
+
   try {
-    agent = await createAcpAgent(env, logEntry);
+    agent = await createAcpAgent(env, (_session, entry) => bridge.handleEntry(entry));
     await agent.start(() => {
       log("info", "acp connected", { serverUrl: env.ACP_SERVER_URL, chainId: env.ACP_CHAIN_ID });
     });
@@ -51,7 +53,8 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  log("info", "acp listening", { address: await agent.getAddress() });
+  const connected = agent;
+  log("info", "acp listening", { address: await connected.getAddress() });
 
   let shuttingDown = false;
 
@@ -66,7 +69,7 @@ async function main(): Promise<void> {
     }, SHUTDOWN_TIMEOUT_MS);
     forceExit.unref();
 
-    await agent.stop();
+    await connected.stop();
     await closeDb();
 
     clearTimeout(forceExit);
