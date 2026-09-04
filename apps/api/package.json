@@ -12,9 +12,14 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@aa-sdk/core": "4.88.5",
+    "@account-kit/infra": "4.88.5",
+    "@account-kit/smart-contracts": "4.88.5",
     "@aura/db": "workspace:*",
     "@hono/node-server": "2.1.1",
+    "@virtuals-protocol/acp-node-v2": "0.1.12",
     "hono": "4.13.5",
+    "viem": "2.56.3",
     "zod": "4.4.3"
   },
   "devDependencies": {
