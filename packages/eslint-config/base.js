@@ -79,6 +79,36 @@ export const base = tseslint.config(
       ],
     },
   },
+  {
+    /**
+     * A module two folders below `src/` — `src/acp/inbound/bridge.ts` — needs
+     * `../../` to reach `src/services`, which the pattern above cannot tell
+     * apart from a genuine cross-package import. The glob matches that depth
+     * exactly, and at that depth `../../*` resolves to `src/*`: still inside
+     * the package. `../../../*` and deeper stay banned, so a file that reaches
+     * for the package root or beyond is still an error.
+     *
+     * Without this, module layout is dictated by the linter: any file that
+     * talks to `src/services` has to sit at `src/<module>/`, which is why the
+     * inbound and outbound pipelines were flat for so long.
+     */
+    files: ["**/src/*/*/*.ts", "**/src/*/*/*.tsx"],
+    ignores: ["**/src/**/test/**"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["../../../*", "../../../../*"],
+              message:
+                "Do not import across package boundaries with relative paths. Use the workspace package name (e.g. @aura/db).",
+            },
+          ],
+        },
+      ],
+    },
+  },
 );
 
 export default base;

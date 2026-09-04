@@ -269,21 +269,32 @@ settles a job, proposes a price, or submits a deliverable.
   anything here renames every id and re-appends history.
 - `apps/api/src/acp/domain/usdc.ts` — the three amount conversions, each a different
   precision claim.
+- `apps/api/src/acp/inbound/bridge.ts` — capture, projection, retry, job identity,
+  per-job ordering. Everything an observed stream entry reaches.
+- `apps/api/src/acp/outbound/spender.ts` — the only code that calls `session.fund()`,
+  driven by an `acp_spend_intents` row an operator created.
 - `apps/api/src/acp/log.ts` — the shared JSON line logger.
-- `apps/api/src/acp/bridge.ts` — capture, projection, retry, job identity, per-job ordering.
 - `apps/api/src/acp/worker.ts` — the entrypoint and process lifecycle.
 - `apps/api/src/acp/create-job.ts` — the operator's manual job command.
 
-Layout: the two pipelines and the entrypoint sit at the module root, where a
-reader lands. `connection/` is how we reach ACP, `domain/` is what we record and
-is pure, and `test/` holds every test in the module. No source file nests
-deeper, because a file two levels below `src/` cannot reach `src/services`
-without the relative import the repo's ESLint config bans.
+Layout: `inbound/` is what the network makes happen, `outbound/` is what the
+operator makes happen, and the direction is the name. `connection/` is how we
+reach ACP, `domain/` is what we record and is pure, `test/` holds every test in
+the module, and the two entrypoints stay at the root where a reader lands.
 
-`test/` is the one exception, and the config says so: `**/src/**/test/**` may use
-`../../` and nothing deeper, so a test can reach its own package's siblings but
-still cannot leave the package. This is now the whole repository's convention,
-not just this module's.
+The split is load-bearing, not cosmetic. `never-automatic.test.ts` walks
+`inbound/`, `domain/` and `connection/` and asserts no file there names a
+money-moving session method or imports the spender — a directory walk, so a new
+file is covered by default rather than by remembering. `outbound/` is excluded
+by the same token: it does call `fund`, and nothing an entry does reaches it.
+
+Both pipelines sit two folders below `src/`, so both need `../../` to reach
+`src/services`. The repo's ESLint config bans that shape by default because it
+cannot tell an intra-package hop from an import escaping the package. Two scoped
+exceptions carve out the depths where it provably cannot escape: `**/src/**/test/**`
+and `**/src/*/*/*.ts`. At exactly that depth `../../*` resolves to `src/*`;
+`../../../*` and deeper stay banned everywhere, including here. The guard is
+narrowed to what it can actually prove, not lifted.
 - `packages/db/src/schema/acp-jobs.ts` — the `(chain_id, job_id)` → `run_id` map.
 - `packages/db/src/schema/acp-inbox.ts` — raw captured entries awaiting projection.
 

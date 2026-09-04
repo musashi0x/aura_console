@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { authorizeFund } from "../../routes/acp-fund-authorizations.js";
 import { RunStore } from "../../services/run-store.js";
-import { AcpSpendExecutor } from "../spender.js";
+import { AcpSpendExecutor } from "../outbound/spender.js";
 
 const CHAIN_ID = 84_532;
 const JOB_ID = "42";

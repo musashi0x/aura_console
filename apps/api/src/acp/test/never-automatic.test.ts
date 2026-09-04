@@ -5,7 +5,7 @@ import { getDb, schema } from "@aura/db";
 import type { JobRoomEntry, JobSession } from "@virtuals-protocol/acp-node-v2";
 import { describe, expect, it } from "vitest";
 
-import { AcpBridge } from "../bridge.js";
+import { AcpBridge } from "../inbound/bridge.js";
 
 /**
  * The five session methods that move money or commit to a price, plus
@@ -25,8 +25,8 @@ const FORBIDDEN = ["fund", "complete", "reject", "setBudget", "submit", "execute
  * Directories rather than a list of filenames, on purpose. A list goes stale
  * the moment someone adds a file; a directory walk does not.
  */
-const ENTRY_PATH_DIRS = ["domain", "connection"] as const;
-const ENTRY_PATH_FILES = ["worker.ts", "bridge.ts"] as const;
+const ENTRY_PATH_DIRS = ["inbound", "domain", "connection"] as const;
+const ENTRY_PATH_FILES = ["worker.ts"] as const;
 
 const resolve = (relative: string) => fileURLToPath(new URL(relative, import.meta.url));
 const read = (relative: string) => readFile(resolve(relative), "utf8");
@@ -131,7 +131,11 @@ describe("the runtime never acts on its own", () => {
   it("lets nothing on the inbound side reach the spender", async () => {
     // No import edge means no call graph from an observed entry to
     // session.fund(), whatever anyone writes inside the bridge.
-    for (const file of ["../bridge.ts", ...(await sourcesIn("domain")), ...(await sourcesIn("connection"))]) {
+    for (const file of [
+      ...(await sourcesIn("inbound")),
+      ...(await sourcesIn("domain")),
+      ...(await sourcesIn("connection")),
+    ]) {
       expect(code(await read(file)), `${file} imports the spender`).not.toMatch(/spender/);
     }
   });
@@ -144,7 +148,7 @@ describe("the runtime never acts on its own", () => {
   });
 
   it("makes the spender act on an instruction row, not on an event", async () => {
-    const spender = code(await read("../spender.ts"));
+    const spender = code(await read("../outbound/spender.ts"));
 
     // Reading run_events for something to do would make a forgeable event an
     // instruction. The only source of work is the intents table.

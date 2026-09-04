@@ -2,10 +2,10 @@ import { closeDb } from "@aura/db";
 import type { AcpAgent } from "@virtuals-protocol/acp-node-v2";
 
 import { createAcpAgent } from "./connection/agent.js";
-import { AcpBridge } from "./bridge.js";
+import { AcpBridge } from "./inbound/bridge.js";
 import { loadAcpEnv } from "./connection/env.js";
 import { jsonLogger as log } from "./log.js";
-import { AcpSpendExecutor } from "./spender.js";
+import { AcpSpendExecutor } from "./outbound/spender.js";
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 

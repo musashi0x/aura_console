@@ -3,7 +3,7 @@ import type { JobRoomEntry } from "@virtuals-protocol/acp-node-v2";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { RunStore } from "../../services/run-store.js";
-import { AcpBridge, type AcpBridgeOptions } from "../bridge.js";
+import { AcpBridge, type AcpBridgeOptions } from "../inbound/bridge.js";
 import type { AcpLogger } from "../log.js";
 import { translateEntry } from "../domain/events.js";
 
