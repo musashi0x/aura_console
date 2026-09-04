@@ -5,7 +5,10 @@ import { HTTPException } from "hono/http-exception";
 import { env } from "./env.js";
 import { errorBody } from "./errors.js";
 import { requestLogger } from "./middleware/request-logger.js";
+import { chat } from "./routes/chat.js";
+import { counterparties } from "./routes/counterparties.js";
 import { health } from "./routes/health.js";
+import { policies } from "./routes/policies.js";
 import { runs } from "./routes/runs.js";
 
 export const app = new Hono();
@@ -24,6 +27,11 @@ app.use(
 
 app.route("/health", health);
 app.route("/api/runs", runs);
+// Mounted on the same prefix: the Run resource owns its own event log, and its
+// live surfaces are paths under a Run rather than a second Run namespace.
+app.route("/api/runs", chat);
+app.route("/api/counterparties", counterparties);
+app.route("/api/policies", policies);
 
 app.notFound((c) =>
   c.json(errorBody("not_found", `No route for ${c.req.method} ${c.req.path}`), 404),

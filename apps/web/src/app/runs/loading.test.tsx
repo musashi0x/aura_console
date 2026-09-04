@@ -26,7 +26,15 @@ describe("the Runs loading state", () => {
 
   it("announces itself politely rather than silently", () => {
     render(<RunsLoading />);
-    expect(screen.getByRole("status")).toBeInTheDocument();
+    // The frame keeps its own empty live region for component announcements,
+    // so "there is a status role on the page" no longer says anything about
+    // this state. Assert the one that carries the loading copy.
+    const announced = screen
+      .getAllByRole("status")
+      .filter((node) => node.textContent && node.textContent.trim().length > 0);
+    expect(announced).toHaveLength(1);
+    expect(announced[0]).toHaveAttribute("aria-live", "polite");
+    expect(announced[0]).toHaveTextContent(/checking/i);
   });
 
   it("claims no Runs while it is still reading", () => {

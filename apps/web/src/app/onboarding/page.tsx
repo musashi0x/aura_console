@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 
+import { SkipLink } from "@/components/skip-link";
+
 import { OnboardingRoute } from "./onboarding-route";
 
 export const metadata: Metadata = {
@@ -9,8 +11,11 @@ export const metadata: Metadata = {
 
 export default function OnboardingPage() {
   return (
-    <main id="main">
-      <OnboardingRoute />
-    </main>
+    <>
+      <SkipLink />
+      <main id="main">
+        <OnboardingRoute />
+      </main>
+    </>
   );
 }

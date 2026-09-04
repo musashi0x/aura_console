@@ -1,10 +1,17 @@
 "use client";
 
-import { useReducer } from "react";
+import { useReducer, useSyncExternalStore } from "react";
 
 import { MonoRef, StatusBadge, type StatusTone } from "@/components/primitives";
 
 import { isTerminal, type RunStatus, type RunView } from "../model/types";
+import {
+  MEMORY_VIEW_SERVER_SNAPSHOT,
+  getMemoryViewEnabled,
+  subscribeMemoryView,
+} from "../memory-view-state";
+import { buildSpine } from "../projection/spine";
+import { RunSpine } from "./run-spine";
 import { foldRun, type FoldSeed } from "../projection/fold-run";
 import type { CanonicalEvent } from "../model/types";
 import {
@@ -58,6 +65,15 @@ export function RunTimeline({ events, seed, fixtureLabel }: RunTimelineProps) {
   // for the same playhead is pure duplicate work on every scrub.
   const view: RunView = at === null ? complete : foldRun(events, seed, at);
   const historical = isHistorical(presentation);
+  // Memory Off hides memory-derived evidence from the spine. It is a view of
+  // the same fold, so the event list below stays complete and the counts on
+  // each node still report what was hidden.
+  const memoryOn = useSyncExternalStore(
+    subscribeMemoryView,
+    getMemoryViewEnabled,
+    () => MEMORY_VIEW_SERVER_SNAPSHOT,
+  );
+  const spine = buildSpine(view.entries, { hideMemory: !memoryOn });
   // The COUNT of events, not the highest sequence NUMBER. Sequences are
   // zero-based, so `lastSequence` reported one fewer than the Run contains, and
   // a single-event Run read as "0 events".
@@ -111,6 +127,8 @@ export function RunTimeline({ events, seed, fixtureLabel }: RunTimelineProps) {
           <dd>{view.retrievalStatus}</dd>
         </div>
       </dl>
+
+      <RunSpine spine={spine} envelope={view.contextEnvelope} memoryOn={memoryOn} />
 
       {/* No Play or Pause. Nothing advances the playhead: there is no timer and
           no stream, so pressing Play changed a badge to PLAYING while the

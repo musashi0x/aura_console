@@ -28,6 +28,8 @@ export default async function ExampleRunPage() {
       readiness={health.ok ? "ready" : "degraded"}
       runRef={exampleRun.id}
     >
+      {/* First, not last. Below the timeline the panel sat off-screen on
+          every Run long enough to matter. */}
       <RunTimeline
         events={eventsFromApi(exampleEvents)}
         seed={seedFromRun(exampleRun)}

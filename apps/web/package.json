@@ -8,16 +8,22 @@
     "dev": "next dev --port ${WEB_PORT:-3000}",
     "start": "next start --port ${WEB_PORT:-3000}",
     "lint": "eslint . --max-warnings 0",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
+    "@astryxdesign/core": "^0.5.2",
+    "@astryxdesign/theme-neutral": "^0.5.2",
+    "@stylexjs/stylex": "^0.19.0",
+    "motion": "^13.1.1",
     "next": "16.3.3",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "react-icons": "^5.7.0",
     "zod": "4.4.3"
   },
   "devDependencies": {
+    "@astryxdesign/cli": "^0.5.2",
     "@aura/eslint-config": "workspace:*",
     "@aura/tsconfig": "workspace:*",
     "@testing-library/jest-dom": "^7.0.1",
@@ -27,10 +33,14 @@
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.5",
     "@vitejs/plugin-react": "^6.1.1",
+    "autoprefixer": "^10.5.4",
     "axe-core": "^4.13.0",
     "dotenv": "17.4.2",
     "eslint": "9.39.5",
     "jsdom": "^30.0.1",
+    "lucide-react": "^0.468.0",
+    "postcss": "^8.5.26",
+    "tailwindcss": "^3.4.19",
     "typescript": "5.9.3",
     "vitest": "4.1.11"
   }

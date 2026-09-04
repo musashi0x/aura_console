@@ -20,6 +20,20 @@ const envSchema = z.object({
       (value) => value.startsWith("postgres://") || value.startsWith("postgresql://"),
       "DATABASE_URL must be a postgres:// or postgresql:// connection string",
     ),
+  /**
+   * The operator's own agent. v0.1 is single-operator with no account model, so
+   * first-party access is established by deployment rather than by a session.
+   * Adding a second operator requires real authentication, not a header.
+   */
+  AGENT_ID: z.string().min(1).default("agent_buyer_1"),
+  /**
+   * Base URL of the Google ADK agent that answers operator questions. Optional
+   * on purpose: with no agent configured the chat endpoint reports that it is
+   * unreachable rather than inventing a reply.
+   */
+  ADK_BASE_URL: z.string().url().optional(),
+  /** Seconds to wait for the agent's first token before giving up. */
+  ADK_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120_000).default(30_000),
   CORS_ORIGINS: z
     .string()
     .default("http://localhost:3000")

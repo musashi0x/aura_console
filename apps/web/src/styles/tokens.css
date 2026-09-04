@@ -18,6 +18,12 @@
   --color-border: rgba(148, 163, 184, 0.18);
   --color-border-strong: rgba(148, 163, 184, 0.34);
 
+  /* Glass. Translucent fills for the floating surfaces — the topbar, the nav
+     rail — that sit over the canvas and blur what scrolls beneath them. */
+  --color-glass: rgba(255, 255, 255, 0.04);
+  --color-glass-strong: rgba(255, 255, 255, 0.07);
+  --color-surface-glass: color-mix(in srgb, var(--color-surface) 82%, transparent);
+
   /* Text */
   --color-text: #f4f7fb;
   --color-text-muted: #8d9aaf;
@@ -26,6 +32,9 @@
      not reach AA against the canvas at body sizes. */
   --color-cyan: #48d7ff;
   --color-violet: #9b6cff;
+
+  /* Ink on an accent fill. Dark enough to clear AA on the cyan primary. */
+  --color-accent-ink: #04131c;
 
   /* Status */
   --color-success: #51e6a6;
@@ -44,7 +53,9 @@
   /* Radii */
   --radius-sm: 0.375rem;
   --radius-md: 0.75rem;
-  --radius-lg: 1.25rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
 
   /* Typography. System fallbacks are first-class: a build or an offline demo
      must never block on fetching a font. */
@@ -59,6 +70,25 @@
   --text-lg: 1.125rem;
   --text-xl: 1.5rem;
   --text-2xl: 2rem;
+
+  /* -------------------------------------------------------------------------
+     Docs surface. The docs shell used to invent its own neutral ramp in
+     utility classes, so the two halves of the product disagreed about what a
+     border or a muted label looked like. These names give it one vocabulary,
+     and in dark they resolve to the Console's own tokens: the dark docs are
+     the Console palette, not a lookalike.
+
+     The light values are the docs default. The accent is the Console cyan
+     re-mixed for a light ground, because #48d7ff on white is unreadable.
+  ------------------------------------------------------------------------- */
+  --docs-canvas: #f3f5f8;
+  --docs-surface: #ffffff;
+  --docs-raised: #f7f9fc;
+  --docs-line: rgba(15, 27, 42, 0.13);
+  --docs-line-strong: rgba(15, 27, 42, 0.24);
+  --docs-ink: #0d1420;
+  --docs-muted: #5c6878;
+  --docs-accent: #0a7ea4;
 
   /* -------------------------------------------------------------------------
      Landing surface. The public page is a bright editorial canvas; the dark
@@ -88,7 +118,11 @@
   /* Elevation */
   --shadow-panel: 0 1px 0 rgba(255, 255, 255, 0.03) inset,
     0 12px 32px rgba(0, 0, 0, 0.45);
+  --shadow-float: 0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 8px 24px rgba(0, 0, 0, 0.5);
   --glow-cyan: 0 0 40px rgba(72, 215, 255, 0.14);
+  --glow-cyan-strong: 0 0 0 1px rgba(72, 215, 255, 0.35),
+    0 0 32px rgba(72, 215, 255, 0.22);
   --glow-violet: 0 0 60px rgba(155, 108, 255, 0.12);
 
   /* Backdrop wash. Decorative only. */
@@ -97,4 +131,17 @@
 
   /* Opaque stop for mask gradients. Colour is irrelevant, only the alpha. */
   --mask-opaque: rgb(0 0 0);
+}
+
+/* The docs shell's dark theme is not a second palette: every value below is the
+   Console token it corresponds to, so the two surfaces cannot drift apart. */
+:root.dark {
+  --docs-canvas: var(--color-canvas);
+  --docs-surface: var(--color-surface);
+  --docs-raised: var(--color-surface-raised);
+  --docs-line: var(--color-border);
+  --docs-line-strong: var(--color-border-strong);
+  --docs-ink: var(--color-text);
+  --docs-muted: var(--color-text-muted);
+  --docs-accent: var(--color-cyan);
 }

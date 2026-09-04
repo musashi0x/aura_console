@@ -6,6 +6,7 @@ import { PrinciplesGrid } from "./principles-grid";
 import { ReplayCounterfactual } from "./replay-counterfactual";
 import { SiteFooter } from "./site-footer";
 import { SiteHeader } from "./site-header";
+import { SkipLink } from "@/components/skip-link";
 
 /**
  * Seven scenes, one story. The page canvas is a bright editorial surface; the
@@ -17,6 +18,7 @@ export function LandingPage({ ready }: { ready: boolean }) {
       {/* Decorative dotted canvas. Ignored by assistive technology. */}
       <div className="lp-dots" aria-hidden="true" />
       <SiteHeader ready={ready} />
+      <SkipLink />
       <main id="main" className="lp-main">
         <OpeningWindow />
         <EditorialStatement />
