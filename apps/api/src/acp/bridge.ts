@@ -2,7 +2,7 @@ import { and, asc, eq, getDb, isNull, schema, sql, type Database } from "@aura/d
 import type { JobRoomEntry } from "@virtuals-protocol/acp-node-v2";
 
 import { RunStore } from "../services/run-store.js";
-import { describedEvent, runSeedForJob, translateEntry } from "./events.js";
+import { describedEvent, runSeedForJob, translateEntry } from "./domain/events.js";
 import { jsonLogger, type AcpLogger } from "./log.js";
 
 export type JobDescriptionFetcher = (chainId: number, jobId: string) => Promise<string | null>;

@@ -257,22 +257,27 @@ settles a job, proposes a price, or submits a deliverable.
 
 ## Where
 
-- `apps/api/src/acp/env.ts` — the five variables, Zod-validated, exit 1 naming
+- `apps/api/src/acp/connection/env.ts` — the five variables, Zod-validated, exit 1 naming
   the offender.
-- `apps/api/src/acp/provider.ts` — `LocalKeyEvmProviderAdapter`, the local-key
+- `apps/api/src/acp/connection/provider.ts` — `LocalKeyEvmProviderAdapter`, the local-key
   `IEvmProviderAdapter` the SDK does not ship.
-- `apps/api/src/acp/agent.ts` — builds `AcpAgent` with an explicit transport and
+- `apps/api/src/acp/connection/agent.ts` — builds `AcpAgent` with an explicit transport and
   API client so the host is never the SDK's production default.
-- `apps/api/src/acp/events.ts` — every `run_events` row this module can produce,
+- `apps/api/src/acp/domain/events.ts` — every `run_events` row this module can produce,
   observed and authored, plus the Run seed an ACP job gets.
-- `apps/api/src/acp/ids.ts` — canonical JSON and the uuidv5 derivation. Changing
+- `apps/api/src/acp/domain/ids.ts` — canonical JSON and the uuidv5 derivation. Changing
   anything here renames every id and re-appends history.
-- `apps/api/src/acp/usdc.ts` — the three amount conversions, each a different
+- `apps/api/src/acp/domain/usdc.ts` — the three amount conversions, each a different
   precision claim.
 - `apps/api/src/acp/log.ts` — the shared JSON line logger.
 - `apps/api/src/acp/bridge.ts` — capture, projection, retry, job identity, per-job ordering.
 - `apps/api/src/acp/worker.ts` — the entrypoint and process lifecycle.
 - `apps/api/src/acp/create-job.ts` — the operator's manual job command.
+
+Layout: the two pipelines and the entrypoint sit at the module root, where a
+reader lands. `connection/` is how we reach ACP, `domain/` is what we record and
+is pure. Nothing nests deeper, because a file two levels below `src/` cannot
+reach `src/services` without the relative import the repo's ESLint config bans.
 - `packages/db/src/schema/acp-jobs.ts` — the `(chain_id, job_id)` → `run_id` map.
 - `packages/db/src/schema/acp-inbox.ts` — raw captured entries awaiting projection.
 

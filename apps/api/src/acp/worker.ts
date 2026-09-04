@@ -1,9 +1,9 @@
 import { closeDb } from "@aura/db";
 import type { AcpAgent } from "@virtuals-protocol/acp-node-v2";
 
-import { createAcpAgent } from "./agent.js";
+import { createAcpAgent } from "./connection/agent.js";
 import { AcpBridge } from "./bridge.js";
-import { loadAcpEnv } from "./env.js";
+import { loadAcpEnv } from "./connection/env.js";
 import { jsonLogger as log } from "./log.js";
 import { AcpSpendExecutor } from "./spender.js";
 

@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RunStore } from "../services/run-store.js";
 import { AcpBridge, type AcpBridgeOptions } from "./bridge.js";
 import type { AcpLogger } from "./log.js";
-import { translateEntry } from "./events.js";
+import { translateEntry } from "./domain/events.js";
 
 const CHAIN_ID = 84_532;
 const OTHER_CHAIN_ID = 97;

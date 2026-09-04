@@ -2,8 +2,8 @@ import { pathToFileURL } from "node:url";
 
 import { closeDb } from "@aura/db";
 
-import { createAcpAgent } from "./agent.js";
-import { loadAcpEnv } from "./env.js";
+import { createAcpAgent } from "./connection/agent.js";
+import { loadAcpEnv } from "./connection/env.js";
 
 /**
  * The chain's no-evaluator sentinel. Passing it — or omitting the evaluator,

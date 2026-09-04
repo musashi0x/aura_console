@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 import { getDb, schema } from "@aura/db";
@@ -14,17 +14,34 @@ import { AcpBridge } from "./bridge.js";
 const FORBIDDEN = ["fund", "complete", "reject", "setBudget", "submit", "executeTool"] as const;
 
 /**
- * Every file that a stream entry can reach. `agent.ts` is included because it
- * is where a handler could be swapped for one that acts.
+ * Everything a stream entry can reach: the worker that registers the handler,
+ * the inbound pipeline, the pure domain it calls, and the connection layer,
+ * which is where a handler could be swapped for one that acts.
  *
- * `spender.ts` is deliberately absent: it does call `fund`, but nothing an
- * entry does reaches it. Its only input is an `acp_spend_intents` row that an
+ * `outbound/` is deliberately absent. It does call `fund`, but nothing an entry
+ * does reaches it: its only input is an `acp_spend_intents` row that an
  * operator created, which is the whole point of the split.
+ *
+ * Directories rather than a list of filenames, on purpose. A list goes stale
+ * the moment someone adds a file; a directory walk does not.
  */
-const HANDLER_PATH = ["./worker.ts", "./bridge.ts", "./events.ts", "./agent.ts"];
+const ENTRY_PATH_DIRS = ["domain", "connection"] as const;
+const ENTRY_PATH_FILES = ["worker.ts", "bridge.ts"] as const;
 
-const read = (relative: string) =>
-  readFile(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
+const resolve = (relative: string) => fileURLToPath(new URL(relative, import.meta.url));
+const read = (relative: string) => readFile(resolve(relative), "utf8");
+
+async function sourcesIn(dir: string): Promise<string[]> {
+  const entries = await readdir(resolve(`./${dir}`));
+  return entries
+    .filter((name) => name.endsWith(".ts") && !name.endsWith(".test.ts"))
+    .map((name) => `./${dir}/${name}`);
+}
+
+async function entryPathSources(): Promise<string[]> {
+  const nested = await Promise.all(ENTRY_PATH_DIRS.map(sourcesIn));
+  return [...ENTRY_PATH_FILES.map((name) => `./${name}`), ...nested.flat()];
+}
 
 /** Strips comments so prose about what we never call is not mistaken for a call. */
 function code(source: string): string {
@@ -88,7 +105,11 @@ describe("the runtime never acts on its own", () => {
   });
 
   it("names no forbidden method anywhere a stream entry can reach", async () => {
-    for (const file of HANDLER_PATH) {
+    const files = await entryPathSources();
+    // A walk that found nothing would pass every assertion below it.
+    expect(files.length).toBeGreaterThan(4);
+
+    for (const file of files) {
       const source = code(await read(file));
 
       for (const method of FORBIDDEN) {
@@ -100,20 +121,22 @@ describe("the runtime never acts on its own", () => {
   });
 
   it("keeps job creation out of the handler path", async () => {
-    for (const file of HANDLER_PATH) {
+    for (const file of await entryPathSources()) {
       const source = code(await read(file));
 
       expect(source, `${file} creates jobs`).not.toMatch(/\.\s*create(Job|FundTransferJob)/);
     }
   });
 
-  it("reaches the spender only from an operator's instruction, never from an entry", async () => {
-    // The handler path does not import the executor at all, so there is no
-    // call graph from an observed entry to session.fund().
-    for (const file of ["./bridge.ts", "./events.ts", "./agent.ts"]) {
+  it("lets nothing on the inbound side reach the spender", async () => {
+    // No import edge means no call graph from an observed entry to
+    // session.fund(), whatever anyone writes inside the bridge.
+    for (const file of ["./bridge.ts", ...(await sourcesIn("domain")), ...(await sourcesIn("connection"))]) {
       expect(code(await read(file)), `${file} imports the spender`).not.toMatch(/spender/);
     }
+  });
 
+  it("reaches the spender only from an operator's instruction", async () => {
     // The worker holds it, and only builds one when the operator opted in.
     const worker = code(await read("./worker.ts"));
     expect(worker).toMatch(/ACP_SPEND_ENABLED/);
