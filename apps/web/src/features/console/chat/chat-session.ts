@@ -32,7 +32,23 @@ export function subscribeChatSession(listener: () => void) {
 export const getChatOpen = () => open;
 export const getChatMessages = () => messages;
 
+/**
+ * Whether the operator has opened or closed the chat themselves.
+ *
+ * `open` starts true so the docked panel is there on a wide screen without
+ * being asked for. On a narrow one the same flag drove a full-height sheet,
+ * so arriving at any console surface on a phone put a chat over the page
+ * instead of the page. A panel that is present and a sheet that covers the
+ * content are different offers, and only the second needs a decision.
+ */
+let touched = false;
+export const getChatTouched = () => touched;
+export const CHAT_TOUCHED_SERVER_SNAPSHOT = false;
+
 export function setChatOpen(next: boolean) {
+  // Recorded even when the value does not change: closing an already-closed
+  // chat is still the operator having an opinion about it.
+  touched = true;
   if (open === next) return;
   open = next;
   emit();
@@ -54,6 +70,7 @@ export const CHAT_MESSAGES_SERVER_SNAPSHOT: ChatMessage[] = [];
 /** Test-only, so one spec cannot leave a thread behind for the next. */
 export function __resetChatSession() {
   open = true;
+  touched = false;
   messages = [];
   emit();
 }

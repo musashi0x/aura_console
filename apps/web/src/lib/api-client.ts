@@ -49,15 +49,28 @@ export interface AgentHealth {
  * name but holds no relationship profile — listed rather than hidden, and
  * never given numbers it does not have.
  */
+export interface SibylEpisode {
+  run: string | null;
+  taskType: string | null;
+  outcome: string | null;
+  note: string | null;
+  occurredAt: string | null;
+}
+
 export interface SibylCounterparty {
   counterpartyKey: string;
+  displayName: string | null;
   hasProfile: boolean;
+  /** Sibyl marks this record as fixture data, and the Console must say so. */
+  isFixture: boolean;
   relationshipStatus: string | null;
   memoryVersion: number | null;
-  episodesUsed: number | null;
   overallReliability: number | null;
   taskFit: number | null;
   confidence: number | null;
+  observedPriceUsdc: string | null;
+  riskNote: string | null;
+  episodes: SibylEpisode[];
   updatedAt: string | null;
 }
 

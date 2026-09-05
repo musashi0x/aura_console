@@ -4,7 +4,9 @@ import { useSyncExternalStore } from "react";
 
 import {
   CHAT_OPEN_SERVER_SNAPSHOT,
+  CHAT_TOUCHED_SERVER_SNAPSHOT,
   getChatOpen,
+  getChatTouched,
   setChatOpen,
   subscribeChatSession,
 } from "../chat/chat-session";
@@ -20,6 +22,15 @@ export function useChatOpen(): boolean {
     subscribeChatSession,
     getChatOpen,
     () => CHAT_OPEN_SERVER_SNAPSHOT,
+  );
+}
+
+/** True once the operator has opened or closed the chat themselves. */
+export function useChatTouched(): boolean {
+  return useSyncExternalStore(
+    subscribeChatSession,
+    getChatTouched,
+    () => CHAT_TOUCHED_SERVER_SNAPSHOT,
   );
 }
 

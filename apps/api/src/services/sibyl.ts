@@ -102,18 +102,51 @@ export type SibylRetrieval =
   | {
       status: "AVAILABLE";
       counterpartyKey: string;
-      memoryVersion: number;
+      displayName: string | null;
+      /** Null when Sibyl holds no version for this profile. Never defaulted. */
+      memoryVersion: number | null;
       episodesUsed: number;
       relationshipStatus: string;
       overallReliability: number | null;
       taskFit: number | null;
       confidence: number | null;
+      riskNote: string | null;
+      /** True when Sibyl itself marks the record as fixture data. */
+      isFixture: boolean;
     };
 
 /** Reads a number Sibyl stored, or null. Never coerces a missing value to 0. */
 function num(body: Record<string, unknown>, key: string): number | null {
   const value = body[key];
   return typeof value === "number" ? value : null;
+}
+
+function str(body: Record<string, unknown>, key: string): string | null {
+  const value = body[key];
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+/**
+ * A profile is a profile when Sibyl says something evaluative about the
+ * counterparty.
+ *
+ * This used to hinge on `memory_version`, which the records in a real store do
+ * not carry — so two fully populated profiles, with scores, episodes and a risk
+ * note, were both reported as no history. A version is metadata about a
+ * profile, not the thing that makes one.
+ */
+function hasProfileBody(body: Record<string, unknown>): boolean {
+  return (
+    str(body, "relationship_status") !== null ||
+    num(body, "overall_reliability") !== null ||
+    num(body, "task_fit") !== null ||
+    num(body, "confidence") !== null
+  );
+}
+
+function episodeCount(body: Record<string, unknown>): number {
+  const episodes = body.episodes;
+  return Array.isArray(episodes) ? episodes.length : 0;
 }
 
 export async function retrieveFromSibyl(counterpartyKey: string): Promise<SibylRetrieval> {
@@ -131,22 +164,23 @@ export async function retrieveFromSibyl(counterpartyKey: string): Promise<SibylR
     if (parsed.found !== true) return { status: "NO_HISTORY", counterpartyKey };
 
     const body = (parsed.body ?? {}) as Record<string, unknown>;
-    const memoryVersion = num(body, "memory_version");
-    // A profile with no version is not a profile. Reporting it as AVAILABLE
-    // would put a relationship claim in front of the operator that Sibyl never
-    // made.
-    if (memoryVersion === null) return { status: "NO_HISTORY", counterpartyKey };
+    // An entity Sibyl holds that says nothing evaluative is not history.
+    // Reporting it as AVAILABLE would put a relationship claim in front of the
+    // operator that Sibyl never made.
+    if (!hasProfileBody(body)) return { status: "NO_HISTORY", counterpartyKey };
 
     return {
       status: "AVAILABLE",
       counterpartyKey,
-      memoryVersion,
-      episodesUsed: num(body, "episodes_used") ?? 0,
-      relationshipStatus:
-        typeof body.relationship_status === "string" ? body.relationship_status : "KNOWN",
+      displayName: str(body, "display_name"),
+      memoryVersion: num(body, "memory_version"),
+      episodesUsed: episodeCount(body),
+      relationshipStatus: str(body, "relationship_status") ?? "KNOWN",
       overallReliability: num(body, "overall_reliability"),
       taskFit: num(body, "task_fit"),
       confidence: num(body, "confidence"),
+      riskNote: str(body, "risk_note"),
+      isFixture: str(body, "source") === "fixture",
     };
   } catch (error) {
     console.error("[sibyl] retrieve failed", error);
@@ -155,32 +189,60 @@ export async function retrieveFromSibyl(counterpartyKey: string): Promise<SibylR
 }
 
 /**
- * A counterparty as Sibyl holds it.
+ * A counterparty as Sibyl holds it, for the Agents surface.
  *
  * Named field by field rather than spread, for the same reason the AD-04
  * projection is: a spread publishes whatever the store adds later, and Sibyl's
- * rows carry `id` and `tenant_id` that are its own business, not the operator's.
+ * rows carry `id` and `tenant_id` that are its own business.
  *
- * `hasProfile` is false for an entity Sibyl holds that carries no relationship
- * profile. It is listed rather than hidden — an entity we cannot read a profile
- * from is a real thing to know about — but it never borrows numbers it does not
- * have.
+ * Scores are passed through exactly as Sibyl stored them. They are not scaled,
+ * rounded or suffixed with a unit: the store holds ratios in one record and
+ * whole numbers in another, and inventing a common scale would put a number in
+ * front of the operator that nothing measured.
  */
+export interface SibylEpisode {
+  run: string | null;
+  taskType: string | null;
+  outcome: string | null;
+  note: string | null;
+  occurredAt: string | null;
+}
+
 export interface SibylCounterparty {
   counterpartyKey: string;
+  displayName: string | null;
   hasProfile: boolean;
+  /** Sibyl marks this record as fixture data, and the Console must say so. */
+  isFixture: boolean;
   relationshipStatus: string | null;
   memoryVersion: number | null;
-  episodesUsed: number | null;
   overallReliability: number | null;
   taskFit: number | null;
   confidence: number | null;
+  observedPriceUsdc: string | null;
+  riskNote: string | null;
+  episodes: SibylEpisode[];
   updatedAt: string | null;
 }
 
 export type SibylCounterparties =
   | { ok: true; items: SibylCounterparty[] }
   | { ok: false; code: string; detail: string };
+
+function episodesFrom(body: Record<string, unknown>): SibylEpisode[] {
+  const raw = body.episodes;
+  if (!Array.isArray(raw)) return [];
+  return raw.map((entry) => {
+    const episode = (entry ?? {}) as Record<string, unknown>;
+    return {
+      run: str(episode, "run"),
+      taskType: str(episode, "task_type"),
+      outcome: str(episode, "outcome"),
+      note: str(episode, "note"),
+      occurredAt: str(episode, "occurred_at"),
+    };
+  });
+}
 
 export async function listCounterpartiesFromSibyl(): Promise<SibylCounterparties> {
   const python = env.SIBYL_PYTHON;
@@ -211,17 +273,19 @@ export async function listCounterpartiesFromSibyl(): Promise<SibylCounterparties
     const items = rows.map((row): SibylCounterparty => {
       const entity = (row ?? {}) as Record<string, unknown>;
       const body = (entity.body ?? {}) as Record<string, unknown>;
-      const memoryVersion = num(body, "memory_version");
       return {
         counterpartyKey: typeof entity.name === "string" ? entity.name : "",
-        hasProfile: memoryVersion !== null,
-        relationshipStatus:
-          typeof body.relationship_status === "string" ? body.relationship_status : null,
-        memoryVersion,
-        episodesUsed: num(body, "episodes_used"),
+        displayName: str(body, "display_name"),
+        hasProfile: hasProfileBody(body),
+        isFixture: str(body, "source") === "fixture",
+        relationshipStatus: str(body, "relationship_status"),
+        memoryVersion: num(body, "memory_version"),
         overallReliability: num(body, "overall_reliability"),
         taskFit: num(body, "task_fit"),
         confidence: num(body, "confidence"),
+        observedPriceUsdc: str(body, "observed_price_usdc"),
+        riskNote: str(body, "risk_note"),
+        episodes: episodesFrom(body),
         updatedAt: typeof entity.updated_at === "string" ? entity.updated_at : null,
       };
     });

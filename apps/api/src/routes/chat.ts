@@ -117,7 +117,9 @@ chat.get("/:runId/chat", async (c) => {
         });
 
         const projection = await memory.getCounterparty(key);
-        const label = projection?.display.name ?? key;
+        // Sibyl's own name first: it is the store that holds the relationship,
+        // and Postgres may have no row for a counterparty Sibyl remembers.
+        const label = result.displayName ?? projection?.display.name ?? key;
         context.push({
           counterpartyKey: key,
           label,
@@ -128,6 +130,12 @@ chat.get("/:runId/chat", async (c) => {
             overall_reliability: result.overallReliability,
             task_fit: result.taskFit,
             confidence: result.confidence,
+            risk_note: result.riskNote,
+            /* Fixture memory must never reach the agent as lived history. The
+               model is told what this record is, because it is the one place
+               that can turn seeded data into a confident claim about a real
+               counterparty. */
+            source: result.isFixture ? "fixture" : "observed",
           },
         });
 

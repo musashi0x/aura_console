@@ -1522,17 +1522,25 @@ a.cs__brand,
 .cs__workspace {
   container-type: inline-size;
   container-name: workspace;
-  /* The frame fills the viewport, so a short surface — an unavailable-yet card,
-     an empty chat — sat pinned to the top of a tall black region with several
-     hundred pixels of nothing under it. Centring balances that.
-     `safe` matters: plain `center` on content taller than the region overflows
-     in BOTH directions and the top becomes unreachable by scrolling, which
-     would trade a cosmetic gap for unreadable content. `safe` falls back to
-     start the moment the content stops fitting. */
+  /* Content starts at the top. Centring the whole workspace was for short
+     empty states, and it pushed a real page's heading several hundred pixels
+     down the screen the moment a surface had something to show — the Agents
+     list opened with its h1 at y=351 and a band of nothing above it.
+     The balance those empty states needed is theirs to ask for: the rule below
+     centres a state that is alone on the surface, and leaves everything else
+     where a reader expects to start. */
   min-height: 100%;
   display: flex;
   flex-direction: column;
-  justify-content: safe center;
+  justify-content: start;
+}
+
+/* A state that is the only thing on the surface still centres itself. `auto`
+   margins on a lone flex child do what `justify-content: center` did, without
+   moving a page that has real content in it. */
+.cs__workspace > .empty-state:only-child,
+.cs__workspace > .cs__loading:only-child {
+  margin-block: auto;
 }
 
 .cs__title {

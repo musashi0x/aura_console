@@ -63,6 +63,20 @@ export const console_ = {
       confidence: "Confidence",
     },
     updated: (at: string) => `Sibyl last updated this ${at}.`,
+    /* Sibyl marks these records as fixtures. Seeded memory that read as lived
+       history would be the most damaging thing this surface could do: it is
+       the evidence an operator uses to decide whether to trust a counterparty
+       with money. */
+    fixtureBadge: "DEMO",
+    fixtureNote: "Sibyl marks this record as fixture data. It is not a relationship Aura has actually had.",
+    episodesTitle: "What Aura remembers",
+    noEpisodes: "No episodes recorded against this counterparty.",
+    price: "Observed price",
+    risk: "Risk note",
+    /* The store holds ratios in one record and whole numbers in another, so the
+       value is shown exactly as Sibyl stored it. A percent sign here would
+       assert a scale nothing measured. */
+    scoreNote: "Scores are shown exactly as Sibyl stored them.",
     /* An empty list is only sayable once Sibyl has answered. */
     empty: "Sibyl answered, and holds no relationship memory yet.",
     emptyNote: "A Mission that deals with a counterparty writes the first record.",

@@ -17,15 +17,29 @@ vi.mock("@/lib/api-client", () => ({
 
 const { default: CounterpartiesPage } = await import("./page");
 
+/* The shape a real Sibyl record has: scores as ratios, episodes carrying the
+   evidence behind them, no memory_version, and a source marking. */
 const profile = (over: Record<string, unknown> = {}) => ({
-  counterpartyKey: "virtuals:agent:alpha",
+  counterpartyKey: "beta_labs",
+  displayName: "Beta Labs",
   hasProfile: true,
+  isFixture: true,
   relationshipStatus: "PREFERRED",
-  memoryVersion: 13,
-  episodesUsed: 2,
-  overallReliability: 88,
-  taskFit: 91,
-  confidence: 76,
+  memoryVersion: null,
+  overallReliability: 0.91,
+  taskFit: 0.83,
+  confidence: 0.9,
+  observedPriceUsdc: "12.00",
+  riskNote: "No acceptance failures on record.",
+  episodes: [
+    {
+      run: "116",
+      taskType: "market-research",
+      outcome: "accepted",
+      note: "Delivered early; deliverable accepted without revision.",
+      occurredAt: "2026-08-22T11:05:00Z",
+    },
+  ],
   updatedAt: "2026-09-05T13:19:14.916Z",
   ...over,
 });
@@ -45,11 +59,47 @@ describe("Agents, from Sibyl", () => {
   it("renders the profile Sibyl actually returned", async () => {
     listSibylCounterparties.mockResolvedValue({ ok: true, data: { items: [profile()] } });
 
+    const { container } = render(await CounterpartiesPage());
+
+    expect(screen.getByText("Beta Labs")).toBeInTheDocument();
+    expect(screen.getByText("PREFERRED")).toBeInTheDocument();
+    // The score exactly as Sibyl stored it. Scaling 0.91 to 91 would assert a
+    // scale nothing measured, and the store holds whole numbers elsewhere.
+    expect(screen.getByText(/Overall reliability 0\.91/)).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/Overall reliability 91/);
+  });
+
+  it("shows the episodes the scores are a summary of", async () => {
+    listSibylCounterparties.mockResolvedValue({ ok: true, data: { items: [profile()] } });
+
     render(await CounterpartiesPage());
 
-    expect(screen.getByText("virtuals:agent:alpha")).toBeInTheDocument();
-    expect(screen.getByText("PREFERRED")).toBeInTheDocument();
-    expect(screen.getByText("13")).toBeInTheDocument();
+    // An operator deciding whether to trust someone with money needs the
+    // evidence, not just the number derived from it.
+    expect(
+      screen.getByText("Delivered early; deliverable accepted without revision."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("accepted")).toBeInTheDocument();
+  });
+
+  it("marks fixture memory so it cannot pass for lived history", async () => {
+    listSibylCounterparties.mockResolvedValue({ ok: true, data: { items: [profile()] } });
+
+    render(await CounterpartiesPage());
+
+    expect(screen.getByText(console_.agents.fixtureBadge)).toBeInTheDocument();
+    expect(screen.getByText(console_.agents.fixtureNote)).toBeInTheDocument();
+  });
+
+  it("treats a profile with no version as a profile, and shows no version", async () => {
+    listSibylCounterparties.mockResolvedValue({ ok: true, data: { items: [profile()] } });
+
+    const { container } = render(await CounterpartiesPage());
+
+    // A version is metadata about a profile, not the thing that makes one.
+    // Requiring it reported two fully populated records as no history.
+    expect(screen.queryByText(console_.agents.noProfile)).toBeNull();
+    expect(container.textContent).not.toMatch(/Memory version/);
   });
 
   it("says memory could not be read rather than showing an empty page", async () => {
@@ -81,13 +131,17 @@ describe("Agents, from Sibyl", () => {
         items: [
           profile({
             counterpartyKey: "atlas-agent",
+            displayName: null,
             hasProfile: false,
+            isFixture: false,
             relationshipStatus: null,
             memoryVersion: null,
-            episodesUsed: null,
             overallReliability: null,
             taskFit: null,
             confidence: null,
+            observedPriceUsdc: null,
+            riskNote: null,
+            episodes: [],
           }),
         ],
       },

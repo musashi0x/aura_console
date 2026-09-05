@@ -15,6 +15,7 @@ import {
   ConsoleChatLauncher,
   ConsoleChatPanel,
   setChatOpen,
+  useChatTouched,
   useChatOpen,
 } from "./console-chat-dock";
 import { ConsoleNavigation } from "./console-navigation";
@@ -93,6 +94,7 @@ export function ConsoleShell({
   children,
 }: ConsoleShellProps) {
   const chatOpen = useChatOpen();
+  const chatTouched = useChatTouched();
   const narrow = useMediaQuery(NARROW);
   /* Docked beside the workspace when there is room, and a sheet over it when
      there is not. Never both, and never a 420px column on a 375px screen.
@@ -102,7 +104,12 @@ export function ConsoleShell({
      no launcher. Two live transcripts of one thread on one screen is not a
      second way in, it is the same conversation disagreeing with itself. */
   const chatDocked = chatOpen && !narrow && !hostsConversation;
-  const chatAsSheet = chatOpen && narrow && !hostsConversation;
+  /* The sheet needs an actual decision. `chatOpen` starts true so the docked
+     panel is present on a wide screen without being asked for, and on a phone
+     that same default put a full-height chat over every surface on arrival —
+     the operator reached Agents and got a conversation instead of the page.
+     A panel beside the content and a sheet on top of it are different offers. */
+  const chatAsSheet = chatOpen && narrow && !hostsConversation && chatTouched;
 
   return (
     /* The console is a dark operator surface, always — it is not the docs, and
@@ -153,7 +160,7 @@ export function ConsoleShell({
           Mounted only where the frame actually needs it: a sheet renders its
           children even while closed, so on the chat surface it put a second
           live transcript of the same thread behind the first. */}
-      {narrow && !hostsConversation ? (
+      {narrow && !hostsConversation && chatTouched ? (
         <BottomSheet
           isOpen={chatAsSheet}
           onOpenChange={(open) => setChatOpen(open)}

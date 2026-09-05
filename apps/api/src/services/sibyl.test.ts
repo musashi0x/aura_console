@@ -72,10 +72,21 @@ describe("the Sibyl status contract", () => {
 });
 
 describe.skipIf(!hasRuntime)("retrieval keeps its three outcomes apart", () => {
-  it("reads a profile Sibyl actually holds", async () => {
+  it("reads a profile Sibyl actually holds", () => {
     const dbPath = process.env.SIBYL_DB_PATH;
     if (!dbPath) return;
-    const result = bridge(["retrieve", "counterparty", "virtuals:agent:alpha"], dbPath);
+    /* The key is taken from the store rather than hardcoded. A fixed key ties
+       the test to whichever database the developer happens to be pointed at,
+       which is how it started failing the moment the path moved from a probe
+       file to the real one. */
+    const listed = bridge(["entities", "counterparty"], dbPath);
+    expect(listed.ok).toBe(true);
+    const entities = (listed.entities ?? []) as { name?: string }[];
+    if (entities.length === 0) return;
+
+    const name = entities[0]?.name;
+    expect(typeof name).toBe("string");
+    const result = bridge(["retrieve", "counterparty", name!], dbPath);
     expect(result.ok).toBe(true);
     expect(result.found).toBe(true);
   });
@@ -92,7 +103,7 @@ describe.skipIf(!hasRuntime)("retrieval keeps its three outcomes apart", () => {
   });
 
   it("calls an unreadable store a failure, never an empty history", () => {
-    const result = bridge(["retrieve", "counterparty", "virtuals:agent:alpha"], "/tmp/aura-no-sibyl.db");
+    const result = bridge(["retrieve", "counterparty", "anyone"], "/tmp/aura-no-sibyl.db");
     expect(result.ok).toBe(false);
     expect(result.code).toBe("db_absent");
   });
