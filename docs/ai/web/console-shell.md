@@ -22,8 +22,9 @@ nothing".
 The Run surfaces are being rebuilt into the
 [Mission workspace](../../product/mission-workspace.md): one Mission screen with
 `Operator`, `Board` and `Trace` modes, a persistent composer, and a conversation
-that renders cards folded from canonical events. None of it exists yet. This
-document describes the code that does.
+that renders cards folded from canonical events. The shell, the three modes, the
+six-step rail and the Board are built; the event-to-card renderer and the cards
+are not, so Operator currently lists each event as an inspectable raw entry.
 
 Two things about that redesign matter when changing anything below.
 
@@ -58,11 +59,9 @@ and `/policies`. `Run` stays the system word everywhere in code, the same way
 - `apps/web/src/features/console/components/console-topbar.tsx` —
   `ConsoleTopbar`; brand, environment label, Run reference, readiness.
 - `apps/web/src/features/console/components/console-navigation.tsx` —
-  `ConsoleNavigation`; primary list (Runs, Counterparties, Policies) and a
-  secondary list (Example Run, Readiness, Back to landing). The secondary list
-  is scheduled to disappear: the example Mission moves into the primary list
-  with a `Demo` badge, readiness moves to the Network status chip, and the
-  landing page is reached from the brand mark.
+  `ConsoleNavigation`; one list: Missions, Agents, Network, Guardrails, Docs.
+  The secondary list is gone. The example Mission still needs its `Demo` badge
+  in Missions, and readiness still needs to reach the Network status chip.
 - `apps/web/src/features/console/components/console-status.tsx` —
   `ConsoleStatus`, `ReadinessState` = `"ready" | "degraded" | "checking"`.
 - `apps/web/src/features/console/components/console-states.tsx` —
@@ -70,10 +69,18 @@ and `/policies`. `Run` stays the system word everywhere in code, the same way
   `ConsoleUnavailableMemory`, `ConsoleTransportLabel`.
 - `apps/web/src/features/console/copy.ts` — `console_`; every visible string in
   the shell, so wording is reviewed in one place rather than per component.
-- `apps/web/src/features/console/components/run-timeline.tsx` — `RunTimeline`;
-  mounted on `/runs/[runId]` with real events and on `/runs/example` with a
-  labelled fixture. Both go through the same fold, so the example cannot
-  diverge from the product it demonstrates.
+- `apps/web/src/features/console/components/mission-workspace.tsx` —
+  `MissionWorkspace`; mounted on `/runs/[runId]` with real events and on
+  `/runs/example` with a labelled fixture. Both go through the same fold, so the
+  example cannot diverge from the product it demonstrates. It owns the playhead
+  and hands one `RunView` to all three modes.
+- `apps/web/src/features/console/components/mission-operator.tsx`,
+  `mission-board.tsx`, `mission-trace.tsx`, `mission-rail.tsx` — the three modes
+  and the six-step rail. None of them fetch or fold; they render what
+  `MissionWorkspace` already projected.
+- `apps/web/src/features/console/projection/mission-rail.ts` —
+  `buildMissionProgress`; the total mapping from the ten canonical stages to the
+  six rail steps, and the Board column each step falls in.
 - `apps/web/src/features/console/model/from-api.ts` — the only place the API's
   wire shape meets the projection's input shape.
 - `apps/web/src/features/console/fixtures/example-run.ts` — the example Run.
@@ -196,4 +203,5 @@ have.
   landmarks, `aria-current`, absence of account surfaces, readiness taken from
   the prop rather than assumed, every state surface, axe, responsive and motion
   rules read from `globals.css`.
-- `apps/web/src/features/console/components/run-timeline.test.tsx`
+- `apps/web/src/features/console/components/mission-workspace.test.tsx`
+- `apps/web/src/features/console/projection/mission-rail.test.ts`

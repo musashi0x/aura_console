@@ -2,8 +2,10 @@
 
 The Console's default screen is a **live working session**, not a Run inspector.
 
-This document is the target design. It is not implemented yet; see
-[What exists today](#what-exists-today) for the honest split, and
+This document is the target design, and it is partly built. The shell,
+the three modes, the progress rail and the Board exist; the cards the
+conversation is supposed to produce do not. See
+[What exists today](#what-exists-today) for the per-piece split, and
 [Implementation order](#implementation-order) for the sequence.
 
 ## Why this replaced the Run dashboard
@@ -410,36 +412,36 @@ The redesign is a surface change. Every safety invariant survives it intact:
 
 | Piece | State |
 |---|---|
-| Mission workspace shell | Not built. `/runs/[runId]` renders `RunTimeline` |
-| Operator / Board / Trace switch | Not built |
-| Persistent composer | Not built |
-| Event → card renderer | Not built |
-| The nine cards | Not built |
-| Progress rail | Not built |
+| Mission workspace shell | Built. `/runs/[runId]` and `/runs/example` render `MissionWorkspace` |
+| Operator / Board / Trace switch | Built. One `foldRun` behind all three |
+| Persistent composer | Built, in the console chat panel rather than inside Operator |
+| Event → card renderer | Not built. Operator renders each event as an inspectable raw entry |
+| The nine cards | Not built. The projection carries no structured payload for them yet |
+| Progress rail | Built. Six steps over the ten canonical stages |
 | `Why this?` drawer | Not built |
 | Memory drawer | Not built; needs the memory endpoints (tracker #32) |
 | Counterfactual | Not built |
-| Navigation rename | Not done. The rail is Runs, Counterparties, Policies, plus Example Run, Readiness, Back to landing |
+| Navigation rename | Done. Missions, Agents, Network, Guardrails, Docs |
 | Light Operator layer | Not done. Console surfaces use the operational scale |
 | `foldRun` projection | Built and tested. The redesign reuses it unchanged |
-| Retrieval states | Built. Only the wording changes |
+| Retrieval states | Built, and reworded. `AVAILABLE` stops at "was consulted" until the counterfactual exists |
 | Run events endpoint | Built: `GET /api/runs/{id}/events` |
 | Event stream | Does not exist. Every Mission is one read, labelled `LATEST SNAPSHOT` |
 
 ## Implementation order
 
-1. Replace the `/runs/[runId]` shell with `MissionWorkspace`.
-2. Add the `Operator` / `Board` / `Trace` switch.
-3. Replace the floating ask control with the persistent composer.
+1. ~~Replace the `/runs/[runId]` shell with `MissionWorkspace`.~~ Done.
+2. ~~Add the `Operator` / `Board` / `Trace` switch.~~ Done.
+3. ~~Replace the floating ask control with the persistent composer.~~ Done.
 4. Build the shared event renderer that maps canonical events to cards.
 5. Add `MemoryRecallCard`, `DecisionCard`, `ApprovalCard`, `AgentJobCard`,
    `TransactionCard`, `OutcomeCard`, `MemoryDiffCard`.
-6. Build Board from the same Run events.
-7. Move the raw causal stages and lifecycle data into Trace.
+6. ~~Build Board from the same Run events.~~ Done.
+7. ~~Move the raw causal stages and lifecycle data into Trace.~~ Done.
 8. Replace the Evidence stage with the contextual `Why this?` drawer.
 9. Add the memory drawer with source, impact, correction and archive controls.
 10. Add the counterfactual view.
-11. Replace empty stage sections with progressive rendering.
+11. ~~Replace empty stage sections with progressive rendering.~~ Done for stages; the cards in step 5 are still outstanding.
 12. Restyle Operator, Board and the drawers to the editorial layer, and reserve
     the dark layer for Trace.
 
