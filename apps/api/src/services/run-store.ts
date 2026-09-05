@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, getDb, schema, sql, type Database } from "@aura/db";
+import { and, asc, desc, eq, getDb, gt, max, schema, type Database } from "@aura/db";
 
 import { httpError } from "../errors.js";
 
@@ -107,12 +107,7 @@ export class RunStore {
     return this.db
       .select()
       .from(schema.runEvents)
-      .where(
-        and(
-          eq(schema.runEvents.runId, runId),
-          sql`${schema.runEvents.sequence} > ${afterSequence}`,
-        ),
-      )
+      .where(and(eq(schema.runEvents.runId, runId), gt(schema.runEvents.sequence, afterSequence)))
       .orderBy(bySequence);
   }
 
@@ -144,7 +139,7 @@ export class RunStore {
       }
 
       const [head] = await tx
-        .select({ max: sql<number | null>`max(${schema.runEvents.sequence})` })
+        .select({ max: max(schema.runEvents.sequence) })
         .from(schema.runEvents)
         .where(eq(schema.runEvents.runId, input.runId));
 

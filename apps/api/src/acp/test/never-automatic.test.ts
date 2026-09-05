@@ -152,7 +152,7 @@ describe("the runtime never acts on its own", () => {
 
     // Reading run_events for something to do would make a forgeable event an
     // instruction. The only source of work is the intents table.
-    expect(spender).toMatch(/acp_spend_intents/);
+    expect(spender).toMatch(/acp_spend_intents|acpSpendIntents/);
     expect(spender).not.toMatch(/runEvents/);
     expect(spender).not.toMatch(/acp\.fund\.authorized/);
   });

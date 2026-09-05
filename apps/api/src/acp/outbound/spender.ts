@@ -1,4 +1,4 @@
-import { eq, getDb, schema, sql, type Database } from "@aura/db";
+import { and, eq, getDb, isNull, lt, schema, sql, type Database } from "@aura/db";
 import { AssetToken, type AcpAgent } from "@virtuals-protocol/acp-node-v2";
 
 import { RunStore } from "../../services/run-store.js";
@@ -69,34 +69,34 @@ export class AcpSpendExecutor {
    * one it must not also execute.
    */
   private async claim(): Promise<Claimed | null> {
-    const result = await this.db.execute<Omit<Claimed, "chainId"> & { chainId: string }>(sql`
-      update acp_spend_intents
-      set claimed_at = now(), attempts = attempts + 1
-      where authorization_event_id = (
-        select authorization_event_id
-        from acp_spend_intents
-        where claimed_at is null
-          and submitted_at is null
-          and attempts < ${MAX_ATTEMPTS}
-        order by authorized_at
-        limit 1
-        for update skip locked
+    const nextAuthorizationEventId = this.db
+      .select({ authorizationEventId: schema.acpSpendIntents.authorizationEventId })
+      .from(schema.acpSpendIntents)
+      .where(
+        and(
+          isNull(schema.acpSpendIntents.claimedAt),
+          isNull(schema.acpSpendIntents.submittedAt),
+          lt(schema.acpSpendIntents.attempts, MAX_ATTEMPTS),
+        ),
       )
-      returning
-        authorization_event_id as "authorizationEventId",
-        run_id as "runId",
-        chain_id as "chainId",
-        job_id as "jobId",
-        amount_usdc as "amountUsdc",
-        attempts
-    `);
+      .orderBy(schema.acpSpendIntents.authorizedAt)
+      .limit(1)
+      .for("update", { skipLocked: true });
 
-    const row = result.rows[0];
-    if (!row) return null;
+    const [row] = await this.db
+      .update(schema.acpSpendIntents)
+      .set({ claimedAt: sql`now()`, attempts: sql`${schema.acpSpendIntents.attempts} + 1` })
+      .where(eq(schema.acpSpendIntents.authorizationEventId, nextAuthorizationEventId))
+      .returning({
+        authorizationEventId: schema.acpSpendIntents.authorizationEventId,
+        runId: schema.acpSpendIntents.runId,
+        chainId: schema.acpSpendIntents.chainId,
+        jobId: schema.acpSpendIntents.jobId,
+        amountUsdc: schema.acpSpendIntents.amountUsdc,
+        attempts: schema.acpSpendIntents.attempts,
+      });
 
-    // Postgres returns bigint as a string over the wire. Normalising here keeps
-    // the union out of every downstream signature.
-    return { ...row, chainId: Number(row.chainId) };
+    return row ?? null;
   }
 
   private async execute(intent: Claimed): Promise<boolean> {

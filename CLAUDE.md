@@ -50,6 +50,10 @@ packages/{tsconfig,eslint-config}   shared presets
 
 Cross-package imports use the package name (`@aura/db`). ESLint errors on any relative import escaping a package root. `verbatimModuleSyntax` + `consistent-type-imports` are on: type imports must be inline `import { type X }`. API source is NodeNext ESM — relative imports carry the `.js` extension.
 
+## Database access
+
+Use the Drizzle query builder (`.select()/.insert()/.update()/.delete()`, `and`/`eq`/`gt`/`lt`/`isNull`/`max`/… from `@aura/db`) for every query, not `db.execute(sql\`...\`)`. A raw `sql` template is a fallback only when the builder truly has no equivalent — `TRUNCATE`, `CREATE DATABASE`, a bare `select 1` liveness probe — never for a filter, join, subquery, or column expression that `and`/`eq`/`gt`/`sql\`${col} + 1\`` etc. already cover. `@aura/db`'s `index.ts` re-exports the drizzle-orm operators consumers need (add missing ones there, e.g. `gt`, `max`) so app code never imports `drizzle-orm` directly. When converting raw SQL to the builder, check `apps/api/src/acp/test/never-automatic.test.ts` for source-text assertions tied to literal snake_case identifiers — update them to also match the camelCase Drizzle schema identifier rather than reintroducing raw SQL to keep the string match.
+
 ## Architecture
 
 **Event-sourced Runs.** `runs` holds only the seed (objective, source, environment, budget ceiling); everything that happens is an append-only `run_events` row. No column in `runs` is derived from event history. Sequence numbers are allocated server-side inside the same transaction that inserts the row — `RunStore` (`apps/api/src/services/run-store.ts`) is the only writer, route handlers never allocate one. `event_id` is producer-supplied so a retried append is idempotent; `event_time` is producer domain time, never arrival time.
