@@ -574,6 +574,10 @@
     --astryx-card-padding: var(--spacing-3);
   }
 
+  .astryx-segmented-control-item {
+    color: var(--color-text-primary);
+  }
+
   .astryx-section {
     --astryx-section-padding: var(--spacing-3);
   }

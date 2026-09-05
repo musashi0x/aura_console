@@ -13,7 +13,7 @@ export default async function CounterpartiesPage() {
   const readiness = health.ok ? "ready" : "degraded";
 
   return (
-    <ConsoleShell surface="Counterparties" readiness={readiness}>
+    <ConsoleShell surface="Agents" readiness={readiness}>
       <h1 className="cs__title">Counterparties</h1>
       <ConsoleUnavailableMemory>
         <p className="cs__detail">

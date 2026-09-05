@@ -13,7 +13,7 @@ export default async function PoliciesPage() {
   const readiness = health.ok ? "ready" : "degraded";
 
   return (
-    <ConsoleShell surface="Policies" readiness={readiness}>
+    <ConsoleShell surface="Guardrails" readiness={readiness}>
       <h1 className="cs__title">Policies</h1>
       {/* Policy is enforced on the server whether or not this surface can read
           it. Absence here is not absence of policy. */}

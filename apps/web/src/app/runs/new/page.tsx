@@ -19,7 +19,7 @@ export default async function NewRunPage() {
   const health = await apiClient.dbHealth();
 
   return (
-    <ConsoleShell surface="Runs" readiness={health.ok ? "ready" : "degraded"}>
+    <ConsoleShell surface="Missions" readiness={health.ok ? "ready" : "degraded"}>
       <h1 className="cs__title">Start a Run</h1>
       <p className="cs__lede">
         A Run is one economic objective from start to finish. Creating it records the objective and

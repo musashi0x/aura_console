@@ -15,7 +15,7 @@ import { ConsoleLoadingState } from "@/features/console/components/console-state
  */
 export default function RunsLoading() {
   return (
-    <ConsoleShell surface="Runs" readiness="checking">
+    <ConsoleShell surface="Missions" readiness="checking">
       <ConsoleLoadingState />
     </ConsoleShell>
   );

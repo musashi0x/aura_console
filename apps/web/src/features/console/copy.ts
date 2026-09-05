@@ -144,6 +144,89 @@ export const console_ = {
         "Navigation and views only, the same set the command palette runs. Nothing here starts, approves, or pays for anything.",
     },
   },
+  mission: {
+    /* "Mission" is the operator's word for a Run. `Run` stays the system word
+       everywhere in code — run_id, (run_id, sequence), RunStatus, POST
+       /api/runs — for the same reason LIVE stays the projection's mode name
+       under the LATEST SNAPSHOT label: renaming a projection concept to fix a
+       word on screen introduces a second vocabulary and, eventually, a second
+       identifier. */
+    modeLabel: "Mission view",
+    modes: {
+      OPERATOR: "Operator",
+      BOARD: "Board",
+      TRACE: "Trace",
+    },
+    rail: {
+      label: "Mission progress",
+      steps: {
+        UNDERSTAND: "Understand",
+        REMEMBER: "Remember",
+        DECIDE: "Decide",
+        ACT: "Act",
+        VERIFY: "Verify",
+        LEARN: "Learn",
+      },
+      reached: (label: string) => `${label}: reached`,
+      notReached: (label: string) => `${label}: not reached`,
+      jump: (label: string) => `Go to ${label}`,
+    },
+    board: {
+      label: "Mission board",
+      columns: {
+        QUEUED: "Queued",
+        RUNNING: "Running",
+        NEEDS_YOU: "Needs you",
+        DONE: "Done",
+      },
+      /* Board is another projection of the same events, not a task tracker. It
+         never gains a card an event did not create, so an empty column says so
+         plainly rather than offering somewhere to add one. */
+      emptyColumn: "Nothing here",
+      count: (n: number) => `${n} ${n === 1 ? "step" : "steps"}`,
+      note: "The same events as Operator and Trace, grouped by what they are waiting on.",
+    },
+    operator: {
+      label: "Conversation",
+      /* A Mission with no events shows the composer and a prompt, not six
+         empty stage cards. */
+      emptyTitle: "What should Aura accomplish?",
+      emptyBody: "Nothing has happened in this Mission yet. Ask in the chat to direct it.",
+      /* Until the event-to-card renderer exists, every event renders as an
+         inspectable raw entry — the treatment an unrecognised type already
+         gets. That is deliberately a placeholder for cards, not for facts: it
+         shows exactly what the event said and adds nothing. */
+      rawNote: "Each event as recorded. Cards that read these are not built yet.",
+      scrubTo: (summary: string) => `Show the Mission as of ${summary}`,
+    },
+    /* Memory read as causal information, in the operator's language.
+       `Memory: NOT_REQUESTED` is correct and product-dead.
+       The five RetrievalStatus values are unchanged; only the wording is.
+       NO_HISTORY and ERROR never collapse into each other, and unavailable
+       memory is never treated as history.
+
+       AVAILABLE deliberately stops at "was consulted". The doc's stronger
+       lines — "Memory changed this decision" and "recommendation unchanged" —
+       are both claims about a counterfactual, and the counterfactual is not
+       built (step 10, blocked on tracker #32). Picking either one without it
+       would be inventing the most persuasive sentence in the product. */
+    memory: {
+      NOT_REQUESTED: "Memory has not been consulted for this step yet",
+      LOADING: "Checking memory",
+      NO_HISTORY: "No previous relationship found",
+      AVAILABLE: "Memory was consulted for this Mission",
+      ERROR: "Memory unavailable, historical risk unknown",
+    },
+    trace: {
+      label: "Trace",
+      note: "Raw lifecycle events, the ten-stage spine, and the transport that carried them.",
+      connectionTitle: "Connection",
+      /* The strip reports the real transport. There is no stream, so it may
+         never say "live events connected". */
+      events: (n: number) => `${n} ${n === 1 ? "event" : "events"}`,
+    },
+  },
+
   /* The five-stage causal spine (#68). Each explanation says what the stage
      means, never what the Console expects to happen next: a node that
      pre-announced an economic action would be predicting spend. */

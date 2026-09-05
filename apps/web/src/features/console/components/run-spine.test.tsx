@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { expectNoAxeViolations } from "@/test/axe";
@@ -9,7 +10,7 @@ import type { CanonicalEvent } from "../model/types";
 import { foldRun, type FoldSeed } from "../projection/fold-run";
 import { buildSpine } from "../projection/spine";
 import { RunSpine } from "./run-spine";
-import { RunTimeline } from "./run-timeline";
+import { MissionWorkspace } from "./mission-workspace";
 
 const seed: FoldSeed = {
   runId: "run_9",
@@ -186,15 +187,21 @@ describe("Memory Off view", () => {
     expect(screen.getByText(console_.spine.hidden(1))).toBeInTheDocument();
   });
 
-  it("reaches the timeline from the palette's own store", () => {
+  it("reaches the workspace from the palette's own store", async () => {
+    const user = userEvent.setup();
     setMemoryViewEnabled(false);
-    render(<RunTimeline events={events} seed={seed} />);
+    render(<MissionWorkspace events={events} seed={seed} />);
+    // The spine is system ontology, so it lives in Trace rather than on the
+    // surface an operator opens first.
+    await user.click(screen.getByRole("radio", { name: console_.mission.modes.TRACE }));
     expect(screen.getByText(console_.memoryView.banner)).toBeInTheDocument();
   });
 
-  it("leaves the full event list intact underneath", () => {
+  it("leaves the full event list intact underneath", async () => {
+    const user = userEvent.setup();
     setMemoryViewEnabled(false);
-    const { container } = render(<RunTimeline events={events} seed={seed} />);
+    const { container } = render(<MissionWorkspace events={events} seed={seed} />);
+    await user.click(screen.getByRole("radio", { name: console_.mission.modes.TRACE }));
     // Hiding evidence from the spine must not edit the record below it.
     expect(container.querySelectorAll(".run__event")).toHaveLength(4);
   });

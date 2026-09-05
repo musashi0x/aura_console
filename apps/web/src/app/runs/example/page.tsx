@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { ConsoleShell } from "@/features/console/components/console-shell";
-import { RunTimeline } from "@/features/console/components/run-timeline";
+import { MissionWorkspace } from "@/features/console/components/mission-workspace";
 import { exampleEvents, exampleRun } from "@/features/console/fixtures/example-run";
 import { eventsFromApi, seedFromRun } from "@/features/console/model/from-api";
 import { apiClient } from "@/lib/api-client";
@@ -24,13 +24,13 @@ export default async function ExampleRunPage() {
 
   return (
     <ConsoleShell
-      surface="Example Run"
+      surface="Missions"
       readiness={health.ok ? "ready" : "degraded"}
       runRef={exampleRun.id}
     >
       {/* First, not last. Below the timeline the panel sat off-screen on
           every Run long enough to matter. */}
-      <RunTimeline
+      <MissionWorkspace
         events={eventsFromApi(exampleEvents)}
         seed={seedFromRun(exampleRun)}
         fixtureLabel="Example data. This Run was not executed and no economic action was taken."

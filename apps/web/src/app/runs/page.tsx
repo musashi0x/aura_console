@@ -24,7 +24,7 @@ export default async function RunsPage() {
   const readiness = health.ok ? "ready" : "degraded";
 
   return (
-    <ConsoleShell surface="Runs" readiness={readiness}>
+    <ConsoleShell surface="Missions" readiness={readiness}>
       <h1 className="cs__title">Runs</h1>
 
       {!health.ok || runs === null || !runs.ok ? (

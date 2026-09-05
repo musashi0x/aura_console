@@ -637,6 +637,24 @@ export const neutralTheme = defineTheme({
     },
 
     // =========================================================================
+    // Segmented control — unselected labels must be readable on the track
+    // =========================================================================
+    // The shipped item colour is --color-text-secondary (#a3a3a3 in dark),
+    // which passes against the page but sits on the control's own lighter
+    // track (#3c3c3c). Measured 4.37:1 against a 4.5:1 requirement, on the
+    // Mission workspace's Board and Trace segments.
+    //
+    // The fix is the label, not the track: an unselected mode is still an
+    // interactive label a person has to read. Selection is carried by the
+    // item's background and by aria-checked, so nothing depends on the text
+    // colour to tell the two apart.
+    'segmented-control-item': {
+      base: {
+        color: 'var(--color-text-primary)',
+      },
+    },
+
+    // =========================================================================
     // Section — tighter padding via public section padding token
     // =========================================================================
     section: {

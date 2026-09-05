@@ -417,6 +417,11 @@ export const neutralTheme = {
         "padding": "var(--spacing-3)"
       }
     },
+    "segmented-control-item": {
+      "base": {
+        "color": "var(--color-text-primary)"
+      }
+    },
     "section": {
       "base": {
         "padding": "var(--spacing-3)"

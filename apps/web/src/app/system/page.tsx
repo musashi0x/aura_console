@@ -57,7 +57,7 @@ export default async function SystemPage() {
   ];
 
   return (
-    <ConsoleShell surface="Readiness" readiness={database.ok ? "ready" : "degraded"}>
+    <ConsoleShell surface="Network" readiness={database.ok ? "ready" : "degraded"}>
       <h1 className="cs__title">Readiness</h1>
       <p className="cs__lede">
         Aura reports only what it verified. Anything it cannot check is listed as not checked
