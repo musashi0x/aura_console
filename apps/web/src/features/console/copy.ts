@@ -47,6 +47,26 @@ export const console_ = {
       { href: "/docs", label: "Docs" },
     ],
   },
+  agents: {
+    title: "Agents",
+    lede: "Agents Aura has dealt with, and what its own relationship memory holds about each one. This is the operator's first-party view; nothing here is a counterparty's view of itself.",
+    /* Sibyl knows the name but holds no profile. Listed rather than hidden: an
+       entity we cannot read a profile from is a real thing to know about, and
+       dropping it would make the list claim a completeness it does not have. */
+    noProfile: "No relationship profile yet",
+    fields: {
+      status: "Relationship",
+      version: "Memory version",
+      episodes: "Episodes used",
+      reliability: "Overall reliability",
+      taskFit: "Task fit",
+      confidence: "Confidence",
+    },
+    updated: (at: string) => `Sibyl last updated this ${at}.`,
+    /* An empty list is only sayable once Sibyl has answered. */
+    empty: "Sibyl answered, and holds no relationship memory yet.",
+    emptyNote: "A Mission that deals with a counterparty writes the first record.",
+  },
   missions: {
     title: "Missions",
     /* The example Mission sits in this list rather than in a rail item of its

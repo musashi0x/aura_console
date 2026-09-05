@@ -44,6 +44,23 @@ export interface AgentHealth {
   detail?: string;
 }
 
+/**
+ * A counterparty as Sibyl holds it. `hasProfile` false means Sibyl knows the
+ * name but holds no relationship profile — listed rather than hidden, and
+ * never given numbers it does not have.
+ */
+export interface SibylCounterparty {
+  counterpartyKey: string;
+  hasProfile: boolean;
+  relationshipStatus: string | null;
+  memoryVersion: number | null;
+  episodesUsed: number | null;
+  overallReliability: number | null;
+  taskFit: number | null;
+  confidence: number | null;
+  updatedAt: string | null;
+}
+
 export interface Liveness {
   status: "ok";
   uptime: number;
@@ -121,6 +138,10 @@ export const apiClient = {
      not, and the Console needs the reason to render the right state. */
   sibylHealth: () => request<SibylHealth>("/health/sibyl"),
   agentHealth: () => request<AgentHealth>("/health/agent"),
+  /* 503 when Sibyl cannot be read, never an empty list: "we could not look" and
+     "we looked and there is nobody" are different answers. */
+  listSibylCounterparties: () =>
+    request<{ items: SibylCounterparty[] }>("/api/memory/counterparties"),
 
   // ── Runs ────────────────────────────────────────────────────────────────
   //

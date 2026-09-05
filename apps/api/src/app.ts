@@ -7,6 +7,7 @@ import { errorBody } from "./errors.js";
 import { requestLogger } from "./middleware/request-logger.js";
 import { chat } from "./routes/chat.js";
 import { counterparties } from "./routes/counterparties.js";
+import { memory } from "./routes/memory.js";
 import { health } from "./routes/health.js";
 import { policies } from "./routes/policies.js";
 import { runs } from "./routes/runs.js";
@@ -31,6 +32,7 @@ app.route("/api/runs", runs);
 // live surfaces are paths under a Run rather than a second Run namespace.
 app.route("/api/runs", chat);
 app.route("/api/counterparties", counterparties);
+app.route("/api/memory", memory);
 app.route("/api/policies", policies);
 
 app.notFound((c) =>

@@ -153,3 +153,81 @@ export async function retrieveFromSibyl(counterpartyKey: string): Promise<SibylR
     return { status: "ERROR", counterpartyKey, retryable: true };
   }
 }
+
+/**
+ * A counterparty as Sibyl holds it.
+ *
+ * Named field by field rather than spread, for the same reason the AD-04
+ * projection is: a spread publishes whatever the store adds later, and Sibyl's
+ * rows carry `id` and `tenant_id` that are its own business, not the operator's.
+ *
+ * `hasProfile` is false for an entity Sibyl holds that carries no relationship
+ * profile. It is listed rather than hidden — an entity we cannot read a profile
+ * from is a real thing to know about — but it never borrows numbers it does not
+ * have.
+ */
+export interface SibylCounterparty {
+  counterpartyKey: string;
+  hasProfile: boolean;
+  relationshipStatus: string | null;
+  memoryVersion: number | null;
+  episodesUsed: number | null;
+  overallReliability: number | null;
+  taskFit: number | null;
+  confidence: number | null;
+  updatedAt: string | null;
+}
+
+export type SibylCounterparties =
+  | { ok: true; items: SibylCounterparty[] }
+  | { ok: false; code: string; detail: string };
+
+export async function listCounterpartiesFromSibyl(): Promise<SibylCounterparties> {
+  const python = env.SIBYL_PYTHON;
+  if (!python) {
+    return {
+      ok: false,
+      code: "not_configured",
+      detail: "SIBYL_PYTHON is not set, so this deployment has no relationship memory to read.",
+    };
+  }
+
+  try {
+    const { stdout } = await run(python, [env.SIBYL_BRIDGE, "entities", "counterparty"], {
+      timeout: env.SIBYL_TIMEOUT_MS,
+      env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH },
+      maxBuffer: 4 * 1024 * 1024,
+    });
+    const parsed = JSON.parse(stdout) as Record<string, unknown>;
+    if (parsed.ok !== true) {
+      return {
+        ok: false,
+        code: String(parsed.code ?? "bridge_error"),
+        detail: String(parsed.detail ?? "Sibyl could not be read."),
+      };
+    }
+
+    const rows = Array.isArray(parsed.entities) ? parsed.entities : [];
+    const items = rows.map((row): SibylCounterparty => {
+      const entity = (row ?? {}) as Record<string, unknown>;
+      const body = (entity.body ?? {}) as Record<string, unknown>;
+      const memoryVersion = num(body, "memory_version");
+      return {
+        counterpartyKey: typeof entity.name === "string" ? entity.name : "",
+        hasProfile: memoryVersion !== null,
+        relationshipStatus:
+          typeof body.relationship_status === "string" ? body.relationship_status : null,
+        memoryVersion,
+        episodesUsed: num(body, "episodes_used"),
+        overallReliability: num(body, "overall_reliability"),
+        taskFit: num(body, "task_fit"),
+        confidence: num(body, "confidence"),
+        updatedAt: typeof entity.updated_at === "string" ? entity.updated_at : null,
+      };
+    });
+    return { ok: true, items: items.filter((item) => item.counterpartyKey !== "") };
+  } catch (error) {
+    console.error("[sibyl] counterparty listing failed", error);
+    return { ok: false, code: "bridge_unreachable", detail: "Sibyl could not be read." };
+  }
+}
