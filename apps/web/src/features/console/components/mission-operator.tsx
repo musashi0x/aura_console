@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 import { console_ } from "../copy";
 import type { TimelineEntry } from "../model/types";
 
@@ -7,6 +9,13 @@ export interface MissionOperatorProps {
   entries: readonly TimelineEntry[];
   /** Scrubs the Mission back to the moment an entry was recorded. */
   onScrubTo?: (entry: TimelineEntry) => void;
+  /**
+   * The conversation, rendered in the centre of the Mission rather than in a
+   * panel beside it. Conversation is the default mode INSIDE a Mission, so the
+   * place an operator types is the middle of the thing they are directing —
+   * not a column docked to one edge of it.
+   */
+  conversation?: ReactNode;
 }
 
 /**
@@ -22,7 +31,7 @@ export interface MissionOperatorProps {
  * rendered a number the stream does not contain, would take every guarantee
  * this Console has with it.
  */
-export function MissionOperator({ entries, onScrubTo }: MissionOperatorProps) {
+export function MissionOperator({ entries, onScrubTo, conversation }: MissionOperatorProps) {
   if (entries.length === 0) {
     return (
       <section className="mw__operator" aria-labelledby="mission-operator-heading">
@@ -31,6 +40,7 @@ export function MissionOperator({ entries, onScrubTo }: MissionOperatorProps) {
         </h2>
         <h3 className="mw__empty-title">{console_.mission.operator.emptyTitle}</h3>
         <p className="cs__hint">{console_.mission.operator.emptyBody}</p>
+        {conversation ? <div className="mw__conversation">{conversation}</div> : null}
       </section>
     );
   }
@@ -60,6 +70,8 @@ export function MissionOperator({ entries, onScrubTo }: MissionOperatorProps) {
           </li>
         ))}
       </ol>
+
+      {conversation ? <div className="mw__conversation">{conversation}</div> : null}
     </section>
   );
 }

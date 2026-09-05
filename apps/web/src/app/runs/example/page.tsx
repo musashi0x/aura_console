@@ -27,6 +27,7 @@ export default async function ExampleRunPage() {
       surface="Missions"
       readiness={health.ok ? "ready" : "degraded"}
       runRef={exampleRun.id}
+      hostsConversation
     >
       {/* First, not last. Below the timeline the panel sat off-screen on
           every Run long enough to matter. */}

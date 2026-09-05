@@ -25,6 +25,7 @@ import {
 import { foldRun, type FoldSeed } from "../projection/fold-run";
 import { buildMissionProgress } from "../projection/mission-rail";
 import { buildSpine } from "../projection/spine";
+import { ConsoleChat } from "./console-chat";
 import { MissionBoard } from "./mission-board";
 import { MissionOperator } from "./mission-operator";
 import { MissionRail } from "./mission-rail";
@@ -193,7 +194,16 @@ export function MissionWorkspace({ events, seed, fixtureLabel }: MissionWorkspac
         <Theme theme={neutralTheme} mode="light">
           <div className="mw__editorial">
             {mode === "OPERATOR" ? (
-              <MissionOperator entries={view.entries} onScrubTo={scrubTo} />
+              <MissionOperator
+                entries={view.entries}
+                onScrubTo={scrubTo}
+                /* The conversation sits in the centre of the Mission. It used
+                   to be a panel docked to the right edge on every console
+                   surface, which put the way you direct a Mission beside the
+                   Mission rather than in it. It stays reachable elsewhere from
+                   the launcher; here it is the surface. */
+                conversation={<ConsoleChat runId={view.runId} />}
+              />
             ) : (
               <MissionBoard progress={progress} onSelect={jumpTo} />
             )}

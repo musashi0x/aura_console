@@ -27,6 +27,12 @@ export interface ConsoleShellProps {
   readiness: ReadinessState;
   /** Shown in the context bar only when a Run is actually selected. */
   runRef?: string;
+  /**
+   * True when the surface renders the conversation itself, as a Mission does.
+   * The shell then docks nothing: conversation is a mode inside a Mission, not
+   * a column beside it.
+   */
+  hostsConversation?: boolean;
   children: ReactNode;
 }
 
@@ -79,15 +85,24 @@ function ConsoleChatRegion({ runId }: { runId?: string }) {
   );
 }
 
-export function ConsoleShell({ surface, readiness, runRef, children }: ConsoleShellProps) {
+export function ConsoleShell({
+  surface,
+  readiness,
+  runRef,
+  hostsConversation = false,
+  children,
+}: ConsoleShellProps) {
   const chatOpen = useChatOpen();
   const narrow = useMediaQuery(NARROW);
   /* Docked beside the workspace when there is room, and a sheet over it when
      there is not. Never both, and never a 420px column on a 375px screen.
      A sheet rather than a replacement: putting the chat where the content goes
      took the page's h1 with it, so a phone had a document with no heading. */
-  const chatDocked = chatOpen && !narrow;
-  const chatAsSheet = chatOpen && narrow;
+  /* A surface that renders the conversation itself gets no dock, no sheet and
+     no launcher. Two live transcripts of one thread on one screen is not a
+     second way in, it is the same conversation disagreeing with itself. */
+  const chatDocked = chatOpen && !narrow && !hostsConversation;
+  const chatAsSheet = chatOpen && narrow && !hostsConversation;
 
   return (
     /* The console is a dark operator surface, always — it is not the docs, and
@@ -138,7 +153,7 @@ export function ConsoleShell({ surface, readiness, runRef, children }: ConsoleSh
           Mounted only where the frame actually needs it: a sheet renders its
           children even while closed, so on the chat surface it put a second
           live transcript of the same thread behind the first. */}
-      {narrow ? (
+      {narrow && !hostsConversation ? (
         <BottomSheet
           isOpen={chatAsSheet}
           onOpenChange={(open) => setChatOpen(open)}
@@ -149,7 +164,7 @@ export function ConsoleShell({ surface, readiness, runRef, children }: ConsoleSh
           <ConsoleChatRegion runId={runRef} />
         </BottomSheet>
       ) : null}
-      {chatOpen ? null : <ConsoleChatLauncher />}
+      {chatOpen || hostsConversation ? null : <ConsoleChatLauncher />}
     </Theme>
   );
 }

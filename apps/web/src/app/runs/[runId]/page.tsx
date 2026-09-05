@@ -53,7 +53,12 @@ export default async function RunPage({ params }: { params: Promise<{ runId: str
   }
 
   return (
-    <ConsoleShell surface="Missions" readiness={readiness} runRef={run.data.run.id}>
+    <ConsoleShell
+      surface="Missions"
+      readiness={readiness}
+      runRef={run.data.run.id}
+      hostsConversation
+    >
       {/* Keyed by Run. Both /runs/A and /runs/B render this component at the
           same position, so without a key React reconciles instead of
           remounting and the playhead — plus the other Run's timestamp —

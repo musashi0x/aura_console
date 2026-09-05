@@ -2092,6 +2092,20 @@ input[type="range"].fluid-slider::-moz-range-thumb {
   font-family: var(--font-mono, monospace);
 }
 
+/* The conversation keeps a reading measure. Left to fill the workspace it ran
+   to 1158px, which is past the width a line of prose stays readable at, and it
+   stretched the suggestion grid until one column sat alone against an empty
+   half. The event cards above stay full width: they are scannable rows, not
+   prose. */
+.mw__conversation {
+  inline-size: 100%;
+  max-inline-size: 72ch;
+  margin-inline: auto;
+  /* The transcript scrolls inside itself, so it needs a height to scroll
+     within rather than growing the page forever. */
+  min-block-size: 26rem;
+}
+
 /* ---- Board ----------------------------------------------------------- */
 
 .mw__board-columns {
@@ -2182,19 +2196,22 @@ input[type="range"].fluid-slider::-moz-range-thumb {
    the surrounding console canvas is painted by this stylesheet, so the region
    has to claim its own ground or the light text would land on the dark page. */
 .mw__editorial {
+  /* The console's own ink and ground variables hold the dark canvas's values:
+     near-white text, near-black surface. Every console-scale component inside
+     this region would keep reaching for them and draw light text on light, or
+     dark on dark. Rebinding the four here re-points all of them at the light
+     theme at once, instead of patching class by class and missing the next
+     one. */
+  --color-text: var(--color-text-primary);
+  --color-text-muted: var(--color-text-secondary);
+  --color-surface: var(--color-background-card);
+  --color-surface-raised: var(--color-background-surface);
+
   background: var(--color-background-body);
   color: var(--color-text-primary);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg, 12px);
+  border-radius: var(--radius-lg);
   padding: var(--space-4);
-}
-
-/* Inside the editorial region every colour comes from the light-mode theme.
-   The console-scale muted ink is tuned for a dark canvas and measured 2.84:1
-   on white, so it is re-pointed at the theme's own secondary text. */
-.mw__editorial .cs__hint,
-.mw__editorial .cs__muted {
-  color: var(--color-text-secondary);
 }
 
 /* ---- Trace ----------------------------------------------------------- */
