@@ -14,7 +14,42 @@ export const metadata: Metadata = { title: "Readiness — Aura Console" };
  * browser-readable endpoint say so rather than being omitted or assumed.
  */
 export default async function SystemPage() {
-  const [liveness, database] = await Promise.all([apiClient.health(), apiClient.dbHealth()]);
+  const [liveness, database, sibyl] = await Promise.all([
+    apiClient.health(),
+    apiClient.dbHealth(),
+    apiClient.sibylHealth(),
+  ]);
+
+  /* Sibyl reports itself. Three outcomes, and they are not interchangeable:
+     the API could not be asked, Sibyl is not wired up in this deployment, or
+     Sibyl answered. Only the third one may show a number, because only the
+     third one measured anything. */
+  const sibylRow = (() => {
+    if (!sibyl.ok) {
+      return {
+        tone: "error" as const,
+        state: "UNAVAILABLE",
+        detail:
+          "The Aura API could not be asked about Sibyl, so nothing is known about relationship memory.",
+      };
+    }
+    const status = sibyl.data;
+    if (status.reachable) {
+      const megabytes = (status.dbSizeBytes ?? 0) / 1_048_576;
+      return {
+        tone: "ready" as const,
+        state: "READY",
+        detail: `Sibyl answered: ${status.tier} tier, schema v${status.schemaVersion}, ${status.entityCount} ${status.entityCount === 1 ? "entity" : "entities"}, ${megabytes.toFixed(2)} MB on disk.`,
+      };
+    }
+    return {
+      tone: "neutral" as const,
+      state: status.configured ? "UNAVAILABLE" : "NOT CONNECTED",
+      detail:
+        status.detail ??
+        "Sibyl Memory is not reachable from this deployment, so no relationship history is available.",
+    };
+  })();
 
   const rows = [
     {
@@ -36,6 +71,14 @@ export default async function SystemPage() {
       detail: database.ok
         ? `Responded in ${database.data.latencyMs} ms.`
         : "The API cannot reach Postgres, so Runs cannot be recorded or replayed.",
+    },
+    {
+      id: "sibyl",
+      label: "Relationship memory",
+      domain: "Sibyl Memory",
+      tone: sibylRow.tone,
+      state: sibylRow.state,
+      detail: sibylRow.detail,
     },
     {
       id: "policy",

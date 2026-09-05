@@ -9,6 +9,26 @@ export interface DbHealth {
   latencyMs: number;
 }
 
+/**
+ * Sibyl Memory readiness, as Sibyl reports it.
+ *
+ * `reachable: false` carries a reason and no numbers. A zeroed entity count on
+ * an unreachable Sibyl would read as "no history", which is a different claim
+ * from "we could not look".
+ */
+export interface SibylHealth {
+  configured: boolean;
+  reachable: boolean;
+  tier?: string;
+  schemaVersion?: number;
+  dbSizeBytes?: number;
+  softCapBytes?: number;
+  atOrAboveCap?: boolean;
+  entityCount?: number;
+  code?: string;
+  detail?: string;
+}
+
 export interface Liveness {
   status: "ok";
   uptime: number;
@@ -82,6 +102,9 @@ export const apiClient = {
   /** Liveness. Answers even when Postgres is down, so it isolates the domain. */
   health: () => request<Liveness>("/health"),
   dbHealth: () => request<DbHealth>("/health/db"),
+  /* 200 even when Sibyl is unreachable: the API is fine, one dependency is
+     not, and the Console needs the reason to render the right state. */
+  sibylHealth: () => request<SibylHealth>("/health/sibyl"),
 
   // ── Runs ────────────────────────────────────────────────────────────────
   //

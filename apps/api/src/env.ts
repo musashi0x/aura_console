@@ -34,6 +34,19 @@ const envSchema = z.object({
   ADK_BASE_URL: z.string().url().optional(),
   /** Seconds to wait for the agent's first token before giving up. */
   ADK_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120_000).default(30_000),
+  /**
+   * Sibyl Memory runs as a Python package over a local SQLite file, so reaching
+   * it needs an interpreter that has `sibyl-memory-client` installed. Optional
+   * on purpose, and absent by default: with nothing configured the API reports
+   * that Sibyl is not reachable rather than serving an empty memory, which
+   * would read as "no history" when the truth is "we never looked".
+   */
+  SIBYL_PYTHON: z.string().min(1).optional(),
+  /** The read-only bridge script. */
+  SIBYL_BRIDGE: z.string().min(1).default("tools/sibyl_bridge.py"),
+  /** Sibyl's own default location. */
+  SIBYL_DB_PATH: z.string().min(1).default("~/.sibyl-memory/memory.db"),
+  SIBYL_TIMEOUT_MS: z.coerce.number().int().min(500).max(30_000).default(5_000),
   CORS_ORIGINS: z
     .string()
     .default("http://localhost:3000")
