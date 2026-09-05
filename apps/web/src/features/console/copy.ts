@@ -47,6 +47,12 @@ export const console_ = {
       { href: "/docs", label: "Docs" },
     ],
   },
+  missions: {
+    title: "Missions",
+    /* The example Mission sits in this list rather than in a rail item of its
+       own, so the badge is what stops it reading as a Run that happened. */
+    demoBadge: "DEMO",
+  },
   empty: {
     // Nothing was queried, so this must not claim a verified empty list.
     title: "Runs cannot be listed yet",

@@ -2,8 +2,10 @@
 
 import { useReducer, useState, useSyncExternalStore } from "react";
 import { SegmentedControl, SegmentedControlItem } from "@astryxdesign/core/SegmentedControl";
+import { Theme } from "@astryxdesign/core/theme";
 
 import { MonoRef, StatusBadge, type StatusTone } from "@/components/primitives";
+import { neutralTheme } from "@/themes/neutral/neutral.js";
 
 import { console_ } from "../copy";
 import {
@@ -168,10 +170,15 @@ export function MissionWorkspace({ events, seed, fixtureLabel }: MissionWorkspac
         ))}
       </SegmentedControl>
 
-      {mode === "OPERATOR" ? (
-        <MissionOperator entries={view.entries} onScrubTo={scrubTo} />
-      ) : null}
-      {mode === "BOARD" ? <MissionBoard progress={progress} onSelect={jumpTo} /> : null}
+      {/* Two layers, split by what the surface is for rather than by which app
+          it belongs to. Operator and Board are the product layer and read on
+          the light editorial scale; Trace is the system layer and keeps the
+          dark one. Dark is now a signal that the operator is looking at raw
+          system information, not the ambient temperature of the whole product.
+
+          `Theme` is the switch because the tokens are already there: nothing
+          below invents a colour, it just resolves the same names against the
+          other mode. */}
       {mode === "TRACE" ? (
         <MissionTrace
           spine={spine}
@@ -182,7 +189,17 @@ export function MissionWorkspace({ events, seed, fixtureLabel }: MissionWorkspac
           transport={transportLabel(presentation)}
           onScrubTo={scrubTo}
         />
-      ) : null}
+      ) : (
+        <Theme theme={neutralTheme} mode="light">
+          <div className="mw__editorial">
+            {mode === "OPERATOR" ? (
+              <MissionOperator entries={view.entries} onScrubTo={scrubTo} />
+            ) : (
+              <MissionBoard progress={progress} onSelect={jumpTo} />
+            )}
+          </div>
+        </Theme>
+      )}
 
       {/* No Play or Pause. Nothing advances the playhead: there is no timer and
           no stream, so pressing Play changed a badge while the Mission sat

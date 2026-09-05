@@ -1964,7 +1964,7 @@ input[type="range"].fluid-slider::-moz-range-thumb {
 .mw {
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
+  gap: var(--space-6);
 }
 
 /* Six steps, in one line where there is room and wrapped where there is not.
@@ -2000,7 +2000,7 @@ input[type="range"].fluid-slider::-moz-range-thumb {
   font-size: var(--text-xs);
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--color-text-tertiary, var(--color-text-secondary));
+  color: var(--color-text-secondary);
 }
 
 .mw__rail-jump {
@@ -2071,7 +2071,8 @@ input[type="range"].fluid-slider::-moz-range-thumb {
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md, 8px);
-  background: var(--color-surface, transparent);
+  background: var(--color-background-card);
+  color: var(--color-text-primary);
   cursor: pointer;
 }
 
@@ -2151,6 +2152,8 @@ input[type="range"].fluid-slider::-moz-range-thumb {
 
 .mw__board-card-btn {
   inline-size: 100%;
+  background: var(--color-background-card);
+  color: var(--color-text-primary);
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
@@ -2159,7 +2162,6 @@ input[type="range"].fluid-slider::-moz-range-thumb {
   padding: var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm, 6px);
-  background: none;
   cursor: pointer;
 }
 
@@ -2173,6 +2175,25 @@ input[type="range"].fluid-slider::-moz-range-thumb {
 
 .mw__board-card-meta {
   font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+/* The editorial layer. `Theme mode="light"` re-resolves the Astryx tokens, but
+   the surrounding console canvas is painted by this stylesheet, so the region
+   has to claim its own ground or the light text would land on the dark page. */
+.mw__editorial {
+  background: var(--color-background-body);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg, 12px);
+  padding: var(--space-4);
+}
+
+/* Inside the editorial region every colour comes from the light-mode theme.
+   The console-scale muted ink is tuned for a dark canvas and measured 2.84:1
+   on white, so it is re-pointed at the theme's own secondary text. */
+.mw__editorial .cs__hint,
+.mw__editorial .cs__muted {
   color: var(--color-text-secondary);
 }
 
@@ -2232,7 +2253,7 @@ input[type="range"].fluid-slider::-moz-range-thumb {
 }
 
 .cs__spine-rail-step[data-state="NOT_REACHED"] .cs__spine-rail-label {
-  color: var(--color-text-tertiary, var(--color-text-secondary));
+  color: var(--color-text-secondary);
 }
 
 .cs__spine-node {

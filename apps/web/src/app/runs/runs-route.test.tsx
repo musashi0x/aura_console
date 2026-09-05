@@ -1,4 +1,6 @@
 import { render, screen } from "@testing-library/react";
+
+import { console_ } from "@/features/console/copy";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const dbHealth = vi.fn();
@@ -42,11 +44,29 @@ describe("the Runs list", () => {
 
     render(await RunsPage());
 
-    expect(screen.getByRole("link", { name: /Buy one market dataset/ })).toHaveAttribute(
-      "href",
-      "/runs/run-1",
-    );
+    // Matched by destination, not by text: the demo Mission in this list
+    // happens to carry the same objective as the fixture this test mocks.
+    expect(
+      screen
+        .getAllByRole("link", { name: /Buy one market dataset/ })
+        .map((link) => link.getAttribute("href")),
+    ).toContain("/runs/run-1");
     expect(screen.getByRole("link", { name: /Second objective/ })).toBeInTheDocument();
+  });
+
+  it("carries the demo Mission in the list, badged so it cannot pass for a Run", async () => {
+    dbHealth.mockResolvedValue({ ok: true, data: { status: "ok", latencyMs: 1 } });
+    listRuns.mockResolvedValue({ ok: true, data: { runs: [run()] } });
+
+    render(await RunsPage());
+
+    // It belongs here rather than in a rail item of its own, and the badge is
+    // what stops it reading as a Run the API returned.
+    const demo = screen
+      .getAllByRole("link")
+      .find((link) => link.getAttribute("href") === "/runs/example")!;
+    expect(demo).toBeDefined();
+    expect(demo.textContent).toContain(console_.missions.demoBadge);
   });
 
   it("says the store could not be read when the request fails", async () => {
