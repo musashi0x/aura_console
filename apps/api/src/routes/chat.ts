@@ -2,7 +2,6 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { z } from "zod";
 
-import { env } from "../env.js";
 import { httpError } from "../errors.js";
 import {
   askAgent,
@@ -10,6 +9,7 @@ import {
   type AgentContextRecord,
 } from "../services/adk-agent.js";
 import { MemoryStore } from "../services/memory-store.js";
+import { retrieveFromSibyl } from "../services/sibyl.js";
 import { RunStore } from "../services/run-store.js";
 
 const runs = new RunStore();
@@ -84,7 +84,17 @@ chat.get("/:runId/chat", async (c) => {
         data: { counterparty_key: key, retrieval_status: "LOADING" },
       });
 
-      const result = await memory.retrieve(key, env.AGENT_ID);
+      /* Sibyl is the memory the agent answers from.
+       *
+       * It replaces the Postgres profile read that used to sit here. Postgres
+       * still holds the counterparty projection the Console renders, but
+       * relationship memory — what we learned by dealing with someone — is
+       * Sibyl's, and having two stores answer the same question is how they
+       * start disagreeing.
+       *
+       * The RetrievalResult contract is unchanged, including the rule that
+       * NO_HISTORY and ERROR never collapse into each other. */
+      const result = await retrieveFromSibyl(key);
 
       if (result.status === "AVAILABLE") {
         // Only classified, non-private facts. Episode bodies, profile bodies and

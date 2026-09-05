@@ -82,3 +82,74 @@ export async function getSibylStatus(): Promise<SibylStatus> {
     };
   }
 }
+
+/**
+ * One counterparty's relationship profile, read from Sibyl.
+ *
+ * The shape is the Console's existing `RetrievalResult`, unchanged: the five
+ * `RetrievalStatus` values are the product's vocabulary and swapping the store
+ * underneath them must not alter what the operator reads.
+ *
+ * The three outcomes stay separate all the way down. Sibyl answering "no such
+ * entity" is NO_HISTORY — a real result about a counterparty we have not dealt
+ * with. Sibyl not answering at all is ERROR. Collapsing them would let an
+ * outage read as a clean record, which is the failure this product exists to
+ * prevent.
+ */
+export type SibylRetrieval =
+  | { status: "NO_HISTORY"; counterpartyKey: string }
+  | { status: "ERROR"; counterpartyKey: string; retryable: true }
+  | {
+      status: "AVAILABLE";
+      counterpartyKey: string;
+      memoryVersion: number;
+      episodesUsed: number;
+      relationshipStatus: string;
+      overallReliability: number | null;
+      taskFit: number | null;
+      confidence: number | null;
+    };
+
+/** Reads a number Sibyl stored, or null. Never coerces a missing value to 0. */
+function num(body: Record<string, unknown>, key: string): number | null {
+  const value = body[key];
+  return typeof value === "number" ? value : null;
+}
+
+export async function retrieveFromSibyl(counterpartyKey: string): Promise<SibylRetrieval> {
+  const python = env.SIBYL_PYTHON;
+  if (!python) return { status: "ERROR", counterpartyKey, retryable: true };
+
+  try {
+    const { stdout } = await run(python, [env.SIBYL_BRIDGE, "retrieve", "counterparty", counterpartyKey], {
+      timeout: env.SIBYL_TIMEOUT_MS,
+      env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH },
+      maxBuffer: 1024 * 1024,
+    });
+    const parsed = JSON.parse(stdout) as Record<string, unknown>;
+    if (parsed.ok !== true) return { status: "ERROR", counterpartyKey, retryable: true };
+    if (parsed.found !== true) return { status: "NO_HISTORY", counterpartyKey };
+
+    const body = (parsed.body ?? {}) as Record<string, unknown>;
+    const memoryVersion = num(body, "memory_version");
+    // A profile with no version is not a profile. Reporting it as AVAILABLE
+    // would put a relationship claim in front of the operator that Sibyl never
+    // made.
+    if (memoryVersion === null) return { status: "NO_HISTORY", counterpartyKey };
+
+    return {
+      status: "AVAILABLE",
+      counterpartyKey,
+      memoryVersion,
+      episodesUsed: num(body, "episodes_used") ?? 0,
+      relationshipStatus:
+        typeof body.relationship_status === "string" ? body.relationship_status : "KNOWN",
+      overallReliability: num(body, "overall_reliability"),
+      taskFit: num(body, "task_fit"),
+      confidence: num(body, "confidence"),
+    };
+  } catch (error) {
+    console.error("[sibyl] retrieve failed", error);
+    return { status: "ERROR", counterpartyKey, retryable: true };
+  }
+}
