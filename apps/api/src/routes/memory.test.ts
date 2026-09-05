@@ -121,8 +121,17 @@ describe("agent chat", () => {
   }
 
   it("refuses before opening the stream when no agent is configured", async () => {
+    /* The env module reads the repository's own .env, so this assertion used to
+       pass only on a machine with no agent set up — and started failing the
+       moment one was. What is under test is the refusal, not the developer's
+       local configuration, so the absence is stated here. */
+    const { env } = await import("../env.js");
+    const configured = env.ADK_BASE_URL;
+    (env as { ADK_BASE_URL?: string }).ADK_BASE_URL = undefined;
+
     const runId = await createRun();
     const res = await app.request(`/api/runs/${runId}/chat?q=why%20alpha`);
+    (env as { ADK_BASE_URL?: string }).ADK_BASE_URL = configured;
     // A 503 means the console sees a connection that never established and
     // reports the agent unavailable. An open stream producing nothing would
     // read as a silent agent instead.

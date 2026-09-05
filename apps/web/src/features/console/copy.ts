@@ -97,6 +97,10 @@ export const console_ = {
     groundingBadge: "GROUNDING NOT CONNECTED",
     groundingBody:
       "Answers are grounded in Sibyl relationship memory retrieval, which has no endpoint in this console yet.",
+    /* Never checked is its own state. Reporting it as connected would be a
+       guess, and reporting it as disconnected would be one too. */
+    groundingUnchecked:
+      "The console has not checked whether the agent and its memory are reachable, so it cannot say whether an answer here would be grounded.",
     groundingNote:
       "No question can be answered here until it does, and nothing will be inferred without it.",
     memoryOff:

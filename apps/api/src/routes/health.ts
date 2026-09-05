@@ -2,6 +2,7 @@ import { getDb, sql } from "@aura/db";
 import { Hono } from "hono";
 
 import { errorBody } from "../errors.js";
+import { getAgentStatus } from "../services/adk-agent.js";
 import { getSibylStatus } from "../services/sibyl.js";
 
 export const health = new Hono();
@@ -40,3 +41,10 @@ health.get("/db", async (c) => {
  * would say the service is down when what is down is one dependency.
  */
 health.get("/sibyl", async (c) => c.json(await getSibylStatus()));
+
+/**
+ * Readiness of the answering agent. Same contract as `/health/sibyl`: 200 with
+ * `reachable: false` and a reason, because the API is up and one dependency is
+ * not.
+ */
+health.get("/agent", async (c) => c.json(await getAgentStatus()));

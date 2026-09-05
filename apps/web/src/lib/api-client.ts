@@ -29,6 +29,21 @@ export interface SibylHealth {
   detail?: string;
 }
 
+/**
+ * Whether an answering agent is actually there.
+ *
+ * `configured` is a fact about the deployment; `reachable` is a fact about the
+ * agent, and only a request establishes it. A URL in an env var is not an
+ * agent, and the two failures need different sentences.
+ */
+export interface AgentHealth {
+  configured: boolean;
+  reachable: boolean;
+  apps?: string[];
+  code?: string;
+  detail?: string;
+}
+
 export interface Liveness {
   status: "ok";
   uptime: number;
@@ -105,6 +120,7 @@ export const apiClient = {
   /* 200 even when Sibyl is unreachable: the API is fine, one dependency is
      not, and the Console needs the reason to render the right state. */
   sibylHealth: () => request<SibylHealth>("/health/sibyl"),
+  agentHealth: () => request<AgentHealth>("/health/agent"),
 
   // ── Runs ────────────────────────────────────────────────────────────────
   //

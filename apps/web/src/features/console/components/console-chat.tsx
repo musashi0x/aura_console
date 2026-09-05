@@ -94,9 +94,24 @@ export const SLASH_COMMANDS_BLOCKED_ON_ARIA: ChatComposerTrigger = {
   }),
 };
 
+/**
+ * What the console actually knows about the answering path, checked rather than
+ * assumed. Absent means it was never asked, which is itself a state worth
+ * reporting: the grounding banner used to be hardcoded, so it kept announcing
+ * that grounding was not connected after it was.
+ */
+export interface ChatGrounding {
+  agentReachable: boolean;
+  memoryReachable: boolean;
+  /** Why the answering path is incomplete, in the API's own words. */
+  detail?: string;
+}
+
 export interface ConsoleChatProps {
   /** The Run the conversation is scoped to. Absent means nothing to ask about. */
   runId?: string;
+  /** Omitted means unchecked, and is reported as unchecked, never as ready. */
+  grounding?: ChatGrounding;
   /**
    * Memory On/Off, owned by the command palette (#68). The chat inherits it and
    * renders no toggle of its own: two controls for one setting would let the
@@ -119,7 +134,7 @@ export interface ConsoleChatProps {
  * ever list evidence that was really used. It is deliberately not a catalogue
  * of available memory: showing one would imply a retrieval that has not run.
  */
-export function ConsoleChat({ runId, memoryEnabled }: ConsoleChatProps) {
+export function ConsoleChat({ runId, grounding, memoryEnabled }: ConsoleChatProps) {
   const router = useRouter();
   // The owning page is a server component and cannot read a client store, so
   // the chat subscribes directly rather than having the flag drilled through
@@ -328,30 +343,36 @@ export function ConsoleChat({ runId, memoryEnabled }: ConsoleChatProps) {
         </VStack>
       </StackItem>
 
-      {/* A statement about wiring, not about a lookup result. Borrowing the
-          MEMORY UNAVAILABLE badge would report the outcome of a retrieval the
-          console never ran. */}
-      <StackItem>
-        <Banner
-          status="warning"
-          title={console_.chat.groundingBadge}
-          description={
-            <VStack gap={1}>
-              <Text as="p" size="sm">
-                {console_.chat.groundingBody}
-              </Text>
-              <Text as="p" size="sm">
-                {console_.chat.groundingNote}
-              </Text>
-              {memoryOn === false ? (
+      {/* A statement about wiring, not about a lookup result — and a checked
+          one. This banner was hardcoded, so it kept announcing that grounding
+          was not connected after an agent and a memory were both answering.
+          Silence here is not a claim that everything is fine: it renders
+          nothing only when both halves were checked and both answered. */}
+      {grounding?.agentReachable === true && grounding.memoryReachable === true ? null : (
+        <StackItem>
+          <Banner
+            status="warning"
+            title={console_.chat.groundingBadge}
+            description={
+              <VStack gap={1}>
                 <Text as="p" size="sm">
-                  {console_.chat.memoryOff}
+                  {grounding === undefined
+                    ? console_.chat.groundingUnchecked
+                    : (grounding.detail ?? console_.chat.groundingBody)}
                 </Text>
-              ) : null}
-            </VStack>
-          }
-        />
-      </StackItem>
+                <Text as="p" size="sm">
+                  {console_.chat.groundingNote}
+                </Text>
+                {memoryOn === false ? (
+                  <Text as="p" size="sm">
+                    {console_.chat.memoryOff}
+                  </Text>
+                ) : null}
+              </VStack>
+            }
+          />
+        </StackItem>
+      )}
 
       {/* Only records an answer actually cited. A catalogue of what might exist
           would imply a retrieval the console has not performed. */}

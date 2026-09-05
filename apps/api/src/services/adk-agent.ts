@@ -51,6 +51,12 @@ async function* readAdkStream(body: ReadableStream<Uint8Array>): AsyncGenerator<
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  /* ADK streams the answer twice: once as `partial: true` deltas, then once
+     more as a single frame carrying the whole text. Forwarding both printed
+     every answer to the operator doubled. Deltas are preferred, and the
+     aggregate is used only when no delta ever arrived — a non-streaming
+     backend sends the aggregate alone, and dropping it would print nothing. */
+  let sawPartial = false;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -68,6 +74,9 @@ async function* readAdkStream(body: ReadableStream<Uint8Array>): AsyncGenerator<
         if (!payload || payload === "[DONE]") continue;
         try {
           const event: unknown = JSON.parse(payload);
+          const partial = (event as { partial?: unknown }).partial === true;
+          if (partial) sawPartial = true;
+          else if (sawPartial) continue;
           for (const text of textParts(event)) yield text;
         } catch {
           // A frame we cannot parse is dropped rather than shown as an answer.
@@ -89,21 +98,51 @@ function textParts(event: unknown): string[] {
     .filter((text): text is string => typeof text === "string" && text.length > 0);
 }
 
+const APP_NAME = "aura";
+
+/**
+ * ADK refuses `run_sse` for a session it has never seen, with a 404 that reads
+ * exactly like a wrong URL. The Console addresses a session by Run id, so the
+ * first question about any Run would always hit it.
+ *
+ * Creating it is idempotent by intent: a session that already exists comes back
+ * as a 4xx we ignore, because "already there" is the outcome we wanted. Only a
+ * transport failure is worth reporting, and it is reported by the stream that
+ * follows rather than here.
+ */
+async function ensureSession(base: string, sessionId: string, signal: AbortSignal): Promise<void> {
+  const url = `${base}/apps/${APP_NAME}/users/${encodeURIComponent(env.AGENT_ID)}/sessions/${encodeURIComponent(sessionId)}`;
+  try {
+    await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+      signal,
+    });
+  } catch {
+    // Swallowed on purpose. If the agent is genuinely unreachable the stream
+    // below says so with the real cause, and failing here would report a
+    // session problem for what is actually a connection problem.
+  }
+}
+
 export async function* askAgent(input: AgentAskInput): AsyncGenerator<string> {
-  const base = env.ADK_BASE_URL;
+  const base = env.ADK_BASE_URL?.replace(/\/$/, "");
   if (!base) throw new AgentNotConfiguredError();
 
   const timeout = AbortSignal.timeout(env.ADK_TIMEOUT_MS);
   const signal = AbortSignal.any([input.signal, timeout]);
 
+  await ensureSession(base, input.runId, signal);
+
   let response: Response;
   try {
-    response = await fetch(`${base.replace(/\/$/, "")}/run_sse`, {
+    response = await fetch(`${base}/run_sse`, {
       method: "POST",
       headers: { "content-type": "application/json", accept: "text/event-stream" },
       signal,
       body: JSON.stringify({
-        appName: "aura",
+        appName: APP_NAME,
         userId: env.AGENT_ID,
         sessionId: input.runId,
         streaming: true,
@@ -138,4 +177,61 @@ export async function* askAgent(input: AgentAskInput): AsyncGenerator<string> {
   }
 
   yield* readAdkStream(response.body);
+}
+
+export interface AgentStatus {
+  configured: boolean;
+  reachable: boolean;
+  /** The app names ADK is serving, when it answered. */
+  apps?: string[];
+  code?: string;
+  detail?: string;
+}
+
+/**
+ * Whether an ADK agent is actually there, not merely configured.
+ *
+ * `configured` is a fact about this deployment's environment. `reachable` is a
+ * fact about the agent, and only a request can establish it — a URL in an env
+ * var is not an agent. The Console renders a different sentence for each,
+ * because "nobody wired one up" and "one is wired up and down" are different
+ * problems with different fixes.
+ */
+export async function getAgentStatus(): Promise<AgentStatus> {
+  const base = env.ADK_BASE_URL?.replace(/\/$/, "");
+  if (!base) {
+    return {
+      configured: false,
+      reachable: false,
+      code: "not_configured",
+      detail: "ADK_BASE_URL is not set, so this deployment has no agent to ask.",
+    };
+  }
+  try {
+    const response = await fetch(`${base}/list-apps`, {
+      signal: AbortSignal.timeout(env.ADK_TIMEOUT_MS),
+    });
+    if (!response.ok) {
+      return {
+        configured: true,
+        reachable: false,
+        code: "agent_error",
+        detail: `The agent answered ${response.status}.`,
+      };
+    }
+    const apps = (await response.json()) as unknown;
+    return {
+      configured: true,
+      reachable: true,
+      apps: Array.isArray(apps) ? (apps as string[]) : undefined,
+    };
+  } catch (error) {
+    console.error("[adk] status check failed", error);
+    return {
+      configured: true,
+      reachable: false,
+      code: "agent_unreachable",
+      detail: "The agent could not be reached.",
+    };
+  }
 }
