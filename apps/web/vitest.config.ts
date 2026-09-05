@@ -16,7 +16,7 @@ export default defineConfig({
     // The web env schema is validated at module load, so tests need a value.
     env: { NEXT_PUBLIC_API_URL: "http://localhost:3001" },
     globals: true,
-    setupFiles: [path.resolve(here, "src/test/setup.ts")],
+    setupFiles: [path.resolve(here, "src/test-support/setup.ts")],
     include: ["src/**/*.test.{ts,tsx}"],
   },
 });

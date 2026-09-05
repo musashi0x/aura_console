@@ -77,7 +77,7 @@ inside the transaction that also inserts the row.
 `apps/api/src/routes/runs.test.ts` runs against a real Postgres, not a fake, so
 the constraints above are exercised rather than described. The database name is
 derived from `DATABASE_URL` by appending `_test`, and
-`apps/api/src/test/global-setup.ts` creates and migrates it once per suite.
+`apps/api/src/test-support/global-setup.ts` creates and migrates it once per suite.
 Set `TEST_DATABASE_URL` to override.
 
 ## What the Console does with these
