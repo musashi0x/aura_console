@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { MonoRef, Panel, StatusBadge } from "@/components/primitives";
 import { ConsoleShell } from "@/features/console/components/console-shell";
+import { readGrounding } from "@/features/console/grounding";
 import { apiClient } from "@/lib/api-client";
 
 export const dynamic = "force-dynamic";
@@ -14,10 +15,11 @@ export const metadata: Metadata = { title: "Readiness — Aura Console" };
  * browser-readable endpoint say so rather than being omitted or assumed.
  */
 export default async function SystemPage() {
-  const [liveness, database, sibyl] = await Promise.all([
+  const [liveness, database, sibyl, grounding] = await Promise.all([
     apiClient.health(),
     apiClient.dbHealth(),
     apiClient.sibylHealth(),
+    readGrounding(),
   ]);
 
   /* Sibyl reports itself. Three outcomes, and they are not interchangeable:
@@ -100,7 +102,11 @@ export default async function SystemPage() {
   ];
 
   return (
-    <ConsoleShell surface="Network" readiness={database.ok ? "ready" : "degraded"}>
+    <ConsoleShell
+      surface="Network"
+      readiness={database.ok ? "ready" : "degraded"}
+      grounding={grounding}
+    >
       <h1 className="cs__title">Readiness</h1>
       <p className="cs__lede">
         Aura reports only what it verified. Anything it cannot check is listed as not checked
