@@ -388,13 +388,20 @@ export const console_ = {
     },
     groupNavigate: "Go to",
     groupView: "View",
+    /* The operator's words, the same ones the rail uses. The palette still
+       said Runs, Counterparties and Policies after the rail became Missions,
+       Agents and Guardrails, so the two halves of the console named the same
+       four routes differently. What someone TYPES is unchanged: the aliases
+       still accept "runs", "policies" and "counterparties", because a rename
+       that breaks the words already in someone's fingers is not a rename, it
+       is a removal. */
     commands: {
-      runs: "Go to Runs",
-      newRun: "Start a Run",
-      example: "Open example Run",
-      system: "Inspect system health",
-      policies: "Go to Policies",
-      counterparties: "Go to Counterparties",
+      runs: "Go to Missions",
+      newRun: "Start a Mission",
+      example: "Open the demo Mission",
+      system: "Inspect Network readiness",
+      policies: "Go to Guardrails",
+      counterparties: "Go to Agents",
       memoryToggle: "Toggle Memory On/Off view",
     },
   },

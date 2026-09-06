@@ -95,7 +95,9 @@ describe("console chat", () => {
     // operator nothing they could act on. The zero state names the commands
     // that run now and marks the one that still needs the agent.
     expect(screen.getByText(console_.chat.zero.title)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Go to Runs" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: console_.palette.commands.runs }),
+    ).toBeInTheDocument();
     expect(screen.getByText(console_.chat.zero.needsAgentLabel)).toBeInTheDocument();
     expect(screen.queryByText("Agent")).not.toBeInTheDocument();
   });
