@@ -40,9 +40,13 @@ describe("the example Run", () => {
 
   it("reports spend only because an event reported it", async () => {
     render(await ExampleRunPage());
-    // 18.5 is carried by outcome.recorded. The Console adds nothing up, so a
-    // number here can only have come from an event.
-    expect(screen.getByText(/18\.500000/)).toBeInTheDocument();
+    // 18.5 is carried by outcome.recorded, and now also by the funded job's
+    // own card — so it appears more than once, each time because an event
+    // reported it. The Console adds nothing up, so a number here can only have
+    // come from an event.
+    const reported = screen.getAllByText(/18\.500000/);
+    expect(reported.length).toBeGreaterThan(0);
+    expect(screen.getByText("Spent").closest("div")?.textContent).toContain("18.500000");
   });
 
   it("never presents itself as live", async () => {

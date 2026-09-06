@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 
 import { console_ } from "../copy";
+import { EventCard } from "./cards/event-card";
 import type { TimelineEntry } from "../model/types";
 
 export interface MissionOperatorProps {
@@ -50,22 +51,20 @@ export function MissionOperator({ entries, onScrubTo, conversation }: MissionOpe
       <h2 id="mission-operator-heading" className="visually-hidden">
         {console_.mission.operator.label}
       </h2>
-      <p className="cs__hint">{console_.mission.operator.rawNote}</p>
       <ol className="mw__stream">
         {entries.map((entry) => (
           <li key={entry.eventId} id={`event-${entry.eventId}`} className="mw__entry">
+            <EventCard entry={entry} />
+            {/* Scrubbing is a control on the card, not the card itself. Making
+                the whole card a button put a decision's contents inside a
+                clickable label, so a screen reader read the entire record as
+                the name of one control. */}
             <button
               type="button"
-              className="mw__entry-btn"
+              className="mw__entry-scrub"
               onClick={() => onScrubTo?.(entry)}
-              aria-label={console_.mission.operator.scrubTo(entry.summary)}
             >
-              <span className="mw__entry-title">{entry.summary}</span>
-              <span className="mw__entry-meta">
-                <time dateTime={entry.eventTime}>{entry.eventTime}</time>
-                {" · "}
-                {entry.type}
-              </span>
+              {console_.mission.operator.scrubTo(entry.summary)}
             </button>
           </li>
         ))}

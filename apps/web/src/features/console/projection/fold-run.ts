@@ -122,6 +122,7 @@ export function foldRun(
           ? "UNSUPPORTED_TYPE"
           : "SUPPORTED",
       summary: str(event.data?.summary) ?? event.type,
+      data: event.data,
     };
   });
 

@@ -77,6 +77,19 @@ export interface TimelineEntry {
   /** An unrecognised type is inspectable, never a crash and never dropped. */
   support: EntrySupport;
   summary: string;
+  /**
+   * The event's own payload, carried through unchanged.
+   *
+   * The fold used to keep only `summary`, which meant a card could not render
+   * a decision's chosen counterparty or a job's amount without a second read
+   * of the event stream — and a second derivation of Run state is exactly what
+   * this projection exists to prevent.
+   *
+   * Carrying it is not permission to render it. A card reads NAMED fields from
+   * here; nothing spreads this into a view, because a spread would put
+   * whatever a later producer adds in front of the operator unreviewed.
+   */
+  data: Record<string, unknown> | undefined;
 }
 
 export type RunAttention =

@@ -19,6 +19,7 @@ const entry = (
   stage,
   support: "SUPPORTED",
   summary: `event ${sequence}`,
+  data: undefined,
 });
 
 const progress = (stages: (CanonicalStage | null)[], status: RunStatus = "RUNNING") =>

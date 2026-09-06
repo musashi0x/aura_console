@@ -188,6 +188,45 @@ export const console_ = {
         "Navigation and views only, the same set the command palette runs. Nothing here starts, approves, or pays for anything.",
     },
   },
+  cards: {
+    /* One label per card, so the wording of a claim about money is reviewed in
+       this file rather than scattered across components. */
+    decision: { title: "Decision", chose: "Chose", mode: "Authorization", reasons: "Why" },
+    policy: { title: "Policy gate", rule: "Rule", result: "Result", passed: "PASSED", failed: "FAILED" },
+    approval: {
+      title: "Approval",
+      granted: "Approved by the operator",
+      /* The console never approves. There is no control here, because the
+         only path to an economic action is an operator's own click and this
+         card reports one that already happened. */
+      ceiling: "Ceiling",
+      note: "Recorded from the Run's events. This card approves nothing.",
+    },
+    job: { title: "Agent job", provider: "Provider", amount: "Amount", state: "State" },
+    transaction: { title: "Transaction", network: "Network", amount: "Amount", reference: "Reference" },
+    outcome: { title: "Outcome", result: "Result", evaluator: "Evaluated by", failure: "Failure" },
+    memory: {
+      title: "Memory",
+      /* Retrieval state, in the operator's language. The five RetrievalStatus
+         values are unchanged; only the wording is, and none of these claims
+         that memory changed a decision — that needs a counterfactual. */
+      status: {
+        NOT_REQUESTED: "Memory has not been consulted for this step yet",
+        LOADING: "Checking memory",
+        NO_HISTORY: "No previous relationship found",
+        AVAILABLE: "Memory was consulted",
+        ERROR: "Memory unavailable, historical risk unknown",
+      },
+      counterparty: "Counterparty",
+      episodes: "Episodes used",
+      version: "Memory version",
+    },
+    /* An event type with no card yet. Shown exactly as recorded rather than
+       dropped or paraphrased — the treatment an unrecognised type already
+       gets, for the same reason. */
+    raw: { note: "No card reads this event type yet. Shown as recorded." },
+    unknownValue: "—",
+  },
   mission: {
     /* "Mission" is the operator's word for a Run. `Run` stays the system word
        everywhere in code — run_id, (run_id, sequence), RunStatus, POST
