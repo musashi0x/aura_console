@@ -20,6 +20,33 @@ const envSchema = z.object({
       (value) => value.startsWith("postgres://") || value.startsWith("postgresql://"),
       "DATABASE_URL must be a postgres:// or postgresql:// connection string",
     ),
+  /**
+   * The operator's own agent. v0.1 is single-operator with no account model, so
+   * first-party access is established by deployment rather than by a session.
+   * Adding a second operator requires real authentication, not a header.
+   */
+  AGENT_ID: z.string().min(1).default("agent_buyer_1"),
+  /**
+   * Base URL of the Google ADK agent that answers operator questions. Optional
+   * on purpose: with no agent configured the chat endpoint reports that it is
+   * unreachable rather than inventing a reply.
+   */
+  ADK_BASE_URL: z.string().url().optional(),
+  /** Seconds to wait for the agent's first token before giving up. */
+  ADK_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120_000).default(30_000),
+  /**
+   * Sibyl Memory runs as a Python package over a local SQLite file, so reaching
+   * it needs an interpreter that has `sibyl-memory-client` installed. Optional
+   * on purpose, and absent by default: with nothing configured the API reports
+   * that Sibyl is not reachable rather than serving an empty memory, which
+   * would read as "no history" when the truth is "we never looked".
+   */
+  SIBYL_PYTHON: z.string().min(1).optional(),
+  /** The read-only bridge script. */
+  SIBYL_BRIDGE: z.string().min(1).default("tools/sibyl_bridge.py"),
+  /** Sibyl's own default location. */
+  SIBYL_DB_PATH: z.string().min(1).default("~/.sibyl-memory/memory.db"),
+  SIBYL_TIMEOUT_MS: z.coerce.number().int().min(500).max(30_000).default(5_000),
   CORS_ORIGINS: z
     .string()
     .default("http://localhost:3000")

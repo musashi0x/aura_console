@@ -17,14 +17,22 @@ const STATE_GLYPH: Record<Row["status"], string> = {
 
 export function ReadinessRowItem({
   row,
+  index,
   onRetry,
 }: {
   row: Row;
+  /** Position in the sequence, shown as a terminal-style ordinal. */
+  index?: number;
   onRetry: (id: string) => void;
 }) {
   return (
-    <li className="readiness__row">
+    <li className="readiness__row" data-status={row.status}>
       <div className="readiness__head">
+        {index !== undefined && (
+          <span aria-hidden="true" className="readiness__ordinal">
+            {String(index + 1).padStart(2, "0")}
+          </span>
+        )}
         <span className="readiness__label">{row.label}</span>
         <span className={`readiness__state readiness__state--${row.status}`}>
           <span aria-hidden="true">{STATE_GLYPH[row.status]} </span>

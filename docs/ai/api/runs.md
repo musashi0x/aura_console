@@ -82,7 +82,7 @@ Set `TEST_DATABASE_URL` to override.
 
 ## What the Console does with these
 
-`RunTimeline` is mounted against them. `/runs` lists from `GET /api/runs`,
+`MissionWorkspace` is mounted against them. `/runs` lists from `GET /api/runs`,
 `/runs/[runId]` folds `GET /api/runs/{id}/events`, and `/runs/new` creates
 through `POST /api/runs`. `/runs/example` renders a labelled fixture through the
 same fold, so the example cannot drift from the product.

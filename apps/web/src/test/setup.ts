@@ -1,7 +1,32 @@
 import "@testing-library/jest-dom/vitest";
 
 import { cleanup } from "@testing-library/react";
-import { afterEach, beforeEach } from "vitest";
+import { afterEach, beforeEach, vi } from "vitest";
+
+/**
+ * The console shell mounts the command palette, which needs a Next router.
+ * Recording the pushes rather than discarding them lets a test assert where a
+ * command actually navigates, instead of only that it did not throw.
+ */
+export const routerPushes: string[] = [];
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: (href: string) => {
+      routerPushes.push(href);
+    },
+    replace: (href: string) => {
+      routerPushes.push(href);
+    },
+    back: () => {},
+    forward: () => {},
+    refresh: () => {},
+    prefetch: () => {},
+  }),
+  usePathname: () => "/",
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 
 /**
  * jsdom's Storage implementation varies between versions, and the production
@@ -123,6 +148,7 @@ export function fireIntersection(options: { isIntersecting: boolean; top: number
 }
 
 beforeEach(() => {
+  routerPushes.length = 0;
   window.localStorage.clear();
   setReducedMotion(false);
   observed.length = 0;

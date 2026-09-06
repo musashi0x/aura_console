@@ -9,6 +9,71 @@ export interface DbHealth {
   latencyMs: number;
 }
 
+/**
+ * Sibyl Memory readiness, as Sibyl reports it.
+ *
+ * `reachable: false` carries a reason and no numbers. A zeroed entity count on
+ * an unreachable Sibyl would read as "no history", which is a different claim
+ * from "we could not look".
+ */
+export interface SibylHealth {
+  configured: boolean;
+  reachable: boolean;
+  tier?: string;
+  schemaVersion?: number;
+  dbSizeBytes?: number;
+  softCapBytes?: number;
+  atOrAboveCap?: boolean;
+  entityCount?: number;
+  code?: string;
+  detail?: string;
+}
+
+/**
+ * Whether an answering agent is actually there.
+ *
+ * `configured` is a fact about the deployment; `reachable` is a fact about the
+ * agent, and only a request establishes it. A URL in an env var is not an
+ * agent, and the two failures need different sentences.
+ */
+export interface AgentHealth {
+  configured: boolean;
+  reachable: boolean;
+  apps?: string[];
+  code?: string;
+  detail?: string;
+}
+
+/**
+ * A counterparty as Sibyl holds it. `hasProfile` false means Sibyl knows the
+ * name but holds no relationship profile — listed rather than hidden, and
+ * never given numbers it does not have.
+ */
+export interface SibylEpisode {
+  run: string | null;
+  taskType: string | null;
+  outcome: string | null;
+  note: string | null;
+  occurredAt: string | null;
+}
+
+export interface SibylCounterparty {
+  counterpartyKey: string;
+  displayName: string | null;
+  hasProfile: boolean;
+  /** Sibyl marks this record as fixture data, and the Console must say so. */
+  isFixture: boolean;
+  relationshipStatus: string | null;
+  memoryVersion: number | null;
+  overallReliability: number | null;
+  taskFit: number | null;
+  confidence: number | null;
+  observedPriceUsdc: string | null;
+  riskNote: string | null;
+  episodes: SibylEpisode[];
+  updatedAt: string | null;
+}
+
 export interface Liveness {
   status: "ok";
   uptime: number;
@@ -82,6 +147,14 @@ export const apiClient = {
   /** Liveness. Answers even when Postgres is down, so it isolates the domain. */
   health: () => request<Liveness>("/health"),
   dbHealth: () => request<DbHealth>("/health/db"),
+  /* 200 even when Sibyl is unreachable: the API is fine, one dependency is
+     not, and the Console needs the reason to render the right state. */
+  sibylHealth: () => request<SibylHealth>("/health/sibyl"),
+  agentHealth: () => request<AgentHealth>("/health/agent"),
+  /* 503 when Sibyl cannot be read, never an empty list: "we could not look" and
+     "we looked and there is nobody" are different answers. */
+  listSibylCounterparties: () =>
+    request<{ items: SibylCounterparty[] }>("/api/memory/counterparties"),
 
   // ── Runs ────────────────────────────────────────────────────────────────
   //

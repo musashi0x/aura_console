@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import type { RunEvent } from "@/lib/api-client";
 
-import { RunTimeline } from "./run-timeline";
+import { MissionWorkspace } from "./mission-workspace";
 import { eventsFromApi, seedFromRun } from "../model/from-api";
 import type { RunSummary } from "@/lib/api-client";
 
@@ -31,7 +31,7 @@ const ev = (sequence: number, type: string): RunEvent => ({
 
 const mount = (types: string[], over: Partial<RunSummary> = {}, fixture?: string) =>
   render(
-    <RunTimeline
+    <MissionWorkspace
       events={eventsFromApi(types.map((type, i) => ev(i, type)))}
       seed={seedFromRun(run(over))}
       fixtureLabel={fixture}
@@ -139,21 +139,21 @@ describe("scrubbing still works without playback", () => {
   it("enters HISTORY when an earlier event is selected", async () => {
     const user = userEvent.setup();
     mount(["run.created", "run.started", "decision.made"]);
-    await user.click(screen.getAllByRole("button", { name: /show the run as of/i })[0]!);
+    await user.click(screen.getAllByRole("button", { name: /show the mission as of/i })[0]!);
     expect(screen.getByText(/HISTORY/)).toBeInTheDocument();
   });
 
   it("carries the timestamp, so history cannot read as current", async () => {
     const user = userEvent.setup();
     mount(["run.created", "run.started", "decision.made"]);
-    await user.click(screen.getAllByRole("button", { name: /show the run as of/i })[0]!);
+    await user.click(screen.getAllByRole("button", { name: /show the mission as of/i })[0]!);
     expect(screen.getByText(/HISTORY · 2026-08-29/)).toBeInTheDocument();
   });
 
   it("returns to the latest snapshot", async () => {
     const user = userEvent.setup();
     mount(["run.created", "run.started", "decision.made"]);
-    await user.click(screen.getAllByRole("button", { name: /show the run as of/i })[0]!);
+    await user.click(screen.getAllByRole("button", { name: /show the mission as of/i })[0]!);
     await user.click(screen.getByRole("button", { name: /back to latest/i }));
     expect(screen.getByText("LATEST SNAPSHOT")).toBeInTheDocument();
     expect(screen.queryByText(/HISTORY/)).not.toBeInTheDocument();
@@ -172,7 +172,7 @@ describe("history is always escapable", () => {
   it("offers a way out of HISTORY on an ended Run", async () => {
     const user = userEvent.setup();
     mount(["run.created", "run.started", "run.completed"]);
-    await user.click(screen.getAllByRole("button", { name: /show the run as of/i })[0]!);
+    await user.click(screen.getAllByRole("button", { name: /show the mission as of/i })[0]!);
     expect(screen.getByText(/HISTORY/)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /back to the end/i }));
@@ -214,7 +214,7 @@ describe("the historical badge always carries its timestamp", () => {
   it("never renders a bare HISTORY label", async () => {
     const user = userEvent.setup();
     const { container } = mount(["run.created", "run.started", "decision.made"]);
-    await user.click(screen.getAllByRole("button", { name: /show the run as of/i })[0]!);
+    await user.click(screen.getAllByRole("button", { name: /show the mission as of/i })[0]!);
     const badge = [...container.querySelectorAll(".status-badge")].find((b) =>
       b.textContent?.includes("HISTORY"),
     );

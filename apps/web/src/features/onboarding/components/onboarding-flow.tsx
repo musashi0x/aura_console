@@ -81,24 +81,58 @@ export function OnboardingFlow({ onFinish, onSkip }: OnboardingFlowProps) {
   return (
     <div className="onboarding-shell">
       <section className="onboarding" aria-labelledby="onboarding-heading">
+        {/* Decoration. It names the surface and carries no state, so losing it
+            costs atmosphere and nothing else. */}
+        <p aria-hidden="true" className="onboarding__boot">
+          {copy.boot}
+        </p>
         <nav aria-label="Onboarding progress">
           <p className="visually-hidden">
             Step {position} of {STEP_LABELS.length}
           </p>
           <ol className="onboarding__steps">
-            {STEP_LABELS.map((entry, index) => (
-              <li
-                key={entry.id}
-                className="onboarding__step"
-                aria-current={entry.id === state.step ? "step" : undefined}
-                data-state={index < position - 1 ? "done" : index === position - 1 ? "current" : "todo"}
-              >
-                <span aria-hidden="true" className="onboarding__step-index">
-                  {index + 1}
-                </span>
-                {entry.label}
-              </li>
-            ))}
+            {STEP_LABELS.map((entry, index) => {
+              const stepState =
+                index < position - 1 ? "done" : index === position - 1 ? "current" : "todo";
+
+              return (
+                <li
+                  key={entry.id}
+                  className="onboarding__step"
+                  aria-current={entry.id === state.step ? "step" : undefined}
+                  data-state={stepState}
+                >
+                  <span aria-hidden="true" className="onboarding__step-index">
+                    {stepState === "done" ? (
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="3.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="onboarding__step-check"
+                      >
+                        <path d="M20 6 9 17l-5-5" />
+                      </svg>
+                    ) : (
+                      index + 1
+                    )}
+                  </span>
+                  {/* Hidden by width, not removed: the label is how a screen
+                      reader names the step, and the counter above only says
+                      which number it is. */}
+                  <span className="onboarding__step-label">{entry.label}</span>
+                  {index < STEP_LABELS.length - 1 && (
+                    <span
+                      aria-hidden="true"
+                      className="onboarding__step-line"
+                      data-state={stepState}
+                    />
+                  )}
+                </li>
+              );
+            })}
           </ol>
         </nav>
 
@@ -128,8 +162,13 @@ export function OnboardingFlow({ onFinish, onSkip }: OnboardingFlowProps) {
           </h1>
           <p>{copy.readiness.body}</p>
           <ul className="readiness" aria-live="polite">
-            {state.rows.map((row) => (
-              <ReadinessRowItem key={row.id} row={row} onRetry={(id) => void check(id)} />
+            {state.rows.map((row, index) => (
+              <ReadinessRowItem
+                key={row.id}
+                row={row}
+                index={index}
+                onRetry={(id) => void check(id)}
+              />
             ))}
           </ul>
           <div className="onboarding__actions">
@@ -160,7 +199,7 @@ export function OnboardingFlow({ onFinish, onSkip }: OnboardingFlowProps) {
               </div>
             ))}
           </dl>
-          <div className="ack">
+          <div className="ack ack--panel">
             <input
               id="ack"
               type="checkbox"

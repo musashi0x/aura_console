@@ -13,6 +13,9 @@ export const copy = {
     primary: "Check readiness",
     secondary: "Skip for now",
   },
+  /* The surface is a console coming up, not a signup wizard. Decorative only:
+     nothing below reports a state the flow has not verified. */
+  boot: "AURA CONSOLE // BOOT SEQUENCE",
   readiness: {
     title: "What is ready",
     body: "Aura checks each dependency it can reach and reports only what it verified. Anything it cannot check is listed as not checked rather than assumed.",

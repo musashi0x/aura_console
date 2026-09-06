@@ -1,49 +1,47 @@
+"use client";
+
 import Link from "next/link";
+import { SideNav, SideNavItem, SideNavSection } from "@astryxdesign/core/SideNav";
 
 import { console_ } from "../copy";
 
 /**
+ * The console's navigation, as the design system's own rail.
+ *
  * Only destinations that exist. There is no account menu, organisation
  * switcher, or workspace switcher, because v0.1 has none of those things and a
  * control implying otherwise would misrepresent the product.
+ *
+ * Collapse is SideNav's own: it ships the toggle, the collapsed rail and the
+ * accessible naming, which the console previously carried in a module store, a
+ * topbar button and a hand-written `inert` rail. Deleting that in favour of the
+ * component's version is the point of adopting the frame.
  */
 export function ConsoleNavigation({ surface }: { surface: string }) {
-  const isCurrent = (label: string) => (surface === label ? "page" : undefined);
+  const item = (href: string, label: string) => (
+    <SideNavItem
+      key={href}
+      as={Link}
+      href={href}
+      label={label}
+      isSelected={surface === label}
+    />
+  );
 
   return (
-    <nav className="cs__nav" aria-label={console_.nav.label}>
-      <ul className="cs__nav-list">
-        {console_.nav.primary.map((item) => (
-          <li key={item.href}>
-            <Link
-              href={item.href}
-              className="cs__nav-link"
-              aria-current={isCurrent(item.label)}
-            >
-              {item.label}
-            </Link>
-          </li>
-        ))}
-      </ul>
-
-      <ul className="cs__nav-list cs__nav-list--secondary">
-        {console_.nav.secondary.map((item) => (
-          <li key={item.href}>
-            <Link
-              href={item.href}
-              className="cs__nav-secondary"
-              aria-current={isCurrent(item.label)}
-            >
-              {item.label}
-            </Link>
-          </li>
-        ))}
-        <li>
-          <Link href={console_.nav.back.href} className="cs__nav-secondary cs__nav-back">
-            {console_.nav.back.label}
-          </Link>
-        </li>
-      </ul>
-    </nav>
+    /* SideNav renders a navigation landmark but exposes no `label` prop, and
+       AppShell puts the top and side navigation in the tree as two landmarks —
+       a screen reader lists both, so an unnamed one reads as a bare
+       "navigation". aria-label forwards to the rendered <nav>. */
+    <SideNav collapsible aria-label={console_.nav.label}>
+      {/* One group. The rail was two — a primary list and a "Reference" group
+          holding Example Run, Readiness and Back to landing — and all three
+          left it: the example Mission belongs in Missions, readiness belongs to
+          Network and its status chip, and the landing page is reachable from
+          the brand mark. */}
+      <SideNavSection title={console_.nav.label} isHeaderHidden>
+        {console_.nav.primary.map((entry) => item(entry.href, entry.label))}
+      </SideNavSection>
+    </SideNav>
   );
 }

@@ -1,0 +1,13 @@
+/**
+ * Cascade layer order, lowest priority first.
+ *
+ * This file exists to be imported BEFORE anything else. Layer order is fixed by
+ * the first `@layer` statement the browser sees, and Astryx declares `reset` and
+ * `astryx-base` inside its own stylesheets — so declaring the order further down
+ * in globals.css came too late, and `app-preflight` ended up as the HIGHEST
+ * layer instead of the lowest. Every link inside SideNav kept rendering in this
+ * app's accent cyan because of it.
+ *
+ * Anything this app writes outside a layer still outranks all of these.
+ */
+@layer app-preflight, reset, astryx-base, astryx-theme;
