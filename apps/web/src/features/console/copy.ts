@@ -135,8 +135,12 @@ export const console_ = {
        guess, and reporting it as disconnected would be one too. */
     groundingUnchecked:
       "The console has not checked whether the agent and its memory are reachable, so it cannot say whether an answer here would be grounded.",
+    /* The boundary, stated so it cannot be read as "nothing here works".
+       Console commands run on every surface whether or not the answering path
+       is up; it is QUESTIONS that need grounding. Without this line the banner
+       reads as a dead panel, and an operator stops typing. */
     groundingNote:
-      "No question can be answered here until it does, and nothing will be inferred without it.",
+      "Console commands still run. It is questions that need grounding, and nothing will be inferred without it.",
     memoryOff:
       "Memory is switched off in the command palette, so an answer would not use it even once retrieval is connected.",
     unavailableBadge: "AGENT UNAVAILABLE",

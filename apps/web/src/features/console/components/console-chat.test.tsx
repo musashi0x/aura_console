@@ -63,6 +63,17 @@ describe("console chat", () => {
     expect(screen.queryByText("GROUNDING NOT CONNECTED")).not.toBeInTheDocument();
   });
 
+  it("says commands still run, so a warning does not read as a dead panel", () => {
+    render(
+      <ConsoleChat runId="run_42" grounding={{ agentReachable: false, memoryReachable: false }} />,
+    );
+    // The note used to say only that no question could be answered, which
+    // reads as "nothing here works" — and console commands work on every
+    // surface whether or not the answering path is up.
+    expect(screen.getByText(console_.chat.groundingNote)).toBeInTheDocument();
+    expect(console_.chat.groundingNote).toMatch(/commands still run/i);
+  });
+
   it("keeps warning when the agent is up but its memory is not", () => {
     render(
       <ConsoleChat runId="run_42" grounding={{ agentReachable: true, memoryReachable: false }} />,
