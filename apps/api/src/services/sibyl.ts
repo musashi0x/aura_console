@@ -33,52 +33,359 @@ export interface SibylStatus {
   detail?: string;
 }
 
+const NOT_CONFIGURED_DETAIL =
+  "SIBYL_PYTHON is not set, so this deployment has no Sibyl Memory runtime to ask.";
+
 const NOT_CONFIGURED: SibylStatus = {
   configured: false,
   reachable: false,
   code: "not_configured",
-  detail:
-    "SIBYL_PYTHON is not set, so this deployment has no Sibyl Memory runtime to ask.",
+  detail: NOT_CONFIGURED_DETAIL,
 };
 
-export async function getSibylStatus(): Promise<SibylStatus> {
+/** What one bridge invocation concluded. Failure is a value, never a throw. */
+type BridgeOutcome =
+  | { ok: true; payload: Record<string, unknown> }
+  | { ok: false; configured: boolean; code: string; detail: string };
+
+/**
+ * One command, one process, one JSON object.
+ *
+ * Every read in this file crosses the same seam, so there is one timeout, one
+ * decision about what "we could not look" means, and one error vocabulary. Four
+ * call sites each spawning their own interpreter would be four subtly different
+ * opinions about an unreachable bridge, and the one thing this boundary cannot
+ * afford is a second opinion on that.
+ *
+ * A body we cannot parse lands in the same failure as a process that never ran,
+ * and deliberately: with no parsed answer we hold nothing Sibyl said, which is
+ * the same position as never having asked.
+ */
+async function runBridge(args: string[]): Promise<BridgeOutcome> {
   const python = env.SIBYL_PYTHON;
-  if (!python) return NOT_CONFIGURED;
+  if (!python) {
+    return {
+      ok: false,
+      configured: false,
+      code: "not_configured",
+      detail: NOT_CONFIGURED_DETAIL,
+    };
+  }
 
   try {
-    const { stdout } = await run(python, [env.SIBYL_BRIDGE, "status"], {
+    const { stdout } = await run(python, [env.SIBYL_BRIDGE, ...args], {
       timeout: env.SIBYL_TIMEOUT_MS,
-      env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH },
+      // Tenant is Sibyl's isolation boundary, so it is named on every read
+      // rather than left to Sibyl's default. Two deployments sharing one
+      // database file would otherwise both read as the default tenant, and a
+      // recall of somebody else's memory is indistinguishable from our own.
+      env: {
+        ...process.env,
+        SIBYL_DB_PATH: env.SIBYL_DB_PATH,
+        SIBYL_TENANT_ID: env.AGENT_ID,
+      },
       maxBuffer: 1024 * 1024,
     });
     const parsed = JSON.parse(stdout) as Record<string, unknown>;
     if (parsed.ok !== true) {
       return {
+        ok: false,
         configured: true,
-        reachable: false,
         code: String(parsed.code ?? "bridge_error"),
         detail: String(parsed.detail ?? "The Sibyl bridge reported a failure."),
       };
     }
-    return {
-      configured: true,
-      reachable: true,
-      tier: parsed.tier as string,
-      schemaVersion: parsed.schemaVersion as number,
-      dbSizeBytes: parsed.dbSizeBytes as number,
-      softCapBytes: parsed.softCapBytes as number,
-      atOrAboveCap: parsed.atOrAboveCap as boolean,
-      entityCount: parsed.entityCount as number,
-    };
+    return { ok: true, payload: parsed };
   } catch (error) {
-    // Logged in full server-side; the client is told it could not be reached,
+    // Logged in full server-side; the caller is told it could not be reached,
     // which is all it needs to render the unavailable state honestly.
-    console.error("[sibyl] status check failed", error);
+    console.error(`[sibyl] bridge command failed: ${args[0] ?? "(none)"}`, error);
     return {
+      ok: false,
       configured: true,
-      reachable: false,
       code: "bridge_unreachable",
       detail: "The Sibyl bridge could not be run.",
     };
   }
+}
+
+export async function getSibylStatus(): Promise<SibylStatus> {
+  const outcome = await runBridge(["status"]);
+  if (!outcome.ok) {
+    if (!outcome.configured) return NOT_CONFIGURED;
+    return {
+      configured: true,
+      reachable: false,
+      code: outcome.code,
+      detail: outcome.detail,
+    };
+  }
+
+  const parsed = outcome.payload;
+  return {
+    configured: true,
+    reachable: true,
+    tier: parsed.tier as string,
+    schemaVersion: parsed.schemaVersion as number,
+    dbSizeBytes: parsed.dbSizeBytes as number,
+    softCapBytes: parsed.softCapBytes as number,
+    atOrAboveCap: parsed.atOrAboveCap as boolean,
+    entityCount: parsed.entityCount as number,
+  };
+}
+
+/**
+ * Sibyl's verdict vocabulary, as its own enum defines it.
+ *
+ * Sibyl stamps exactly one of these on every result and is blunt about what
+ * that buys: `ok` is the only member that accompanies a non-empty result, and
+ * the other five are the causes of an empty one. There is no sixth reason to
+ * return nothing, which is why this union is closed and an unrecognised code is
+ * treated as a broken contract rather than quietly tolerated.
+ */
+export type SibylVerdictCode =
+  | "ok"
+  | "abstained_on"
+  | "negation_abstain"
+  | "gated"
+  | "empty_store"
+  | "no_match";
+
+const VERDICT_CODES: readonly SibylVerdictCode[] = [
+  "ok",
+  "abstained_on",
+  "negation_abstain",
+  "gated",
+  "empty_store",
+  "no_match",
+];
+
+/**
+ * A sentence per code, used only when the bridge sent none.
+ *
+ * These name the code we did receive. None of them describes the contents of a
+ * store, because on five of the six we did not read one.
+ */
+const VERDICT_DETAIL: Record<SibylVerdictCode, string> = {
+  ok: "Sibyl returned matching records.",
+  empty_store: "Sibyl looked, and the store holds nothing yet.",
+  no_match: "Sibyl looked, and nothing in the store matched this query.",
+  abstained_on: "Sibyl abstained on this query, so nothing was looked up.",
+  negation_abstain: "Sibyl abstained on the negation in this query, so nothing was looked up.",
+  gated: "Sibyl gated this query, so nothing was looked up.",
+};
+
+/** One Sibyl entity, in the field names this boundary publishes. */
+export interface SibylRecord {
+  id: string;
+  category: string;
+  name: string;
+  /**
+   * Sibyl's own lifecycle label, and `null` on every entity written without
+   * one — `set_entity` defaults `status` to `None`, so absent is the ordinary
+   * case rather than a damaged record. Requiring a string here rejected every
+   * real recall as a broken contract, which reached a decision as `ERROR` and
+   * therefore `DENY`: a counterparty that *has* memory was denied while one
+   * with none only needed approval.
+   */
+  status: string | null;
+  /**
+   * Whatever was written at write time. It crosses untouched and stays
+   * `unknown`: typing it would be this file guessing at somebody else's JSON.
+   */
+  body: unknown;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SibylVerdict {
+  code: SibylVerdictCode;
+  /** Why this code fired, in one sentence a surface can render as-is. */
+  detail: string;
+  /** Sibyl's own count of what it returned. */
+  returned: number;
+}
+
+/**
+ * The result of one recall.
+ *
+ * `reachable` is the field a caller must read first. `records` is empty on every
+ * failure, and an empty list on its own says nothing: only `reachable: true`
+ * plus a verdict means we looked.
+ */
+export interface SibylRecall {
+  reachable: boolean;
+  /** Present only when Sibyl answered. */
+  verdict?: SibylVerdict;
+  records: SibylRecord[];
+  /** Why we could not look. Never shown as a memory result. */
+  code?: string;
+  detail?: string;
+}
+
+/** The result of one entity lookup. `reachable: true` with no record means it is genuinely absent. */
+export interface SibylEntityLookup {
+  reachable: boolean;
+  /** Present only when Sibyl held this entity. */
+  record?: SibylRecord;
+  code?: string;
+  detail?: string;
+}
+
+function isJsonObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isVerdictCode(value: unknown): value is SibylVerdictCode {
+  return typeof value === "string" && (VERDICT_CODES as readonly string[]).includes(value);
+}
+
+function toVerdict(value: unknown): SibylVerdict | null {
+  if (!isJsonObject(value)) return null;
+  const { code, detail, returned } = value;
+  if (!isVerdictCode(code) || typeof returned !== "number") return null;
+  return {
+    code,
+    detail: typeof detail === "string" && detail.length > 0 ? detail : VERDICT_DETAIL[code],
+    returned,
+  };
+}
+
+/**
+ * Reads one entity exactly as the bridge promised it, or gives up.
+ *
+ * A missing field is never filled in. A half-read record presented as memory is
+ * a claim about a counterparty that nobody made, and the caller has no way to
+ * tell which half it is reading.
+ */
+function toRecord(value: unknown): SibylRecord | null {
+  if (!isJsonObject(value)) return null;
+  const { id, category, name, status, createdAt, updatedAt } = value;
+  if (
+    typeof id !== "string" ||
+    typeof category !== "string" ||
+    typeof name !== "string" ||
+    (typeof status !== "string" && status !== null) ||
+    typeof createdAt !== "string" ||
+    typeof updatedAt !== "string"
+  ) {
+    return null;
+  }
+  return { id, category, name, status, body: value.body, createdAt, updatedAt };
+}
+
+/**
+ * A payload we cannot read is a failure to look, not a small answer.
+ *
+ * Dropping the records we could parse and returning the rest would report a
+ * shorter memory than Sibyl holds, which reads as a fact about the counterparty.
+ * The whole read fails instead, and says so.
+ */
+function contractFailure(reason: string, payload: unknown): { code: string; detail: string } {
+  console.error("[sibyl] bridge payload did not match the contract", { reason, payload });
+  return {
+    code: "bridge_contract",
+    detail: "The Sibyl bridge answered in a shape this service cannot read.",
+  };
+}
+
+/**
+ * How a verdict becomes a retrieval state.
+ *
+ * This file owns the boundary, so the table lives here; a caller folding a
+ * recall into a `RetrievalResult` applies it.
+ *
+ *   ok (with records)  -> AVAILABLE    Sibyl returned records.
+ *   empty_store        -> NO_HISTORY   We looked; the store is genuinely empty.
+ *   no_match           -> NO_HISTORY   We looked; nothing matched this counterparty.
+ *   abstained_on       -> ERROR, retryable: false
+ *   negation_abstain   -> ERROR, retryable: false
+ *   gated              -> ERROR, retryable: false
+ *
+ * The three abstentions are ERROR and not NO_HISTORY because an abstention is
+ * Sibyl declining to answer: "we could not look", not "we looked and there is
+ * nothing". Folded into NO_HISTORY, a refusal would reach an operator as "no
+ * relationship history exists for this counterparty" — a clean bill of health
+ * that nobody issued — and it would take the approval path reserved for a first,
+ * genuinely unknown dealing. As ERROR it cannot: `authorizeFromRetrieval` denies
+ * on ERROR unless a versioned policy softens it to REQUIRE_APPROVAL, and AUTO is
+ * unreachable on every path.
+ *
+ * They are not retryable because the same query meets the same gate. A retry
+ * loop would spend the operator's time to be refused in exactly the same words.
+ *
+ * The collapse to three states is what a decision needs. It is not what an
+ * operator needs, so the verdict code and its sentence travel out of here
+ * intact: three states must never cost us which of the six causes fired.
+ */
+export async function recallEntities(
+  query: string,
+  opts: { category?: string; limit?: number } = {},
+): Promise<SibylRecall> {
+  // Flags first, then `--`, then the query. The bridge stops reading flags at
+  // `--`, so a query beginning with `--` is the query. Passed ahead of the
+  // flags it was read as one: `?q=--limit` bound `--category` as the limit's
+  // value, left `counterparty` as the query and dropped the category filter, so
+  // the recall ran across every category and returned another category's record
+  // bodies as this counterparty's memory.
+  const args = ["recall"];
+  if (opts.category !== undefined) args.push("--category", opts.category);
+  if (opts.limit !== undefined) args.push("--limit", String(opts.limit));
+  args.push("--", query);
+
+  const outcome = await runBridge(args);
+  if (!outcome.ok) {
+    return { reachable: false, records: [], code: outcome.code, detail: outcome.detail };
+  }
+
+  const verdict = toVerdict(outcome.payload.verdict);
+  if (!verdict) {
+    const failure = contractFailure("recall carried no verdict this service recognises", outcome.payload);
+    return { reachable: false, records: [], ...failure };
+  }
+
+  const raw: unknown = outcome.payload.records;
+  if (!Array.isArray(raw)) {
+    const failure = contractFailure("recall carried no records array", outcome.payload);
+    return { reachable: false, records: [], ...failure };
+  }
+
+  const records: SibylRecord[] = [];
+  for (const item of raw) {
+    const record = toRecord(item);
+    if (!record) {
+      const failure = contractFailure("recall returned a record missing a required field", outcome.payload);
+      return { reachable: false, records: [], ...failure };
+    }
+    records.push(record);
+  }
+
+  return { reachable: true, verdict, records };
+}
+
+/**
+ * One entity by category and name.
+ *
+ * `entity_absent` is Sibyl answering — the bridge opened the store and found no
+ * such entity — so it comes back `reachable: true` with no record. Every other
+ * code means we never got an answer at all, and stays `reachable: false`. The
+ * two look alike in a list and mean opposite things, which is precisely why the
+ * caller is handed the distinction rather than a null.
+ */
+export async function getEntity(category: string, name: string): Promise<SibylEntityLookup> {
+  const outcome = await runBridge(["entity", category, name]);
+  if (!outcome.ok) {
+    return {
+      reachable: outcome.code === "entity_absent",
+      code: outcome.code,
+      detail: outcome.detail,
+    };
+  }
+
+  const record = toRecord(outcome.payload.record);
+  if (!record) {
+    return { reachable: false, ...contractFailure("entity carried no readable record", outcome.payload) };
+  }
+
+  return { reachable: true, record };
 }

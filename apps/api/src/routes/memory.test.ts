@@ -1,7 +1,22 @@
 import { getDb, schema } from "@aura/db";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { app } from "../app.js";
+import type * as AdkAgent from "../services/adk-agent.js";
+
+/**
+ * The agent's configured-ness is stubbed rather than read from the environment.
+ *
+ * `packages/db/src/root-env.ts` walks up to the repository root .env, so a
+ * developer who has a real ADK agent configured was running a different test
+ * from CI: this case asserts the UNCONFIGURED branch, and it passed only on
+ * machines that happened to have no agent. Stubbing the seam makes the test
+ * assert the branch it names, on every machine.
+ */
+vi.mock("../services/adk-agent.js", async () => {
+  const actual = await vi.importActual<typeof AdkAgent>("../services/adk-agent.js");
+  return { ...actual, isAgentConfigured: vi.fn(() => false) };
+});
 
 const KEY = "virtuals:agent:alpha";
 
@@ -121,6 +136,8 @@ describe("agent chat", () => {
   }
 
   it("refuses before opening the stream when no agent is configured", async () => {
+    // isAgentConfigured is stubbed false at the top of this file, so this
+    // asserts the unconfigured branch regardless of the developer's own .env.
     const runId = await createRun();
     const res = await app.request(`/api/runs/${runId}/chat?q=why%20alpha`);
     // A 503 means the console sees a connection that never established and

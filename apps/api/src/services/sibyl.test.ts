@@ -2,6 +2,8 @@ import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
+import { env } from "../env.js";
+
 const BRIDGE = new URL("../../../../tools/sibyl_bridge.py", import.meta.url).pathname;
 
 /**
@@ -29,7 +31,7 @@ const hasRuntime = Boolean(
 const bridge = (args: string[], dbPath: string): Record<string, unknown> =>
   JSON.parse(
     execFileSync(python!, [BRIDGE, ...args], {
-      env: { ...process.env, SIBYL_DB_PATH: dbPath },
+      env: { ...process.env, SIBYL_DB_PATH: dbPath, SIBYL_TENANT_ID: env.AGENT_ID },
       encoding: "utf8",
     }),
   ) as Record<string, unknown>;
@@ -42,6 +44,19 @@ describe.skipIf(!hasRuntime)("the Sibyl bridge, against the real client", () => 
     expect(result.ok).toBe(false);
     expect(result.code).toBe("db_absent");
     expect(existsSync("/tmp/aura-sibyl-does-not-exist.db")).toBe(false);
+  });
+
+  it("reads a '--' query as a query, so the category filter still applies", () => {
+    const dbPath = process.env.SIBYL_DB_PATH;
+    if (!dbPath || !existsSync(dbPath.replace("~", process.env.HOME ?? ""))) return;
+    // Ahead of the flags this bound `--category` as the value of a flag named
+    // `x`, dropped the filter, and answered from every category in the store as
+    // if it were this counterparty's memory.
+    const result = bridge(["recall", "--category", "counterparty", "--", "--x"], dbPath);
+    expect(result.ok).toBe(true);
+    for (const record of result.records as Array<{ category: string }>) {
+      expect(record.category).toBe("counterparty");
+    }
   });
 
   it("reports the tier and schema Sibyl itself returns", () => {

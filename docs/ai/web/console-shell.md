@@ -45,8 +45,8 @@ and `/policies`. `Run` stays the system word everywhere in code, the same way
 | `/runs/[runId]` | `apps/web/src/app/runs/[runId]/page.tsx` | Folds real events from `GET /api/runs/{id}/events` |
 | `/runs/new` | `apps/web/src/app/runs/new/page.tsx` | Creates a Run through `POST /api/runs` |
 | `/runs/example` | `apps/web/src/app/runs/example/page.tsx` | Labelled fixture through the real fold |
-| `/counterparties` | `apps/web/src/app/counterparties/page.tsx` | Shell renders; no projection |
-| `/policies` | `apps/web/src/app/policies/page.tsx` | Shell renders; no policy endpoint |
+| `/counterparties` | `apps/web/src/app/counterparties/page.tsx` | Shell renders an unavailable state; the projection endpoint exists but this page does not read it |
+| `/policies` | `apps/web/src/app/policies/page.tsx` | Shell renders an unavailable state; `GET /api/policies/{agentId}` exists but this page does not read it |
 | `/system` | `apps/web/src/app/system/page.tsx` | Live readiness, fully working |
 
 `/` remains the landing page and `FirstRunGate` still routes a new browser to
@@ -139,7 +139,9 @@ about whether to wait.
 
 ## Transport
 
-There is no stream, so a Run surface reads once. What it offers reflects that.
+A Run surface reads once — not because no stream exists, but because the one
+that exists is a finite replay and nothing subscribes to it. What the surface
+offers reflects that.
 
 | Control | When | What it does |
 |---|---|---|
@@ -178,14 +180,27 @@ without removing any content or state.
 
 ## Endpoints
 
-Four of the five exist and are mounted: `POST /api/runs`, `GET /api/runs`,
-`GET /api/runs/{id}` and `GET /api/runs/{id}/events`.
+All five exist and are mounted: `POST /api/runs`, `GET /api/runs`,
+`GET /api/runs/{id}`, `GET /api/runs/{id}/events`, and
+`GET /api/runs/{id}/stream`.
 
-`GET /api/runs/{id}/stream` does not. There is deliberately no client method for
-it: a method that 404s turns a known gap into a runtime failure. Until it lands,
-a Run surface reads its events ONCE, so the transport says `LATEST SNAPSHOT`
-rather than `LIVE`. "Live" would claim a subscription the Console does not
-have.
+The stream landing did not make the Console live, and adding a client method for
+it would not either. It is a **finite replay**: it writes the stored events in
+sequence order, ends with `replay.complete`, and pushes nothing appended after
+it started (see
+[the stream is a replay](../api/runs.md#the-stream-is-a-replay-not-a-live-tail)).
+So `apps/web/src/lib/api-client.ts` still has no `stream` method — its comment
+saying the server has no stream is now out of date, but the conclusion it draws
+is not — and a Run surface still reads its events ONCE, which is why the
+transport says `LATEST SNAPSHOT` rather than `LIVE`. "Live" would claim a
+subscription the Console does not have.
+
+The counterparty and policy surfaces are the reverse case: `GET
+/api/counterparties`, `GET /api/counterparties/{key}`,
+`GET /api/counterparties/{key}/memory` and `GET /api/policies/{agentId}` all
+exist, and neither page reads any of them. Their unavailable copy still says the
+endpoint does not exist, which is now the wrong reason for the right state —
+correct the copy when wiring the surface, not before.
 
 ## Screenshots
 

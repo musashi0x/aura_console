@@ -31,3 +31,20 @@ apps/web/next-env.d.ts
 
 # Claude Code local config
 .claude/
+
+# Python virtualenvs. Sibyl Memory and the ADK agent are Python, so a checkout
+# grows two interpreters beside the Node one; the ADK venv alone is ~120MB.
+# They are ignored by path rather than by a wildcard so a venv under a name
+# nobody documented still shows up in `git status` instead of disappearing.
+.venv-sibyl/
+.venv-adk/
+
+# Python bytecode. Matched at any depth: the real directory is
+# `agents/aura/__pycache__/`, so a root-anchored rule would miss it.
+__pycache__/
+*.py[cod]
+
+# The ADK's local session store — runtime state written by `adk api_server`,
+# not source. `agents/aura/*.py` IS source and stays committed; nothing here
+# ignores it.
+**/.adk/session.db
