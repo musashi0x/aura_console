@@ -47,6 +47,40 @@ export const console_ = {
       { href: "/docs", label: "Docs" },
     ],
   },
+  agents: {
+    title: "Agents",
+    lede: "Agents Aura has dealt with, and what its own relationship memory holds about each one. This is the operator's first-party view; nothing here is a counterparty's view of itself.",
+    /* Sibyl knows the name but holds no profile. Listed rather than hidden: an
+       entity we cannot read a profile from is a real thing to know about, and
+       dropping it would make the list claim a completeness it does not have. */
+    noProfile: "No relationship profile yet",
+    fields: {
+      status: "Relationship",
+      version: "Memory version",
+      episodes: "Episodes used",
+      reliability: "Overall reliability",
+      taskFit: "Task fit",
+      confidence: "Confidence",
+    },
+    updated: (at: string) => `Sibyl last updated this ${at}.`,
+    /* Sibyl marks these records as fixtures. Seeded memory that read as lived
+       history would be the most damaging thing this surface could do: it is
+       the evidence an operator uses to decide whether to trust a counterparty
+       with money. */
+    fixtureBadge: "DEMO",
+    fixtureNote: "Sibyl marks this record as fixture data. It is not a relationship Aura has actually had.",
+    episodesTitle: "What Aura remembers",
+    noEpisodes: "No episodes recorded against this counterparty.",
+    price: "Observed price",
+    risk: "Risk note",
+    /* The store holds ratios in one record and whole numbers in another, so the
+       value is shown exactly as Sibyl stored it. A percent sign here would
+       assert a scale nothing measured. */
+    scoreNote: "Scores are shown exactly as Sibyl stored them.",
+    /* An empty list is only sayable once Sibyl has answered. */
+    empty: "Sibyl answered, and holds no relationship memory yet.",
+    emptyNote: "A Mission that deals with a counterparty writes the first record.",
+  },
   missions: {
     title: "Missions",
     /* The example Mission sits in this list rather than in a rail item of its
@@ -97,6 +131,10 @@ export const console_ = {
     groundingBadge: "GROUNDING NOT CONNECTED",
     groundingBody:
       "Answers are grounded in Sibyl relationship memory retrieval, which has no endpoint in this console yet.",
+    /* Never checked is its own state. Reporting it as connected would be a
+       guess, and reporting it as disconnected would be one too. */
+    groundingUnchecked:
+      "The console has not checked whether the agent and its memory are reachable, so it cannot say whether an answer here would be grounded.",
     groundingNote:
       "No question can be answered here until it does, and nothing will be inferred without it.",
     memoryOff:

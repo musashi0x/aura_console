@@ -2,7 +2,6 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { z } from "zod";
 
-import { env } from "../env.js";
 import { httpError } from "../errors.js";
 import {
   askAgent,
@@ -10,6 +9,7 @@ import {
   type AgentContextRecord,
 } from "../services/adk-agent.js";
 import { MemoryStore } from "../services/memory-store.js";
+import { retrieveFromSibyl } from "../services/sibyl.js";
 import { RunStore } from "../services/run-store.js";
 
 const runs = new RunStore();
@@ -84,7 +84,17 @@ chat.get("/:runId/chat", async (c) => {
         data: { counterparty_key: key, retrieval_status: "LOADING" },
       });
 
-      const result = await memory.retrieve(key, env.AGENT_ID);
+      /* Sibyl is the memory the agent answers from.
+       *
+       * It replaces the Postgres profile read that used to sit here. Postgres
+       * still holds the counterparty projection the Console renders, but
+       * relationship memory — what we learned by dealing with someone — is
+       * Sibyl's, and having two stores answer the same question is how they
+       * start disagreeing.
+       *
+       * The RetrievalResult contract is unchanged, including the rule that
+       * NO_HISTORY and ERROR never collapse into each other. */
+      const result = await retrieveFromSibyl(key);
 
       if (result.status === "AVAILABLE") {
         // Only classified, non-private facts. Episode bodies, profile bodies and
@@ -107,7 +117,9 @@ chat.get("/:runId/chat", async (c) => {
         });
 
         const projection = await memory.getCounterparty(key);
-        const label = projection?.display.name ?? key;
+        // Sibyl's own name first: it is the store that holds the relationship,
+        // and Postgres may have no row for a counterparty Sibyl remembers.
+        const label = result.displayName ?? projection?.display.name ?? key;
         context.push({
           counterpartyKey: key,
           label,
@@ -118,6 +130,12 @@ chat.get("/:runId/chat", async (c) => {
             overall_reliability: result.overallReliability,
             task_fit: result.taskFit,
             confidence: result.confidence,
+            risk_note: result.riskNote,
+            /* Fixture memory must never reach the agent as lived history. The
+               model is told what this record is, because it is the one place
+               that can turn seeded data into a confident claim about a real
+               counterparty. */
+            source: result.isFixture ? "fixture" : "observed",
           },
         });
 

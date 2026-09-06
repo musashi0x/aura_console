@@ -85,3 +85,41 @@ describe("the Sibyl status contract", () => {
     }
   });
 });
+
+describe.skipIf(!hasRuntime)("retrieval keeps its three outcomes apart", () => {
+  it("reads a profile Sibyl actually holds", () => {
+    const dbPath = process.env.SIBYL_DB_PATH;
+    if (!dbPath) return;
+    /* The key is taken from the store rather than hardcoded. A fixed key ties
+       the test to whichever database the developer happens to be pointed at,
+       which is how it started failing the moment the path moved from a probe
+       file to the real one. */
+    const listed = bridge(["entities", "counterparty"], dbPath);
+    expect(listed.ok).toBe(true);
+    const entities = (listed.entities ?? []) as { name?: string }[];
+    if (entities.length === 0) return;
+
+    const name = entities[0]?.name;
+    expect(typeof name).toBe("string");
+    const result = bridge(["retrieve", "counterparty", name!], dbPath);
+    expect(result.ok).toBe(true);
+    expect(result.found).toBe(true);
+  });
+
+  it("calls an unknown counterparty not-found, never a failed lookup", () => {
+    const dbPath = process.env.SIBYL_DB_PATH;
+    if (!dbPath) return;
+    // The client raises for an unknown entity. Letting that surface as an error
+    // would report a counterparty we have never met as a lookup that broke,
+    // which is the one conflation this product may never make.
+    const result = bridge(["retrieve", "counterparty", "virtuals:agent:never-met"], dbPath);
+    expect(result.ok).toBe(true);
+    expect(result.found).toBe(false);
+  });
+
+  it("calls an unreadable store a failure, never an empty history", () => {
+    const result = bridge(["retrieve", "counterparty", "anyone"], "/tmp/aura-no-sibyl.db");
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe("db_absent");
+  });
+});

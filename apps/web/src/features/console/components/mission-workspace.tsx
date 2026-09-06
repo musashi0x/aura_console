@@ -25,7 +25,7 @@ import {
 import { foldRun, type FoldSeed } from "../projection/fold-run";
 import { buildMissionProgress } from "../projection/mission-rail";
 import { buildSpine } from "../projection/spine";
-import { ConsoleChat } from "./console-chat";
+import { ConsoleChat, type ChatGrounding } from "./console-chat";
 import { MissionBoard } from "./mission-board";
 import { MissionOperator } from "./mission-operator";
 import { MissionRail } from "./mission-rail";
@@ -36,6 +36,8 @@ export interface MissionWorkspaceProps {
   seed: FoldSeed;
   /** Labelled when the events are a fixture rather than a real Mission. */
   fixtureLabel?: string;
+  /** Checked readiness of the answering path, read on the server. */
+  grounding?: ChatGrounding;
 }
 
 type MissionMode = "OPERATOR" | "BOARD" | "TRACE";
@@ -63,7 +65,12 @@ function statusTone(status: RunStatus): StatusTone {
  * disagreeing about what happened — the same rule that already stops live and
  * replay drifting apart.
  */
-export function MissionWorkspace({ events, seed, fixtureLabel }: MissionWorkspaceProps) {
+export function MissionWorkspace({
+  events,
+  seed,
+  fixtureLabel,
+  grounding,
+}: MissionWorkspaceProps) {
   const [mode, setMode] = useState<MissionMode>("OPERATOR");
 
   // A finished recording must not open claiming LIVE. "Live" means following a
@@ -202,7 +209,7 @@ export function MissionWorkspace({ events, seed, fixtureLabel }: MissionWorkspac
                    surface, which put the way you direct a Mission beside the
                    Mission rather than in it. It stays reachable elsewhere from
                    the launcher; here it is the surface. */
-                conversation={<ConsoleChat runId={view.runId} />}
+                conversation={<ConsoleChat runId={view.runId} grounding={grounding} />}
               />
             ) : (
               <MissionBoard progress={progress} onSelect={jumpTo} />

@@ -136,8 +136,12 @@ describe("agent chat", () => {
   }
 
   it("refuses before opening the stream when no agent is configured", async () => {
-    // isAgentConfigured is stubbed false at the top of this file, so this
-    // asserts the unconfigured branch regardless of the developer's own .env.
+    /* Both halves of this merge fixed the same bug: the env module reads the
+       repository's own .env, so this assertion passed only on a machine with no
+       agent configured and failed the moment one was. The module seam is
+       stubbed at the top of this file rather than the env being mutated here,
+       because a mutation that is restored on the next line is not restored at
+       all when the request between them throws. */
     const runId = await createRun();
     const res = await app.request(`/api/runs/${runId}/chat?q=why%20alpha`);
     // A 503 means the console sees a connection that never established and

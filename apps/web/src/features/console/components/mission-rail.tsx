@@ -21,6 +21,19 @@ export interface MissionRailProps {
  * The rail is never the primary way to read a Mission. It is a summary above
  * the conversation, and clicking a step only scrolls — it opens no panel of its
  * own.
+ *
+ * Not Astryx's Stepper, and the reason is measured rather than stylistic.
+ * Stepper derives progress from position: every step before `activeStep` is
+ * drawn as completed, connector filled. A Mission's reached set has holes —
+ * it can reach Decide without ever consulting memory — and rendering that
+ * through Stepper marked the skipped step `data-progress="completed"` with a
+ * filled bar running through it. No prop reaches that: `status` sets colour
+ * only, `indicator` sets the badge only, and moving `activeStep` to avoid the
+ * gap misreports the steps after it instead.
+ *
+ * A filled progress bar through a stage that never happened is a claim the
+ * events do not support, so this stays a list that says exactly what each step
+ * is. Stepper is the right component for a linear flow; this is not one.
  */
 export function MissionRail({ progress, onJump }: MissionRailProps) {
   return (

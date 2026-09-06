@@ -169,7 +169,7 @@ def main() -> None:
     positional, flags = split_args(argv[1:])
 
     try:
-        from sibyl_memory_client import MemoryClient
+        from sibyl_memory_client import MemoryClient, NotFoundError
     except ImportError as error:
         fail("client_missing", f"sibyl-memory-client is not importable: {error}")
 
@@ -223,6 +223,31 @@ def main() -> None:
                 "softCapBytes": status.get("soft_cap_bytes"),
                 "atOrAboveCap": status.get("at_or_above_cap"),
                 "entityCount": len(client.list_entities()),
+            }
+        elif command == "retrieve":
+            # One counterparty's relationship profile.
+            #
+            # `found: false` is NOT an error and must not be reported as one:
+            # "this counterparty is new to us" is a real answer. Every failure
+            # path above exits through fail(), so reaching here at all means
+            # Sibyl was read successfully.
+            category = sys.argv[2] if len(sys.argv) > 2 else "counterparty"
+            name = sys.argv[3] if len(sys.argv) > 3 else ""
+            if not name:
+                fail("missing_name", "retrieve needs a counterparty key")
+            # get_entity RAISES for an unknown entity rather than returning
+            # None. Letting that reach the generic handler reported a
+            # counterparty we have never met as a failed lookup, which is the
+            # one conflation this product may never make.
+            try:
+                entity = client.get_entity(category, name)
+            except NotFoundError:
+                entity = None
+            payload = {
+                "ok": True,
+                "found": entity is not None,
+                "body": (entity or {}).get("body"),
+                "updatedAt": (entity or {}).get("updated_at"),
             }
         elif command == "entities":
             # Left in Sibyl's own snake_case: this shape already ships, so it is

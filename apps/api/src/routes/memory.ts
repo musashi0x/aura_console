@@ -4,6 +4,7 @@ import { z } from "zod";
 import { env } from "../env.js";
 import { httpError } from "../errors.js";
 import { MemoryStore } from "../services/memory-store.js";
+import { listCounterpartiesFromSibyl } from "../services/sibyl.js";
 import {
   DEFAULT_RECALL_LIMIT,
   MAX_RECALL_LIMIT,
@@ -23,7 +24,14 @@ const limitSchema = z.coerce
   .default(DEFAULT_RECALL_LIMIT);
 const querySchema = z.string().trim().min(1).max(200).optional();
 
-export const memory = new Hono();
+/**
+ * Memory *about one counterparty*, composed from Postgres and Sibyl.
+ *
+ * Mounted under `/api/counterparties`, because these paths hang off a
+ * counterparty. `memory` below is the separate list surface at `/api/memory`;
+ * the two share this file because both are memory, and share nothing else.
+ */
+export const counterpartyMemory = new Hono();
 
 /**
  * A key that cannot be a Sibyl identifier is rejected here rather than sent.
@@ -81,7 +89,7 @@ function unavailableUnlessSibylAnswered(recall: SibylMemoryResult): void {
  * counterparty per Run, and arbitrary Sibyl JSON has no business on the path
  * that authorizes a spend. The drawer below carries the bodies instead.
  */
-memory.get("/:counterpartyKey/memory", async (c) => {
+counterpartyMemory.get("/:counterpartyKey/memory", async (c) => {
   const key = parseKey(c.req.param("counterpartyKey"));
   const { result, provenance } = await store.retrieveWithProvenance(key, env.AGENT_ID);
   const verdict = provenance.sibyl.verdict;
@@ -124,7 +132,7 @@ memory.get("/:counterpartyKey/memory", async (c) => {
  * render honestly. `outcome` travels alongside so a refusal cannot be read as
  * an absence even by a caller that ignores the verdict.
  */
-memory.get("/:counterpartyKey/memory/records", async (c) => {
+counterpartyMemory.get("/:counterpartyKey/memory/records", async (c) => {
   const key = parseKey(c.req.param("counterpartyKey"));
 
   const limit = limitSchema.safeParse(c.req.query("limit"));
@@ -169,4 +177,22 @@ memory.get("/:counterpartyKey/memory/records", async (c) => {
       body: record.body,
     })),
   });
+});
+
+/**
+ * The operator's own relationship memory, from Sibyl.
+ *
+ * 503 when Sibyl cannot be read, never `{items: []}`. An empty list is a claim
+ * that we looked and there is nobody; an unreadable store is a claim that we
+ * could not look. The Console renders those as different surfaces, and it can
+ * only do that if this endpoint keeps them apart.
+ */
+export const memory = new Hono();
+
+memory.get("/counterparties", async (c) => {
+  const result = await listCounterpartiesFromSibyl();
+  if (!result.ok) {
+    return c.json({ error: { code: result.code, message: result.detail } }, 503);
+  }
+  return c.json({ items: result.items });
 });

@@ -33,14 +33,43 @@ describe("console chat", () => {
     expect(screen.getByLabelText("Message input")).toBeInTheDocument();
   });
 
-  it("says grounding is not wired, without claiming a lookup came back empty", () => {
+  it("says grounding was never checked rather than guessing either way", () => {
     render(<ConsoleChat runId="run_42" />);
     expect(screen.getByText("GROUNDING NOT CONNECTED")).toBeInTheDocument();
-    expect(screen.getByText(/has no endpoint in this console yet/i)).toBeInTheDocument();
+    expect(screen.getByText(console_.chat.groundingUnchecked)).toBeInTheDocument();
     // MEMORY UNAVAILABLE reports the result of a retrieval that was attempted.
-    // The chat attempts none, and the example Run's own timeline shows memory as
-    // AVAILABLE, so borrowing that badge here would contradict the page.
+    // Nothing was attempted here, so borrowing that badge would report an
+    // outcome the console never obtained.
     expect(screen.queryByText("MEMORY UNAVAILABLE")).not.toBeInTheDocument();
+  });
+
+  it("names the half that is missing when the check came back", () => {
+    render(
+      <ConsoleChat
+        runId="run_42"
+        grounding={{ agentReachable: false, memoryReachable: true, detail: "The agent answered 502." }}
+      />,
+    );
+    expect(screen.getByText("GROUNDING NOT CONNECTED")).toBeInTheDocument();
+    expect(screen.getByText("The agent answered 502.")).toBeInTheDocument();
+  });
+
+  it("drops the warning only when both halves actually answered", () => {
+    render(
+      <ConsoleChat runId="run_42" grounding={{ agentReachable: true, memoryReachable: true }} />,
+    );
+    // This banner used to be hardcoded, so it went on announcing that grounding
+    // was not connected after an agent and a memory were both answering.
+    expect(screen.queryByText("GROUNDING NOT CONNECTED")).not.toBeInTheDocument();
+  });
+
+  it("keeps warning when the agent is up but its memory is not", () => {
+    render(
+      <ConsoleChat runId="run_42" grounding={{ agentReachable: true, memoryReachable: false }} />,
+    );
+    // An agent with no memory answers from nothing, which is the failure this
+    // product exists to prevent. Half a path is not a path.
+    expect(screen.getByText("GROUNDING NOT CONNECTED")).toBeInTheDocument();
   });
 
   it("only mentions the memory toggle when the palette actually reports it off", () => {

@@ -8,7 +8,7 @@ import { requestLogger } from "./middleware/request-logger.js";
 import { chat } from "./routes/chat.js";
 import { counterparties } from "./routes/counterparties.js";
 import { health } from "./routes/health.js";
-import { memory } from "./routes/memory.js";
+import { counterpartyMemory, memory } from "./routes/memory.js";
 import { policies } from "./routes/policies.js";
 import { runs } from "./routes/runs.js";
 
@@ -32,10 +32,14 @@ app.route("/api/runs", runs);
 // live surfaces are paths under a Run rather than a second Run namespace.
 app.route("/api/runs", chat);
 app.route("/api/counterparties", counterparties);
-// Mounted on the same prefix: memory is read about a counterparty and its
-// paths live under one, but composing Postgres with Sibyl is a different
-// concern from the AD-04 projection and keeps its own file.
-app.route("/api/counterparties", memory);
+// Mounted on the same prefix as the counterparty projection: memory read
+// *about* a counterparty hangs off that counterparty, but composing Postgres
+// with Sibyl is a different concern from the AD-04 projection, so it keeps its
+// own file.
+app.route("/api/counterparties", counterpartyMemory);
+// The list surface is its own resource rather than a counterparty subpath:
+// it answers "who does this operator remember", not "what about this one".
+app.route("/api/memory", memory);
 app.route("/api/policies", policies);
 
 app.notFound((c) =>

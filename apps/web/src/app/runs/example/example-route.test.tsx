@@ -2,7 +2,15 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/api-client", () => ({
-  apiClient: { dbHealth: async () => ({ ok: true, data: { status: "ok", latencyMs: 1 } }) },
+  apiClient: {
+    dbHealth: async () => ({ ok: true, data: { status: "ok", latencyMs: 1 } }),
+    /* Both halves of the answering path report unreachable here, which is what
+       a test environment honestly is. The page must render the Mission either
+       way: grounding governs what the chat claims, never whether the Run is
+       readable. */
+    agentHealth: async () => ({ ok: true, data: { configured: false, reachable: false } }),
+    sibylHealth: async () => ({ ok: true, data: { configured: false, reachable: false } }),
+  },
 }));
 
 const { default: ExampleRunPage } = await import("./page");
