@@ -675,6 +675,17 @@ main:has(.lp) {
 
 .btn {
   border-radius: var(--radius-md);
+  text-decoration: none;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease,
+    box-shadow 150ms ease,
+    color 150ms ease;
+}
+
+.btn:hover:not([disabled]) {
+  border-color: var(--color-border-strong);
+  background: var(--color-glass-strong);
 }
 
 .btn--primary {
@@ -684,8 +695,27 @@ main:has(.lp) {
   box-shadow: var(--glow-cyan);
 }
 
+.btn--primary:hover:not([disabled]) {
+  background: var(--color-cyan);
+  border-color: var(--color-cyan);
+  box-shadow: var(--glow-cyan-strong);
+}
+
 .btn--secondary {
   background: var(--color-glass);
+}
+
+.btn--secondary:hover:not([disabled]) {
+  border-color: var(--color-border-strong);
+  background: var(--color-glass-strong);
+}
+
+.btn--sm,
+.btn-sm {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  border-radius: var(--radius-sm);
 }
 
 .btn--quiet {
@@ -2795,10 +2825,11 @@ input[type="range"].fluid-slider::-moz-range-thumb {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  background: color-mix(in srgb, var(--color-surface) 60%, transparent);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--space-4);
+  box-shadow: var(--shadow-panel);
   overflow-y: auto;
 }
 
@@ -2828,23 +2859,32 @@ input[type="range"].fluid-slider::-moz-range-thumb {
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: var(--color-surface);
+  background: var(--color-glass);
   color: var(--color-text);
   text-align: left;
   cursor: pointer;
-  transition: all 0.15s ease-in-out;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease,
+    box-shadow 150ms ease;
   width: 100%;
 }
 
 .cs__chat-context-item:hover {
-  background: var(--color-surface-raised);
+  background: var(--color-glass-strong);
   border-color: var(--color-border-strong);
+  box-shadow: var(--glow-cyan);
+}
+
+.cs__chat-context-item:focus-visible {
+  outline: 2px solid var(--color-cyan);
+  outline-offset: 2px;
 }
 
 .cs__chat-context-item.is-active {
   background: var(--color-surface-raised);
   border-color: var(--color-cyan);
-  box-shadow: 0 0 0 1px var(--color-cyan);
+  box-shadow: 0 0 0 1px var(--color-cyan), var(--glow-cyan);
 }
 
 .cs__chat-context-id {
@@ -2875,10 +2915,11 @@ input[type="range"].fluid-slider::-moz-range-thumb {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  background: color-mix(in srgb, var(--color-surface) 60%, transparent);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--space-4);
+  box-shadow: var(--shadow-panel);
   overflow: hidden;
   height: 100%;
 }
@@ -2892,5 +2933,125 @@ input[type="range"].fluid-slider::-moz-range-thumb {
   flex: 1;
   min-height: 0;
   overflow: hidden;
+}
+
+/* ---------------------------------------------------------------------------
+   Astryx Chat Component Overrides (Aura Terminal Theme)
+--------------------------------------------------------------------------- */
+
+.astryx-chat-composer {
+  width: 100%;
+}
+
+/* Outer body container of the Chat Composer */
+.astryx-chat-composer > div {
+  background-color: var(--color-surface-raised) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-panel) !important;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease !important;
+}
+
+.astryx-chat-composer:hover > div {
+  border-color: var(--color-border-strong) !important;
+}
+
+.astryx-chat-composer:focus-within > div {
+  border-color: var(--color-cyan) !important;
+  box-shadow: 0 0 0 1px var(--color-cyan), var(--glow-cyan-strong) !important;
+}
+
+/* Chat composer contenteditable input */
+.astryx-chat-composer [contenteditable="true"] {
+  color: var(--color-text) !important;
+  font-family: var(--font-sans) !important;
+  font-size: var(--text-sm) !important;
+  caret-color: var(--color-cyan) !important;
+}
+
+/* Send button in Chat Composer */
+.astryx-chat-send-button {
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    opacity 150ms ease !important;
+}
+
+/* Primary send state: cyan accent with ink text */
+.astryx-chat-send-button:not(:disabled):not([aria-disabled="true"]):not([data-variant="secondary"]) {
+  background-color: var(--color-cyan) !important;
+  color: var(--color-accent-ink) !important;
+  border-color: var(--color-cyan) !important;
+  box-shadow: var(--glow-cyan) !important;
+}
+
+.astryx-chat-send-button:not(:disabled):not([aria-disabled="true"]):not([data-variant="secondary"]):hover {
+  background-color: var(--color-cyan) !important;
+  border-color: var(--color-cyan) !important;
+  box-shadow: var(--glow-cyan-strong) !important;
+  opacity: 0.92 !important;
+}
+
+/* Disabled state */
+.astryx-chat-send-button:disabled,
+.astryx-chat-send-button[aria-disabled="true"] {
+  background-color: var(--color-glass) !important;
+  color: var(--color-text-muted) !important;
+  border-color: var(--color-border) !important;
+  box-shadow: none !important;
+  opacity: 0.45 !important;
+}
+
+/* Stop state */
+.astryx-chat-send-button[data-variant="secondary"],
+.astryx-chat-send-button.secondary {
+  background-color: var(--color-glass-strong) !important;
+  color: var(--color-warning) !important;
+  border-color: var(--color-warning) !important;
+}
+
+/* Chat Message Bubbles */
+.astryx-chat-message-bubble {
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-md) !important;
+  background-color: var(--color-surface-raised) !important;
+  color: var(--color-text) !important;
+}
+
+.astryx-chat-message-bubble[data-sender="user"] {
+  background-color: var(--color-surface-raised) !important;
+  border-color: var(--color-border-strong) !important;
+}
+
+.astryx-chat-message-bubble[data-sender="assistant"] {
+  background-color: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+}
+
+.astryx-chat-message-bubble[data-sender="system"] {
+  background-color: var(--color-glass) !important;
+  border-color: var(--color-border) !important;
+}
+
+/* Suggestion cards in zero state */
+.cs__chat-console-body .astryx-clickable-card,
+.cs__chat-console-body .astryx-card {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-md) !important;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease,
+    box-shadow 150ms ease !important;
+}
+
+.cs__chat-console-body .astryx-clickable-card:hover,
+.cs__chat-console-body .astryx-card:hover {
+  background: var(--color-surface-raised) !important;
+  border-color: var(--color-cyan) !important;
+  box-shadow: var(--glow-cyan) !important;
 }
 

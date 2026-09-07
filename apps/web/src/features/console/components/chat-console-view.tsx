@@ -67,6 +67,9 @@ export function ChatConsoleView({
         <div className="cs__chat-console-missions-list" role="list">
           {runs.map((run) => {
             const isSelected = run.id === selectedRunId;
+            const formattedBudget = run.budgetUsdc
+              ? `${Number.parseFloat(run.budgetUsdc)} USDC`
+              : "RUN";
             return (
               <button
                 key={run.id}
@@ -80,7 +83,7 @@ export function ChatConsoleView({
                     {run.objective}
                   </span>
                   <Token
-                    label={run.budgetUsdc ? `${run.budgetUsdc} USDC` : "RUN"}
+                    label={formattedBudget}
                     size="sm"
                     color={isSelected ? "cyan" : "gray"}
                   />
@@ -100,7 +103,7 @@ export function ChatConsoleView({
               <Text as="p" size="xsm" color="secondary">
                 No missions found yet.
               </Text>
-              <Link href="/runs/new" className="btn btn-sm">
+              <Link href="/runs/new" className="btn btn--sm btn--primary">
                 + Start a Mission
               </Link>
             </div>
@@ -125,7 +128,7 @@ export function ChatConsoleView({
               </HStack>
               {activeRun ? (
                 <Text as="p" size="xsm" color="secondary">
-                  Grounded in Mission <code>{activeRun.id}</code> · Budget: {activeRun.budgetUsdc ?? "0"} USDC · {activeRun.environment}
+                  Grounded in Mission <code>{activeRun.id}</code> · Budget: {activeRun.budgetUsdc ? `${Number.parseFloat(activeRun.budgetUsdc)} USDC` : "0 USDC"} · {activeRun.environment}
                 </Text>
               ) : (
                 <Text as="p" size="xsm" color="secondary">
@@ -135,11 +138,11 @@ export function ChatConsoleView({
             </VStack>
 
             {activeRun ? (
-              <Link href={`/runs/${activeRun.id}`} className="btn btn-sm">
+              <Link href={`/runs/${activeRun.id}`} className="btn btn--sm btn--secondary">
                 Open Mission Workspace ↗
               </Link>
             ) : (
-              <Link href="/runs/new" className="btn btn-sm">
+              <Link href="/runs/new" className="btn btn--sm btn--primary">
                 + New Mission
               </Link>
             )}
