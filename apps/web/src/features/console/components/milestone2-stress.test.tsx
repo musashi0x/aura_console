@@ -509,12 +509,10 @@ describe("ConsoleChat - Milestone 2 Empirical Stress Testing", () => {
 
       await waitFor(() => {
         expect(screen.getByTestId("hovercard-memory-preview")).toBeInTheDocument();
+        expect(screen.getByText("Disconnected Peer")).toBeInTheDocument();
+        expect(screen.getByText("NEW")).toBeInTheDocument();
+        expect(screen.getByText("50.0%")).toBeInTheDocument();
       });
-
-      // Should render fallback state ("NEW", 50.0%)
-      expect(screen.getByText("Disconnected Peer")).toBeInTheDocument();
-      expect(screen.getByText("NEW")).toBeInTheDocument();
-      expect(screen.getByText("50.0%")).toBeInTheDocument();
     });
   });
 });

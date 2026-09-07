@@ -2,6 +2,15 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
 import { env } from "../env.js";
+import {
+  getNativeEntity,
+  getNativeSibylStatus,
+  listNativeCounterpartiesFromSibyl,
+  recallNativeEntities,
+  recordEpisodeToNativeSibyl,
+  retrieveNativeFromSibyl,
+  updateNativeCounterpartyInSibyl,
+} from "./native-sibyl.js";
 
 const run = promisify(execFile);
 
@@ -36,7 +45,7 @@ export interface SibylStatus {
 const NOT_CONFIGURED_DETAIL =
   "SIBYL_PYTHON is not set, so this deployment has no Sibyl Memory runtime to ask.";
 
-const NOT_CONFIGURED: SibylStatus = {
+export const NOT_CONFIGURED: SibylStatus = {
   configured: false,
   reachable: false,
   code: "not_configured",
@@ -102,28 +111,24 @@ async function runBridge(args: string[]): Promise<BridgeOutcome> {
 }
 
 export async function getSibylStatus(): Promise<SibylStatus> {
-  const outcome = await runBridge(["status"]);
-  if (!outcome.ok) {
-    if (!outcome.configured) return NOT_CONFIGURED;
-    return {
-      configured: true,
-      reachable: false,
-      code: outcome.code,
-      detail: outcome.detail,
-    };
+  if (env.SIBYL_PYTHON) {
+    const outcome = await runBridge(["status"]);
+    if (outcome.ok) {
+      const parsed = outcome.payload;
+      return {
+        configured: true,
+        reachable: true,
+        tier: parsed.tier as string,
+        schemaVersion: parsed.schemaVersion as number,
+        dbSizeBytes: parsed.dbSizeBytes as number,
+        softCapBytes: parsed.softCapBytes as number,
+        atOrAboveCap: parsed.atOrAboveCap as boolean,
+        entityCount: parsed.entityCount as number,
+      };
+    }
   }
 
-  const parsed = outcome.payload;
-  return {
-    configured: true,
-    reachable: true,
-    tier: parsed.tier as string,
-    schemaVersion: parsed.schemaVersion as number,
-    dbSizeBytes: parsed.dbSizeBytes as number,
-    softCapBytes: parsed.softCapBytes as number,
-    atOrAboveCap: parsed.atOrAboveCap as boolean,
-    entityCount: parsed.entityCount as number,
-  };
+  return getNativeSibylStatus();
 }
 
 /**
@@ -314,45 +319,34 @@ export async function recallEntities(
   query: string,
   opts: { category?: string; limit?: number } = {},
 ): Promise<SibylRecall> {
-  // Flags first, then `--`, then the query. The bridge stops reading flags at
-  // `--`, so a query beginning with `--` is the query. Passed ahead of the
-  // flags it was read as one: `?q=--limit` bound `--category` as the limit's
-  // value, left `counterparty` as the query and dropped the category filter, so
-  // the recall ran across every category and returned another category's record
-  // bodies as this counterparty's memory.
-  const args = ["recall"];
-  if (opts.category !== undefined) args.push("--category", opts.category);
-  if (opts.limit !== undefined) args.push("--limit", String(opts.limit));
-  args.push("--", query);
+  if (env.SIBYL_PYTHON) {
+    const args = ["recall"];
+    if (opts.category !== undefined) args.push("--category", opts.category);
+    if (opts.limit !== undefined) args.push("--limit", String(opts.limit));
+    args.push("--", query);
 
-  const outcome = await runBridge(args);
-  if (!outcome.ok) {
-    return { reachable: false, records: [], code: outcome.code, detail: outcome.detail };
-  }
-
-  const verdict = toVerdict(outcome.payload.verdict);
-  if (!verdict) {
-    const failure = contractFailure("recall carried no verdict this service recognises", outcome.payload);
-    return { reachable: false, records: [], ...failure };
-  }
-
-  const raw: unknown = outcome.payload.records;
-  if (!Array.isArray(raw)) {
-    const failure = contractFailure("recall carried no records array", outcome.payload);
-    return { reachable: false, records: [], ...failure };
-  }
-
-  const records: SibylRecord[] = [];
-  for (const item of raw) {
-    const record = toRecord(item);
-    if (!record) {
-      const failure = contractFailure("recall returned a record missing a required field", outcome.payload);
-      return { reachable: false, records: [], ...failure };
+    const outcome = await runBridge(args);
+    if (outcome.ok) {
+      const verdict = toVerdict(outcome.payload.verdict);
+      if (verdict) {
+        const raw: unknown = outcome.payload.records;
+        if (Array.isArray(raw)) {
+          const records: SibylRecord[] = [];
+          for (const item of raw) {
+            const record = toRecord(item);
+            if (record) records.push(record);
+            else {
+              const failure = contractFailure("recall returned a record missing a required field", outcome.payload);
+              return { reachable: false, records: [], ...failure };
+            }
+          }
+          return { reachable: true, verdict, records };
+        }
+      }
     }
-    records.push(record);
   }
 
-  return { reachable: true, verdict, records };
+  return recallNativeEntities(query, opts);
 }
 
 /**
@@ -365,21 +359,21 @@ export async function recallEntities(
  * caller is handed the distinction rather than a null.
  */
 export async function getEntity(category: string, name: string): Promise<SibylEntityLookup> {
-  const outcome = await runBridge(["entity", category, name]);
-  if (!outcome.ok) {
-    return {
-      reachable: outcome.code === "entity_absent",
-      code: outcome.code,
-      detail: outcome.detail,
-    };
+  if (env.SIBYL_PYTHON) {
+    const outcome = await runBridge(["entity", category, name]);
+    if (outcome.ok) {
+      const record = toRecord(outcome.payload.record);
+      if (record) return { reachable: true, record };
+    } else if (outcome.code === "entity_absent") {
+      return {
+        reachable: true,
+        code: outcome.code,
+        detail: outcome.detail,
+      };
+    }
   }
 
-  const record = toRecord(outcome.payload.record);
-  if (!record) {
-    return { reachable: false, ...contractFailure("entity carried no readable record", outcome.payload) };
-  }
-
-  return { reachable: true, record };
+  return getNativeEntity(category, name);
 }
 
 /* ---------------------------------------------------------------------------
@@ -461,41 +455,43 @@ function episodeCount(body: Record<string, unknown>): number {
 
 export async function retrieveFromSibyl(counterpartyKey: string): Promise<SibylRetrieval> {
   const python = env.SIBYL_PYTHON;
-  if (!python) return { status: "ERROR", counterpartyKey, retryable: true };
+  if (python) {
+    try {
+      const { stdout } = await run(python, [env.SIBYL_BRIDGE, "retrieve", "counterparty", counterpartyKey], {
+        timeout: env.SIBYL_TIMEOUT_MS,
+        env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH, SIBYL_TENANT_ID: env.AGENT_ID },
+        maxBuffer: 1024 * 1024,
+      });
+      const parsed = JSON.parse(stdout) as Record<string, unknown>;
+      if (parsed.ok === true) {
+        if (parsed.found !== true) return { status: "NO_HISTORY", counterpartyKey };
 
-  try {
-    const { stdout } = await run(python, [env.SIBYL_BRIDGE, "retrieve", "counterparty", counterpartyKey], {
-      timeout: env.SIBYL_TIMEOUT_MS,
-      env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH, SIBYL_TENANT_ID: env.AGENT_ID },
-      maxBuffer: 1024 * 1024,
-    });
-    const parsed = JSON.parse(stdout) as Record<string, unknown>;
-    if (parsed.ok !== true) return { status: "ERROR", counterpartyKey, retryable: true };
-    if (parsed.found !== true) return { status: "NO_HISTORY", counterpartyKey };
+        const body = (parsed.body ?? {}) as Record<string, unknown>;
+        // An entity Sibyl holds that says nothing evaluative is not history.
+        // Reporting it as AVAILABLE would put a relationship claim in front of the
+        // operator that Sibyl never made.
+        if (!hasProfileBody(body)) return { status: "NO_HISTORY", counterpartyKey };
 
-    const body = (parsed.body ?? {}) as Record<string, unknown>;
-    // An entity Sibyl holds that says nothing evaluative is not history.
-    // Reporting it as AVAILABLE would put a relationship claim in front of the
-    // operator that Sibyl never made.
-    if (!hasProfileBody(body)) return { status: "NO_HISTORY", counterpartyKey };
-
-    return {
-      status: "AVAILABLE",
-      counterpartyKey,
-      displayName: str(body, "display_name"),
-      memoryVersion: num(body, "memory_version"),
-      episodesUsed: episodeCount(body),
-      relationshipStatus: str(body, "relationship_status") ?? "KNOWN",
-      overallReliability: num(body, "overall_reliability"),
-      taskFit: num(body, "task_fit"),
-      confidence: num(body, "confidence"),
-      riskNote: str(body, "risk_note"),
-      isFixture: str(body, "source") === "fixture",
-    };
-  } catch (error) {
-    console.error("[sibyl] retrieve failed", error);
-    return { status: "ERROR", counterpartyKey, retryable: true };
+        return {
+          status: "AVAILABLE",
+          counterpartyKey,
+          displayName: str(body, "display_name"),
+          memoryVersion: num(body, "memory_version"),
+          episodesUsed: episodeCount(body),
+          relationshipStatus: str(body, "relationship_status") ?? "KNOWN",
+          overallReliability: num(body, "overall_reliability"),
+          taskFit: num(body, "task_fit"),
+          confidence: num(body, "confidence"),
+          riskNote: str(body, "risk_note"),
+          isFixture: str(body, "source") === "fixture",
+        };
+      }
+    } catch (error) {
+      console.error("[sibyl] retrieve failed over bridge, falling back to native", error);
+    }
   }
+
+  return retrieveNativeFromSibyl(counterpartyKey);
 }
 
 /**
@@ -556,54 +552,43 @@ function episodesFrom(body: Record<string, unknown>): SibylEpisode[] {
 
 export async function listCounterpartiesFromSibyl(): Promise<SibylCounterparties> {
   const python = env.SIBYL_PYTHON;
-  if (!python) {
-    return {
-      ok: false,
-      code: "not_configured",
-      detail: "SIBYL_PYTHON is not set, so this deployment has no relationship memory to read.",
-    };
-  }
-
-  try {
-    const { stdout } = await run(python, [env.SIBYL_BRIDGE, "entities", "counterparty"], {
-      timeout: env.SIBYL_TIMEOUT_MS,
-      env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH, SIBYL_TENANT_ID: env.AGENT_ID },
-      maxBuffer: 4 * 1024 * 1024,
-    });
-    const parsed = JSON.parse(stdout) as Record<string, unknown>;
-    if (parsed.ok !== true) {
-      return {
-        ok: false,
-        code: String(parsed.code ?? "bridge_error"),
-        detail: String(parsed.detail ?? "Sibyl could not be read."),
-      };
+  if (python) {
+    try {
+      const { stdout } = await run(python, [env.SIBYL_BRIDGE, "entities", "counterparty"], {
+        timeout: env.SIBYL_TIMEOUT_MS,
+        env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH, SIBYL_TENANT_ID: env.AGENT_ID },
+        maxBuffer: 4 * 1024 * 1024,
+      });
+      const parsed = JSON.parse(stdout) as Record<string, unknown>;
+      if (parsed.ok === true) {
+        const rows = Array.isArray(parsed.entities) ? parsed.entities : [];
+        const items = rows.map((row): SibylCounterparty => {
+          const entity = (row ?? {}) as Record<string, unknown>;
+          const body = (entity.body ?? {}) as Record<string, unknown>;
+          return {
+            counterpartyKey: typeof entity.name === "string" ? entity.name : "",
+            displayName: str(body, "display_name"),
+            hasProfile: hasProfileBody(body),
+            isFixture: str(body, "source") === "fixture",
+            relationshipStatus: str(body, "relationship_status"),
+            memoryVersion: num(body, "memory_version"),
+            overallReliability: num(body, "overall_reliability"),
+            taskFit: num(body, "task_fit"),
+            confidence: num(body, "confidence"),
+            observedPriceUsdc: str(body, "observed_price_usdc"),
+            riskNote: str(body, "risk_note"),
+            episodes: episodesFrom(body),
+            updatedAt: typeof entity.updated_at === "string" ? entity.updated_at : null,
+          };
+        });
+        return { ok: true, items: items.filter((item) => item.counterpartyKey !== "") };
+      }
+    } catch (error) {
+      console.error("[sibyl] counterparty listing failed over bridge, falling back to native", error);
     }
-
-    const rows = Array.isArray(parsed.entities) ? parsed.entities : [];
-    const items = rows.map((row): SibylCounterparty => {
-      const entity = (row ?? {}) as Record<string, unknown>;
-      const body = (entity.body ?? {}) as Record<string, unknown>;
-      return {
-        counterpartyKey: typeof entity.name === "string" ? entity.name : "",
-        displayName: str(body, "display_name"),
-        hasProfile: hasProfileBody(body),
-        isFixture: str(body, "source") === "fixture",
-        relationshipStatus: str(body, "relationship_status"),
-        memoryVersion: num(body, "memory_version"),
-        overallReliability: num(body, "overall_reliability"),
-        taskFit: num(body, "task_fit"),
-        confidence: num(body, "confidence"),
-        observedPriceUsdc: str(body, "observed_price_usdc"),
-        riskNote: str(body, "risk_note"),
-        episodes: episodesFrom(body),
-        updatedAt: typeof entity.updated_at === "string" ? entity.updated_at : null,
-      };
-    });
-    return { ok: true, items: items.filter((item) => item.counterpartyKey !== "") };
-  } catch (error) {
-    console.error("[sibyl] counterparty listing failed", error);
-    return { ok: false, code: "bridge_unreachable", detail: "Sibyl could not be read." };
   }
+
+  return listNativeCounterpartiesFromSibyl();
 }
 
 export interface RecordEpisodeOutcome {
@@ -625,42 +610,38 @@ export async function recordEpisodeToSibyl(
   },
 ): Promise<RecordEpisodeOutcome> {
   const python = env.SIBYL_PYTHON;
-  if (!python) return { ok: false, code: "not_configured", detail: "SIBYL_PYTHON not configured" };
-
-  try {
-    const payload = {
-      run: episode.run,
-      task_type: episode.taskType ?? "mission",
-      outcome: episode.outcome,
-      note: episode.note ?? "",
-      occurred_at: episode.occurredAt ?? new Date().toISOString(),
-    };
-    const { stdout } = await run(
-      python,
-      [env.SIBYL_BRIDGE, "record_episode", counterpartyKey, JSON.stringify(payload)],
-      {
-        timeout: env.SIBYL_TIMEOUT_MS,
-        env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH, SIBYL_TENANT_ID: env.AGENT_ID },
-        maxBuffer: 1024 * 1024,
-      },
-    );
-    const parsed = JSON.parse(stdout) as Record<string, unknown>;
-    if (parsed.ok !== true) {
-      return {
-        ok: false,
-        code: String(parsed.code ?? "bridge_error"),
-        detail: String(parsed.detail ?? "Failed to record episode"),
+  if (python) {
+    try {
+      const payload = {
+        run: episode.run,
+        task_type: episode.taskType ?? "mission",
+        outcome: episode.outcome,
+        note: episode.note ?? "",
+        occurred_at: episode.occurredAt ?? new Date().toISOString(),
       };
+      const { stdout } = await run(
+        python,
+        [env.SIBYL_BRIDGE, "record_episode", counterpartyKey, JSON.stringify(payload)],
+        {
+          timeout: env.SIBYL_TIMEOUT_MS,
+          env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH, SIBYL_TENANT_ID: env.AGENT_ID },
+          maxBuffer: 1024 * 1024,
+        },
+      );
+      const parsed = JSON.parse(stdout) as Record<string, unknown>;
+      if (parsed.ok === true) {
+        return {
+          ok: true,
+          eventId: str(parsed, "event_id") ?? undefined,
+          episodesCount: num(parsed, "episodes_count") ?? undefined,
+        };
+      }
+    } catch (error) {
+      console.error("[sibyl] record episode failed over bridge, falling back to native", error);
     }
-    return {
-      ok: true,
-      eventId: str(parsed, "event_id") ?? undefined,
-      episodesCount: num(parsed, "episodes_count") ?? undefined,
-    };
-  } catch (error) {
-    console.error("[sibyl] record episode failed", error);
-    return { ok: false, code: "bridge_unreachable", detail: "Sibyl bridge failed to record episode" };
   }
+
+  return recordEpisodeToNativeSibyl(counterpartyKey, episode);
 }
 
 export async function updateCounterpartyInSibyl(
@@ -673,35 +654,31 @@ export async function updateCounterpartyInSibyl(
   },
 ): Promise<{ ok: boolean; code?: string; detail?: string }> {
   const python = env.SIBYL_PYTHON;
-  if (!python) return { ok: false, code: "not_configured", detail: "SIBYL_PYTHON not configured" };
+  if (python) {
+    try {
+      const payload: Record<string, unknown> = {};
+      if (update.relationshipStatus !== undefined) payload.relationship_status = update.relationshipStatus;
+      if (update.overallReliability !== undefined) payload.overall_reliability = update.overallReliability;
+      if (update.confidence !== undefined) payload.confidence = update.confidence;
+      if (update.riskNote !== undefined) payload.risk_note = update.riskNote;
 
-  try {
-    const payload: Record<string, unknown> = {};
-    if (update.relationshipStatus !== undefined) payload.relationship_status = update.relationshipStatus;
-    if (update.overallReliability !== undefined) payload.overall_reliability = update.overallReliability;
-    if (update.confidence !== undefined) payload.confidence = update.confidence;
-    if (update.riskNote !== undefined) payload.risk_note = update.riskNote;
-
-    const { stdout } = await run(
-      python,
-      [env.SIBYL_BRIDGE, "update_counterparty", counterpartyKey, JSON.stringify(payload)],
-      {
-        timeout: env.SIBYL_TIMEOUT_MS,
-        env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH, SIBYL_TENANT_ID: env.AGENT_ID },
-        maxBuffer: 1024 * 1024,
-      },
-    );
-    const parsed = JSON.parse(stdout) as Record<string, unknown>;
-    if (parsed.ok !== true) {
-      return {
-        ok: false,
-        code: String(parsed.code ?? "bridge_error"),
-        detail: String(parsed.detail ?? "Failed to update counterparty"),
-      };
+      const { stdout } = await run(
+        python,
+        [env.SIBYL_BRIDGE, "update_counterparty", counterpartyKey, JSON.stringify(payload)],
+        {
+          timeout: env.SIBYL_TIMEOUT_MS,
+          env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH, SIBYL_TENANT_ID: env.AGENT_ID },
+          maxBuffer: 1024 * 1024,
+        },
+      );
+      const parsed = JSON.parse(stdout) as Record<string, unknown>;
+      if (parsed.ok === true) {
+        return { ok: true };
+      }
+    } catch (error) {
+      console.error("[sibyl] update counterparty failed over bridge, falling back to native", error);
     }
-    return { ok: true };
-  } catch (error) {
-    console.error("[sibyl] update counterparty failed", error);
-    return { ok: false, code: "bridge_unreachable", detail: "Sibyl bridge failed to update counterparty" };
   }
+
+  return updateNativeCounterpartyInSibyl(counterpartyKey, update);
 }

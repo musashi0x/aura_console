@@ -18,6 +18,11 @@ vi.mock("../services/adk-agent.js", async () => {
   return { ...actual, isAgentConfigured: vi.fn(() => false) };
 });
 
+vi.mock("../services/gemini-agent.js", async () => {
+  const actual = await vi.importActual<typeof import("../services/gemini-agent.js")>("../services/gemini-agent.js");
+  return { ...actual, isGeminiAgentConfigured: vi.fn(() => false) };
+});
+
 const KEY = "virtuals:agent:alpha";
 
 async function seedCounterparty() {

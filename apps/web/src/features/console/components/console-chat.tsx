@@ -49,6 +49,7 @@ import type {
   MemoryCitation,
 } from "../chat/chat-types";
 import { CounterpartyMemoryHoverCard } from "./counterparty-memory-hover-card";
+import { TextLoader } from "generative-loaders";
 import { useSmoothedText } from "../chat/use-smoothed-text";
 import { CONSOLE_COMMANDS, matchCommand } from "../console-commands";
 import { console_ } from "../copy";
@@ -246,7 +247,8 @@ export function ConsoleChat({ runId, grounding, memoryEnabled }: ConsoleChatProp
   }, [end]);
 
   function ask(question: string) {
-    if (!runId) return;
+    const canAskWithoutRun = Boolean(grounding?.agentReachable && grounding?.memoryReachable);
+    if (!runId && !canAskWithoutRun) return;
     counterRef.current += 1;
     const turn = counterRef.current;
     const agentId = `agent-${turn}`;
@@ -270,11 +272,15 @@ export function ConsoleChat({ runId, grounding, memoryEnabled }: ConsoleChatProp
         prev.map((m) => (m.id === agentId ? change(m) : m)),
       );
 
+    const streamUrl = runId
+      ? `${env.NEXT_PUBLIC_API_URL}/api/runs/${encodeURIComponent(runId)}/chat?q=${encodeURIComponent(question)}`
+      : `${env.NEXT_PUBLIC_API_URL}/api/chat?q=${encodeURIComponent(question)}`;
+
     handleRef.current?.close();
     handleRef.current = openChatStream({
       // GET only. EventSource cannot issue anything else, which is why the
       // read-only requirement holds without a separate guard.
-      url: `${env.NEXT_PUBLIC_API_URL}/api/runs/${encodeURIComponent(runId)}/chat?q=${encodeURIComponent(question)}`,
+      url: streamUrl,
       onToken: (text) => {
         push(text);
         update((m) => ({ ...m, text: m.text + text }));
@@ -337,7 +343,8 @@ export function ConsoleChat({ runId, grounding, memoryEnabled }: ConsoleChatProp
     // Not a command, so it is a question. Questions need a Run to be about and
     // an agent to answer them; without either the console says so rather than
     // producing something that reads like an answer.
-    if (!runId) {
+    const canAskWithoutRun = Boolean(grounding?.agentReachable && grounding?.memoryReachable);
+    if (!runId && !canAskWithoutRun) {
       reportConsole(said, console_.chat.did.cannotAnswer);
       return;
     }
@@ -520,8 +527,28 @@ export function ConsoleChat({ runId, grounding, memoryEnabled }: ConsoleChatProp
                   {hasToolCalls && normalizedToolCalls ? (
                     <VStack gap={2} align="stretch">
                       <ChatToolCalls calls={normalizedToolCalls} />
-                      {body ? <div>{body}</div> : pending ? <div>{pending}</div> : null}
+                      {body ? (
+                        message.role === "agent" ? (
+                          <TextLoader
+                            text={body}
+                            variant="redact"
+                            color="var(--color-text)"
+                            paused={!live}
+                          />
+                        ) : (
+                          <div>{body}</div>
+                        )
+                      ) : pending ? (
+                        <div>{pending}</div>
+                      ) : null}
                     </VStack>
+                  ) : message.role === "agent" && body ? (
+                    <TextLoader
+                      text={body}
+                      variant="redact"
+                      color="var(--color-text)"
+                      paused={!live}
+                    />
                   ) : (
                     pending ?? body
                   )}

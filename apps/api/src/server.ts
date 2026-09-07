@@ -3,8 +3,11 @@ import { serve } from "@hono/node-server";
 
 import { app } from "./app.js";
 import { env } from "./env.js";
+import { ensureDatabaseSeeded } from "./services/seed-defaults.js";
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
+
+void ensureDatabaseSeeded();
 
 const server = serve({ fetch: app.fetch, port: env.PORT }, (info) => {
   console.log(

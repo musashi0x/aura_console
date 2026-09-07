@@ -19,6 +19,7 @@ import "@/styles/layers.css";
 import "@astryxdesign/core/reset.css";
 import "@astryxdesign/core/astryx.css";
 import "@/themes/neutral/neutral.css";
+import "generative-loaders/styles.css";
 
 import "./globals.css";
 

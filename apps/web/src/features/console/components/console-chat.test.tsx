@@ -422,4 +422,26 @@ describe("native citations and memory hovercard", () => {
   });
 });
 
+describe("generative-loaders text streaming effects", () => {
+  it("renders agent chat response with generative-loaders TextLoader redact variant", () => {
+    setChatMessages([
+      {
+        id: "msg-redact-1",
+        role: "agent",
+        text: "I'll organize the launch plan based on the research.",
+        complete: false,
+        citations: [],
+      },
+    ]);
+    const { container } = render(<ConsoleChat runId="run_42" />);
+
+    const loader = container.querySelector(".tl-loader[data-variant='redact']");
+    expect(loader).toBeInTheDocument();
+    expect(loader).toHaveAttribute("role", "status");
+    expect(loader).toHaveAttribute("aria-live", "polite");
+    expect(screen.getByText(/I'll organize the launch plan/)).toBeInTheDocument();
+  });
+});
+
+
 

@@ -9,6 +9,7 @@ import { approvals } from "./routes/approvals.js";
 import { chat, globalChat } from "./routes/chat.js";
 import { counterparties } from "./routes/counterparties.js";
 import { health } from "./routes/health.js";
+import { mcpRoute } from "./routes/mcp.js";
 import { counterpartyMemory, memory } from "./routes/memory.js";
 import { policies } from "./routes/policies.js";
 import { runs } from "./routes/runs.js";
@@ -33,6 +34,7 @@ app.route("/api/runs", runs);
 // live surfaces are paths under a Run rather than a second Run namespace.
 app.route("/api/runs", chat);
 app.route("/api/chat", globalChat);
+app.route("/api/mcp", mcpRoute);
 // The approval path hangs off the Run it authorizes, and keeps its own file
 // because it is the only endpoint in the console that authorizes a spend.
 app.route("/api/runs", approvals);
