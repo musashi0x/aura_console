@@ -521,6 +521,30 @@ say to call `/models` to discover or validate an id. `acp:compute complete`
 resolves a default from the live list rather than shipping a constant that
 rots.
 
+### Choosing the default model
+
+`/models` carries more than the documented `id`/`name`/`description`/
+`contextLength`: each entry also has `pricing` (`input`, `output`,
+`cacheInput`) and `modality`. Prices are USD per million tokens, verified
+against a real call rather than inferred — Claude Fable 5 lists `input: 10,
+output: 50`, and 16 prompt + 4 completion tokens billed $0.000360, which is
+`16/1e6 * 10 + 4/1e6 * 50` exactly.
+
+`cheapestTextModel` in `compute/client.ts` picks the unflagged default, and
+each of its three filters excludes a model that would otherwise win on price
+and then misbehave. Unpriced models cannot be ranked. Models that do not emit
+text cannot answer a prompt. A `-batch` id is a queued execution mode, so a
+smoke test that picked one would wait rather than reply. Ranking is
+`input + output`, which assumes nothing about the prompt-to-completion ratio:
+it chooses a cheap default for a test call, it is not a cost optimiser, and
+ties break on id so the choice is stable rather than dependent on catalog
+order.
+
+The CLI prints the model it defaulted to and its per-million prices before
+spending anything, because a default that decides what you pay should be
+visible in the log that precedes the charge. In practice this moved a smoke
+test from $0.000360 on the alphabetically-first model to $0.000020.
+
 ### Why compute spend is an event
 
 `acp.compute.completed` carries the model, provider, finish reason, the token

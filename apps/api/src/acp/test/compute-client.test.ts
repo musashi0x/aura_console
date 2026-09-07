@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ComputeClient } from "../compute/client.js";
+import { ComputeClient, cheapestTextModel } from "../compute/client.js";
 import { DEFAULT_COMPUTE_BASE_URL } from "../compute/env.js";
 
 const env = {
@@ -164,11 +164,93 @@ describe("ComputeClient.listModels", () => {
     expect(result.value[1]).toMatchObject({ id: "some-model", name: null, contextLength: null });
   });
 
+  it("maps pricing and output modality, and nulls pricing when absent", async () => {
+    stubFetch(200, {
+      data: [
+        {
+          id: "priced",
+          pricing: { input: 10, output: 50, cacheInput: 1 },
+          modality: { input: ["text"], output: ["text"] },
+        },
+        { id: "unpriced", modality: { output: ["image"] } },
+      ],
+    });
+
+    const result = await new ComputeClient(env).listModels();
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value[0]?.pricing).toEqual({ input: 10, output: 50, cacheInput: 1 });
+    expect(result.value[0]?.outputModalities).toEqual(["text"]);
+    expect(result.value[1]?.pricing).toBeNull();
+    expect(result.value[1]?.outputModalities).toEqual(["image"]);
+  });
+
   it("strips a trailing slash from the configured endpoint", async () => {
     const fetchMock = stubFetch(200, { data: [] });
 
     await new ComputeClient({ ...env, ACP_COMPUTE_BASE_URL: `${DEFAULT_COMPUTE_BASE_URL}/` }).listModels();
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe(`${DEFAULT_COMPUTE_BASE_URL}/models`);
+  });
+});
+
+describe("cheapestTextModel", () => {
+  const model = (
+    id: string,
+    input: number | null,
+    output: number,
+    outputModalities: string[] = ["text"],
+  ) => ({
+    id,
+    name: null,
+    description: null,
+    contextLength: null,
+    pricing: input === null ? null : { input, output, cacheInput: null },
+    outputModalities,
+  });
+
+  it("ranks on input plus output", () => {
+    const chosen = cheapestTextModel([
+      model("expensive", 10, 50),
+      model("cheap", 0.05, 0.16),
+      model("middling", 0.1, 0.4),
+    ]);
+
+    expect(chosen?.id).toBe("cheap");
+  });
+
+  /** A queued execution mode would hang a smoke test rather than reply. */
+  it("skips batch variants even when they are cheapest", () => {
+    const chosen = cheapestTextModel([model("cheap-batch", 0.01, 0.01), model("cheap", 0.05, 0.16)]);
+
+    expect(chosen?.id).toBe("cheap");
+  });
+
+  it("skips a model that cannot emit text", () => {
+    const chosen = cheapestTextModel([
+      model("image-only", 0.01, 0.01, ["image"]),
+      model("no-modality", 0.02, 0.02, []),
+      model("cheap", 0.05, 0.16),
+    ]);
+
+    expect(chosen?.id).toBe("cheap");
+  });
+
+  it("skips a model with no pricing, because it cannot be ranked", () => {
+    const chosen = cheapestTextModel([model("unpriced", null, 0), model("cheap", 0.05, 0.16)]);
+
+    expect(chosen?.id).toBe("cheap");
+  });
+
+  /** Stable across calls, rather than dependent on catalog order. */
+  it("breaks ties on id", () => {
+    expect(cheapestTextModel([model("b", 1, 1), model("a", 1, 1)])?.id).toBe("a");
+    expect(cheapestTextModel([model("a", 1, 1), model("b", 1, 1)])?.id).toBe("a");
+  });
+
+  it("returns null when nothing qualifies", () => {
+    expect(cheapestTextModel([])).toBeNull();
+    expect(cheapestTextModel([model("image-only", 0.01, 0.01, ["image"])])).toBeNull();
   });
 });

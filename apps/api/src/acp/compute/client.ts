@@ -15,12 +15,31 @@ import type { ComputeEnv } from "./env.js";
  * https://os.virtuals.io/agent-identity/compute/overview
  */
 
-/** One entry from `/models`. `contextLength` is absent on some models. */
+/**
+ * Per-million-token prices, in USD, as the catalog reports them.
+ *
+ * Verified against a real call rather than assumed: Claude Fable 5 lists
+ * `input: 10, output: 50`, and 16 prompt + 4 completion tokens was billed
+ * $0.000360, which is `16/1e6 * 10 + 4/1e6 * 50` exactly.
+ */
+export type ComputePricing = {
+  input: number;
+  output: number;
+  cacheInput: number | null;
+};
+
+/**
+ * One entry from `/models`. `contextLength` is absent on some models, and
+ * `outputModalities` is empty on a few, which is why picking a model to talk
+ * to has to check rather than assume.
+ */
 export type ComputeModel = {
   id: string;
   name: string | null;
   description: string | null;
   contextLength: number | null;
+  pricing: ComputePricing | null;
+  outputModalities: string[];
 };
 
 /**
@@ -107,12 +126,25 @@ export class ComputeClient {
       ok: true,
       value: data.map((entry) => {
         const model = entry as Record<string, unknown>;
+        const pricing = model.pricing as Record<string, unknown> | undefined;
+        const modality = model.modality as Record<string, unknown> | undefined;
         return {
           id: String(model.id ?? ""),
           name: asNullableString(model.name),
           description: asNullableString(model.description),
           contextLength:
             typeof model.contextLength === "number" ? model.contextLength : null,
+          pricing:
+            typeof pricing?.input === "number" && typeof pricing.output === "number"
+              ? {
+                  input: pricing.input,
+                  output: pricing.output,
+                  cacheInput: typeof pricing.cacheInput === "number" ? pricing.cacheInput : null,
+                }
+              : null,
+          outputModalities: Array.isArray(modality?.output)
+            ? modality.output.filter((value): value is string => typeof value === "string")
+            : [],
         };
       }),
     };
@@ -218,4 +250,38 @@ export class ComputeClient {
       };
     }
   }
+}
+
+/**
+ * The cheapest model that can actually answer a chat prompt.
+ *
+ * Three filters, each of which excludes a model that would otherwise win on
+ * price and then fail or surprise. A model with no pricing cannot be ranked. A
+ * model that does not emit text cannot answer. And a `-batch` id is a
+ * different execution mode — queued rather than interactive — so picking one
+ * for a smoke test would hang rather than reply.
+ *
+ * Ranking is `input + output`, which assumes nothing about the prompt-to-
+ * completion ratio of the request. That is deliberate: this chooses a default
+ * for a cheap test call, it is not a cost optimiser, and a caller who cares
+ * about the real mix should pass `--model`. Ties break on id so the choice is
+ * stable across calls rather than dependent on catalog order.
+ */
+export function cheapestTextModel(models: readonly ComputeModel[]): ComputeModel | null {
+  const usable = models.filter(
+    (model) =>
+      model.pricing !== null &&
+      model.outputModalities.includes("text") &&
+      !model.id.endsWith("-batch"),
+  );
+
+  if (usable.length === 0) return null;
+
+  return usable.reduce((cheapest, model) => {
+    const cost = model.pricing!.input + model.pricing!.output;
+    const best = cheapest.pricing!.input + cheapest.pricing!.output;
+    if (cost < best) return model;
+    if (cost > best) return cheapest;
+    return model.id < cheapest.id ? model : cheapest;
+  });
 }

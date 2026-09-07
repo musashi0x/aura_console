@@ -1,6 +1,6 @@
 import { pathToFileURL } from "node:url";
 
-import { ComputeClient } from "./client.js";
+import { ComputeClient, cheapestTextModel } from "./client.js";
 import { loadComputeEnv } from "./env.js";
 
 /**
@@ -77,7 +77,14 @@ async function main(): Promise<void> {
       process.exit(1);
     }
     for (const model of result.value) {
-      emit({ level: "info", msg: "compute model", id: model.id, contextLength: model.contextLength });
+      emit({
+        level: "info",
+        msg: "compute model",
+        id: model.id,
+        contextLength: model.contextLength,
+        inputPerMillionUsd: model.pricing?.input ?? null,
+        outputPerMillionUsd: model.pricing?.output ?? null,
+      });
     }
     return;
   }
@@ -87,7 +94,9 @@ async function main(): Promise<void> {
 
     // The catalog is fetched, never assumed: the docs say the list changes, so
     // a hardcoded default would rot into an unexplainable request-time error.
-    const model = args.model ?? (await firstModelId(client));
+    // Unflagged, the cheapest text model wins, because the common use of this
+    // command is a smoke test and the operator is paying for it.
+    const model = args.model ?? (await cheapestModelId(client));
 
     const result = await client.complete({
       model,
@@ -129,12 +138,31 @@ async function main(): Promise<void> {
   process.exit(1);
 }
 
-async function firstModelId(client: ComputeClient): Promise<string> {
+/**
+ * Announced rather than silent. A default that picks the model *and* decides
+ * what you pay should say which one it chose and at what price, or the first
+ * surprising invoice has nothing to point at.
+ */
+async function cheapestModelId(client: ComputeClient): Promise<string> {
   const models = await client.listModels();
-  if (!models.ok || models.value.length === 0) {
-    throw new Error("Could not resolve a model id from /models; pass --model explicitly.");
+  if (!models.ok) {
+    throw new Error(`Could not read /models to pick a default (${models.code}); pass --model explicitly.`);
   }
-  return models.value[0]!.id;
+
+  const cheapest = cheapestTextModel(models.value);
+  if (!cheapest) {
+    throw new Error("No priced text model in the catalog; pass --model explicitly.");
+  }
+
+  emit({
+    level: "info",
+    msg: "compute model defaulted to cheapest",
+    id: cheapest.id,
+    inputPerMillionUsd: cheapest.pricing?.input,
+    outputPerMillionUsd: cheapest.pricing?.output,
+  });
+
+  return cheapest.id;
 }
 
 const invokedDirectly =
