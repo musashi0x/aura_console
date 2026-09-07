@@ -1,6 +1,7 @@
 import { defineConfig } from "vitest/config";
 
 import { testDatabaseUrl } from "./src/test/database.js";
+import { testSibylDbPath, testSibylHomeDir } from "./src/test/sibyl.js";
 
 export default defineConfig({
   test: {
@@ -12,6 +13,9 @@ export default defineConfig({
     env: {
       NODE_ENV: "test",
       DATABASE_URL: testDatabaseUrl(),
+      GEMINI_API_KEY: "test-key",
+      HOME: testSibylHomeDir(),
+      SIBYL_DB_PATH: testSibylDbPath(),
     },
     // Route handlers share one connection pool and one schema, so parallel
     // files would truncate each other's rows mid-test.
@@ -19,3 +23,4 @@ export default defineConfig({
     maxWorkers: 1,
   },
 });
+
