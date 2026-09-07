@@ -2,6 +2,7 @@
   "name": "aura-console",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "packageManager": "pnpm@10.34.5",
   "engines": {
     "node": ">=22"
@@ -15,6 +16,7 @@
     "test": "turbo run test",
     "db:generate": "turbo run db:generate",
     "db:migrate": "turbo run db:migrate",
+    "demo:seed": "bash scripts/demo-seed.sh",
     "demo:deletion-test": "pnpm --filter @aura/api exec tsx ../../scripts/demo-deletion-test.ts",
     "demo:restart": "bash scripts/demo-restart.sh",
     "demo:reset": "bash scripts/demo-reset.sh",

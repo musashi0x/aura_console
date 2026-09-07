@@ -7,8 +7,8 @@
 ## Sibyl Labs Hackathon — 2-Minute Judge Evaluation Guide
 
 * **Theme**: *Build with Agents That Don't Forget* (Deadline: Wed 10 Sep 2026 23:59 UTC)
-* **Repository**: [https://github.com/musashi0x/aura_console](https://github.com/musashi0x/aura_console) (MIT License)
-* **Demo Video**: [Demo Walkthrough (4:00)]() | Recorded on Freeze Tag `hackathon-freeze-1` (Commit `7414ed0`)
+* **Repository**: [https://github.com/musashi0x/aura_memory](https://github.com/musashi0x/aura_memory) (MIT License)
+* **Demo Video**: [Demo Walkthrough (4:00)]() | Recorded on Freeze Tag `hackathon-freeze-1` (Commit `e789de7`)
   - `0:00–0:20`: The problem & core architecture overview
   - `0:20–1:40`: Session A — Autonomous candidate scoring, spend approval, seller failure, and Sibyl episode write-back
   - `1:40–2:10`: **Continuous Unedited Restart Boundary** — Process kill, database drop, Sibyl `memory.db` survival
@@ -25,7 +25,7 @@ pnpm install
 docker compose up -d           # Postgres on host port 5433
 cp .env.example .env
 pnpm db:migrate                # apply committed migrations
-pnpm demo:seed && pnpm dev     # Web on :3010, API on :3011
+pnpm demo:seed && pnpm dev     # Web on :3000 (configurable via WEB_PORT), API on :3001
 ```
 
 * **Sibyl Python Bridge Setup**:
@@ -168,10 +168,10 @@ Aura implements a Model Context Protocol (MCP) server (`apps/api/src/mcp/server.
 ### Build-in-Public Social Copy
 
 * **Post 1 — Build Log (Tue/Wed)**:
-  > Building Aura Console for the @sibylcap hackathon. The agent ranks counterparties from Sibyl Memory before it spends; if memory can't be read it refuses to score rather than pretending nobody is there. Today: episode write-back + a Bayesian reputation loop, all in a local SQLite file. Repo: https://github.com/musashi0x/aura_console #SibylHackathon
+  > Building Aura Console for the @sibylcap hackathon. The agent ranks counterparties from Sibyl Memory before it spends; if memory can't be read it refuses to score rather than pretending nobody is there. Today: episode write-back + a Bayesian reputation loop, all in a local SQLite file. Repo: https://github.com/musashi0x/aura_memory #SibylHackathon
 
 * **Post 2 — The Demo & Restart Boundary (Wed/Thu)**:
-  > Kill the API, drop the database, keep one file. A fresh process picks a different counterparty because Sibyl remembered the one that failed. Memory version committed to @base Sepolia. 4-minute demo walkthrough · Repo: https://github.com/musashi0x/aura_console · #SibylHackathon #Base
+  > Kill the API, drop the database, keep one file. A fresh process picks a different counterparty because Sibyl remembered the one that failed. Memory version committed to @base Sepolia. 4-minute demo walkthrough · Repo: https://github.com/musashi0x/aura_memory · #SibylHackathon #Base
 
 
 ---
