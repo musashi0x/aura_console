@@ -209,7 +209,9 @@ export function MissionWorkspace({
                    surface, which put the way you direct a Mission beside the
                    Mission rather than in it. It stays reachable elsewhere from
                    the launcher; here it is the surface. */
-                conversation={<ConsoleChat runId={view.runId} grounding={grounding} />}
+                conversation={
+                  <ConsoleChat runId={view.runId} grounding={grounding} placement="centre" />
+                }
               />
             ) : (
               <MissionBoard progress={progress} onSelect={jumpTo} />
