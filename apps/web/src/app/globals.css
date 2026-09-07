@@ -1,4 +1,5 @@
 @import "../styles/tokens.css";
+@import "drawably/style.css";
 
 /* Layer order, lowest priority first.
  *
@@ -752,6 +753,12 @@ body:has(.lp) {
   background: var(--landing-canvas);
   color: var(--landing-ink);
   isolation: isolate;
+  --drawably-stroke: var(--landing-ink);
+  --drawably-fill: var(--landing-ink);
+  --drawably-paper: var(--landing-surface);
+  --drawably-width: 1.75;
+  --drawably-success: var(--landing-ok);
+  --drawably-error: var(--landing-bad);
 }
 
 /* Decorative dotted texture. Fixed so it reads as a canvas the content moves
@@ -851,6 +858,10 @@ body:has(.lp) {
   min-height: 44px;
   display: inline-flex;
   align-items: center;
+}
+
+.lp-header__cta:has(.drawably-underline) {
+  border-bottom: none;
 }
 
 /* --- Windows -------------------------------------------------------------- */
@@ -1278,6 +1289,50 @@ body:has(.lp) {
 
 .lp a.lp-btn--primary {
   color: var(--landing-surface);
+}
+
+.lp a.lp-btn.drawably-button {
+  border: 0;
+  background: transparent;
+  min-height: 44px;
+  padding: 0.5rem 1.4rem;
+  border-radius: 0;
+  font-weight: 500;
+  font-size: 0.9375rem;
+}
+
+.lp a.lp-btn.drawably-button--solid {
+  color: var(--landing-surface);
+}
+
+.lp a.lp-btn.drawably-button--solid .drawably-blob {
+  fill: var(--landing-ink);
+  stroke: var(--landing-ink);
+}
+
+.lp a.lp-btn.drawably-button--outline {
+  color: var(--landing-ink);
+}
+
+.lp a.lp-btn.drawably-button--outline .drawably-outline {
+  stroke: var(--landing-ink);
+}
+
+.lp .drawably-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  font-family: var(--font-mono);
+}
+
+.lp .drawably-card.lp-principle-card {
+  padding: var(--space-6);
+  height: 100%;
+  background: var(--landing-surface);
+  border-radius: 4px;
 }
 
 .lp-cta__note {
@@ -2133,11 +2188,7 @@ input[type="range"].fluid-slider::-moz-range-thumb {
    prose. */
 .mw__conversation {
   inline-size: 100%;
-  /* Wider than the 72ch measure the transcript would want on its own. This is
-     the primary way to direct a Mission, and at a reading measure it read as a
-     footnote under the events rather than the thing you act with. The cap stays
-     so it does not stretch to the full width of a large display. */
-  max-inline-size: 60rem;
+  max-inline-size: 72ch;
   margin-inline: auto;
   /* The transcript scrolls inside itself, so it needs a height to scroll
      within rather than growing the page forever. */
@@ -2230,22 +2281,16 @@ input[type="range"].fluid-slider::-moz-range-thumb {
   color: var(--color-text-secondary);
 }
 
-/* The editorial layer. `Theme mode="light"` re-resolves the Astryx tokens, but
-   the surrounding console canvas is painted by this stylesheet, so the region
-   has to claim its own ground or the light text would land on the dark page. */
+/* The editorial layer. `Theme mode="dark"` resolves the Astryx neutral tokens,
+   maintaining the dark operations terminal canvas with crisp elevated cards. */
 .mw__editorial {
-  /* The console's own ink and ground variables hold the dark canvas's values:
-     near-white text, near-black surface. Every console-scale component inside
-     this region would keep reaching for them and draw light text on light, or
-     dark on dark. Rebinding the four here re-points all of them at the light
-     theme at once, instead of patching class by class and missing the next
-     one. */
   --color-text: var(--color-text-primary);
   --color-text-muted: var(--color-text-secondary);
-  --color-surface: var(--color-background-card);
+  --color-surface: var(--color-background-surface);
   --color-surface-raised: var(--color-background-surface);
 
-  background: var(--color-background-body);
+  background: color-mix(in srgb, var(--color-surface) 50%, transparent);
+  backdrop-filter: blur(12px);
   color: var(--color-text-primary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
@@ -2725,5 +2770,127 @@ input[type="range"].fluid-slider::-moz-range-thumb {
   max-width: 46rem;
   margin-inline: auto;
   width: 100%;
+}
+
+/* ---------------------------------------------------------------------------
+   Chat Console Layout
+--------------------------------------------------------------------------- */
+
+.cs__chat-console-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) 1fr;
+  gap: var(--space-4);
+  height: calc(100vh - 8rem);
+  min-height: 36rem;
+}
+
+@media (max-width: 60rem) {
+  .cs__chat-console-layout {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+}
+
+.cs__chat-console-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  background: color-mix(in srgb, var(--color-surface) 60%, transparent);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  overflow-y: auto;
+}
+
+.cs__chat-console-sidebar-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cs__chat-console-missions-header {
+  padding-top: var(--space-2);
+}
+
+.cs__chat-console-missions-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  overflow-y: auto;
+}
+
+.cs__chat-context-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  width: 100%;
+}
+
+.cs__chat-context-item:hover {
+  background: var(--color-surface-raised);
+  border-color: var(--color-border-strong);
+}
+
+.cs__chat-context-item.is-active {
+  background: var(--color-surface-raised);
+  border-color: var(--color-cyan);
+  box-shadow: 0 0 0 1px var(--color-cyan);
+}
+
+.cs__chat-context-id {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.cs__chat-context-title {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 14rem;
+}
+
+.cs__chat-empty-runs {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-2);
+  text-align: center;
+}
+
+.cs__chat-console-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  background: color-mix(in srgb, var(--color-surface) 60%, transparent);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  overflow: hidden;
+  height: 100%;
+}
+
+.cs__chat-console-main-header {
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cs__chat-console-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 

@@ -113,18 +113,6 @@ export interface ConsoleChatProps {
   /** Omitted means unchecked, and is reported as unchecked, never as ready. */
   grounding?: ChatGrounding;
   /**
-   * Where this chat is being rendered, which is the only thing that decides how
-   * roomy it is.
-   *
-   * `dock` is the panel on the right of a non-Mission surface: narrow, beside
-   * the thing it talks about, so it stays compact. `centre` is inside a
-   * Mission, where the conversation IS the surface rather than a column next to
-   * it, and a cramped composer there understates the primary way to direct a
-   * Mission. Same component, same behaviour; only the density and the room it
-   * is given differ.
-   */
-  placement?: "dock" | "centre";
-  /**
    * Memory On/Off, owned by the command palette (#68). The chat inherits it and
    * renders no toggle of its own: two controls for one setting would let the
    * surface disagree with the palette. Omitted means "read the palette's own
@@ -146,13 +134,7 @@ export interface ConsoleChatProps {
  * ever list evidence that was really used. It is deliberately not a catalogue
  * of available memory: showing one would imply a retrieval that has not run.
  */
-export function ConsoleChat({
-  runId,
-  grounding,
-  memoryEnabled,
-  /* Defaults to the dock, so every existing call site keeps the size it had. */
-  placement = "dock",
-}: ConsoleChatProps) {
+export function ConsoleChat({ runId, grounding, memoryEnabled }: ConsoleChatProps) {
   const router = useRouter();
   // The owning page is a server component and cannot read a client store, so
   // the chat subscribes directly rather than having the flag drilled through
@@ -323,7 +305,7 @@ export function ConsoleChat({
       onStop={stop}
       isStopShown={busy}
       placeholder={console_.chat.placeholder}
-      density={placement === "centre" ? "spacious" : "compact"}
+      density="compact"
       input={
         /* Deliberately no `value`/`onChange` here: the input reads both from
            the composer's context, and passing them would switch it into its own

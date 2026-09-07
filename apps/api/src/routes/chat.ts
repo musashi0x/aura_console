@@ -9,7 +9,7 @@ import {
   type AgentContextRecord,
 } from "../services/adk-agent.js";
 import { MemoryStore } from "../services/memory-store.js";
-import { retrieveFromSibyl } from "../services/sibyl.js";
+import { listCounterpartiesFromSibyl, retrieveFromSibyl } from "../services/sibyl.js";
 import { RunStore } from "../services/run-store.js";
 
 const runs = new RunStore();
@@ -218,5 +218,99 @@ chat.get("/:runId/stream", async (c) => {
     // Replay is finite by design: the console asks again with `after` rather
     // than holding a socket open that nothing will write to.
     await stream.writeSSE({ event: "replay.complete", data: "" });
+  });
+});
+
+export const globalChat = new Hono();
+
+/**
+ * Deployment-wide console chat, grounded in the full Sibyl relationship memory
+ * and recent missions. Allows the operator to converse with the agent from any surface.
+ */
+globalChat.get("/", async (c) => {
+  const question = questionSchema.safeParse(c.req.query("q"));
+  if (!question.success) {
+    throw httpError(400, "invalid_question", "q must be a question between 1 and 2000 characters");
+  }
+
+  if (!isAgentConfigured()) {
+    throw httpError(
+      503,
+      "agent_unavailable",
+      "No ADK agent is configured for this deployment, so no answer can be produced.",
+    );
+  }
+
+  return streamSSE(c, async (stream) => {
+    const controller = new AbortController();
+    stream.onAbort(() => controller.abort());
+
+    const context: AgentContextRecord[] = [];
+
+    // 1. Gather active counterparties from Sibyl Memory
+    try {
+      const sibylRes = await listCounterpartiesFromSibyl();
+      if (sibylRes.ok) {
+        for (const cp of sibylRes.items) {
+          if (!cp.hasProfile) continue;
+          const label = cp.displayName ?? cp.counterpartyKey;
+          context.push({
+            counterpartyKey: cp.counterpartyKey,
+            label,
+            summary: {
+              relationship_status: cp.relationshipStatus,
+              memory_version: cp.memoryVersion,
+              episodes_used: cp.episodes?.length ?? 0,
+              overall_reliability: cp.overallReliability,
+              task_fit: cp.taskFit,
+              confidence: cp.confidence,
+              risk_note: cp.riskNote,
+              observed_price_usdc: cp.observedPriceUsdc,
+              source: cp.isFixture ? "fixture" : "observed",
+            },
+          });
+
+          await stream.writeSSE({
+            event: "citation",
+            data: JSON.stringify({ counterpartyKey: cp.counterpartyKey, label }),
+          });
+        }
+      }
+    } catch (err) {
+      console.error("[global-chat] Failed to read counterparties from Sibyl:", err);
+    }
+
+    // 2. Gather recent missions/runs from store
+    let missionsContext = "";
+    try {
+      const recentRuns = await runs.listRuns(5);
+      if (recentRuns.length > 0) {
+        missionsContext = `\n\nRecent missions in console:\n${recentRuns
+          .map(
+            (r) =>
+              `- ID: ${r.id}, Objective: "${r.objective}", Source: ${r.source}, Budget: ${r.budgetUsdc ?? "none"} USDC`,
+          )
+          .join("\n")}`;
+      }
+    } catch (err) {
+      console.error("[global-chat] Failed to list recent runs:", err);
+    }
+
+    const fullQuestion = `${question.data}${missionsContext}`;
+
+    try {
+      for await (const token of askAgent({
+        runId: "global-console",
+        question: fullQuestion,
+        context,
+        signal: controller.signal,
+      })) {
+        await stream.writeSSE({ event: "token", data: token });
+      }
+      await stream.writeSSE({ event: "done", data: "" });
+    } catch (error) {
+      console.error("[global-chat] agent stream failed", error);
+      await stream.writeSSE({ event: "error", data: "agent_stream_failed" });
+    }
   });
 });

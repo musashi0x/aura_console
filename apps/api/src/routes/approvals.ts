@@ -4,9 +4,11 @@ import { Hono } from "hono";
 import { z } from "zod";
 
 import { httpError } from "../errors.js";
+import { MissionExecutionService } from "../services/mission-execution.js";
 import { RunStore } from "../services/run-store.js";
 
 const store = new RunStore();
+const executionService = new MissionExecutionService(store);
 
 const uuidSchema = z.string().uuid();
 
@@ -18,6 +20,8 @@ const approveSchema = z.object({
       ceiling is a blank cheque, and the product's whole claim is that money is
       never ambient. */
   ceiling_usdc: money,
+  /** Optional execution mode: defaults to DETERMINISTIC, or CLI_WORKER */
+  mode: z.enum(["DETERMINISTIC", "CLI_WORKER"]).optional(),
 });
 
 export const approvals = new Hono();
@@ -95,6 +99,11 @@ approvals.post("/:runId/approve", async (c) => {
   }
 
   const requested = (lastRequested.data ?? {}) as Record<string, unknown>;
+  const executionMode =
+    parsed.data.mode ??
+    (requested.execution_mode as "CLI_WORKER" | "DETERMINISTIC" | undefined) ??
+    (run.objective.includes("[CLI]") ? "CLI_WORKER" : "DETERMINISTIC");
+
   const { event } = await store.appendEvent({
     runId: runId.data,
     eventId: randomUUID(),
@@ -108,12 +117,19 @@ approvals.post("/:runId/approve", async (c) => {
       approves_event_id: lastRequested.eventId,
       action: requested.action ?? null,
       counterparty_key: requested.counterparty_key ?? null,
+      mode: executionMode,
       /* v0.1 has no account model, so this records HOW the approval arrived,
          not WHO gave it. Naming an operator we cannot authenticate would be a
          claim the deployment cannot support. */
       granted_via: "console_operator_click",
     },
   });
+ 
+   try {
+     await executionService.execute({ runId: runId.data, mode: executionMode });
+   } catch (err) {
+     console.error(`[approvals] Post-approval mission execution failed for run ${runId.data}:`, err);
+   }
 
-  return c.json({ event: { event_id: event.eventId, type: event.type, sequence: event.sequence } }, 201);
-});
+   return c.json({ event: { event_id: event.eventId, type: event.type, sequence: event.sequence } }, 201);
+ });

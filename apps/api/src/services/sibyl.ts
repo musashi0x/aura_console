@@ -605,3 +605,103 @@ export async function listCounterpartiesFromSibyl(): Promise<SibylCounterparties
     return { ok: false, code: "bridge_unreachable", detail: "Sibyl could not be read." };
   }
 }
+
+export interface RecordEpisodeOutcome {
+  ok: boolean;
+  eventId?: string;
+  episodesCount?: number;
+  code?: string;
+  detail?: string;
+}
+
+export async function recordEpisodeToSibyl(
+  counterpartyKey: string,
+  episode: {
+    run: string;
+    taskType?: string;
+    outcome: "accepted" | "rejected";
+    note?: string;
+    occurredAt?: string;
+  },
+): Promise<RecordEpisodeOutcome> {
+  const python = env.SIBYL_PYTHON;
+  if (!python) return { ok: false, code: "not_configured", detail: "SIBYL_PYTHON not configured" };
+
+  try {
+    const payload = {
+      run: episode.run,
+      task_type: episode.taskType ?? "mission",
+      outcome: episode.outcome,
+      note: episode.note ?? "",
+      occurred_at: episode.occurredAt ?? new Date().toISOString(),
+    };
+    const { stdout } = await run(
+      python,
+      [env.SIBYL_BRIDGE, "record_episode", counterpartyKey, JSON.stringify(payload)],
+      {
+        timeout: env.SIBYL_TIMEOUT_MS,
+        env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH, SIBYL_TENANT_ID: env.AGENT_ID },
+        maxBuffer: 1024 * 1024,
+      },
+    );
+    const parsed = JSON.parse(stdout) as Record<string, unknown>;
+    if (parsed.ok !== true) {
+      return {
+        ok: false,
+        code: String(parsed.code ?? "bridge_error"),
+        detail: String(parsed.detail ?? "Failed to record episode"),
+      };
+    }
+    return {
+      ok: true,
+      eventId: str(parsed, "event_id") ?? undefined,
+      episodesCount: num(parsed, "episodes_count") ?? undefined,
+    };
+  } catch (error) {
+    console.error("[sibyl] record episode failed", error);
+    return { ok: false, code: "bridge_unreachable", detail: "Sibyl bridge failed to record episode" };
+  }
+}
+
+export async function updateCounterpartyInSibyl(
+  counterpartyKey: string,
+  update: {
+    relationshipStatus?: string;
+    overallReliability?: number;
+    confidence?: number;
+    riskNote?: string;
+  },
+): Promise<{ ok: boolean; code?: string; detail?: string }> {
+  const python = env.SIBYL_PYTHON;
+  if (!python) return { ok: false, code: "not_configured", detail: "SIBYL_PYTHON not configured" };
+
+  try {
+    const payload: Record<string, unknown> = {};
+    if (update.relationshipStatus !== undefined) payload.relationship_status = update.relationshipStatus;
+    if (update.overallReliability !== undefined) payload.overall_reliability = update.overallReliability;
+    if (update.confidence !== undefined) payload.confidence = update.confidence;
+    if (update.riskNote !== undefined) payload.risk_note = update.riskNote;
+
+    const { stdout } = await run(
+      python,
+      [env.SIBYL_BRIDGE, "update_counterparty", counterpartyKey, JSON.stringify(payload)],
+      {
+        timeout: env.SIBYL_TIMEOUT_MS,
+        env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH, SIBYL_TENANT_ID: env.AGENT_ID },
+        maxBuffer: 1024 * 1024,
+      },
+    );
+    const parsed = JSON.parse(stdout) as Record<string, unknown>;
+    if (parsed.ok !== true) {
+      return {
+        ok: false,
+        code: String(parsed.code ?? "bridge_error"),
+        detail: String(parsed.detail ?? "Failed to update counterparty"),
+      };
+    }
+    return { ok: true };
+  } catch (error) {
+    console.error("[sibyl] update counterparty failed", error);
+    return { ok: false, code: "bridge_unreachable", detail: "Sibyl bridge failed to update counterparty" };
+  }
+}

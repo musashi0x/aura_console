@@ -43,3 +43,6 @@ apps/web/next-env.d.ts
 __pycache__/
 *.pyc
 agents/**/.adk/
+.agents/
+.worktrees/
+

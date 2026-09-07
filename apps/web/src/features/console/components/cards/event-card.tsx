@@ -7,9 +7,6 @@ import { Token } from "@astryxdesign/core/Token";
 
 import { console_ } from "@/features/console/copy";
 import type { RetrievalStatus, TimelineEntry } from "@/features/console/model/types";
-import type { Counterfactual } from "@/features/console/projection/counterfactual";
-import { ApprovalRequestCard } from "./approval-request-card";
-import { CounterfactualView } from "./counterfactual-view";
 import { amount, list, number, text } from "./fields";
 
 /**
@@ -28,23 +25,6 @@ import { amount, list, number, text } from "./fields";
 export interface EventCardProps {
   entry: TimelineEntry;
   onScrubTo?: (entry: TimelineEntry) => void;
-  /**
-   * The live Mission this card belongs to.
-   *
-   * Absent for the fixture, and that absence is load-bearing: without a Run id
-   * the Approval card renders no button, so example data cannot offer a control
-   * that would authorize anything.
-   */
-  runId?: string;
-  /** Re-read the Mission after an approval lands. */
-  onApproved?: () => void;
-  /**
-   * The no-memory comparison, folded from this Mission's recorded events.
-   *
-   * Passed in rather than computed here because it reads the whole stream and a
-   * card only ever sees its own event.
-   */
-  counterfactual?: Counterfactual;
 }
 
 /**
@@ -108,7 +88,7 @@ function retrievalStatus(value: string | null): RetrievalStatus | null {
   return RETRIEVAL_STATUSES.find((status) => status === value) ?? null;
 }
 
-export function EventCard({ entry, runId, onApproved, counterfactual }: EventCardProps) {
+export function EventCard({ entry }: EventCardProps) {
   const d = entry.data;
   const copy = console_.cards;
 
@@ -136,18 +116,8 @@ export function EventCard({ entry, runId, onApproved, counterfactual }: EventCar
               ))}
             </VStack>
           ) : null}
-          {/* The comparison hangs off the decision it explains, not off a stage
-              of its own. It renders nothing when the Mission recorded no
-              memory component to subtract. */}
-          {counterfactual ? <CounterfactualView counterfactual={counterfactual} /> : null}
         </Shell>
       );
-    }
-
-    /* The pending request. Its own component because it is the only card that
-       carries a control, and that deserves to be read in one place. */
-    case "approval.requested": {
-      return <ApprovalRequestCard entry={entry} runId={runId} onApproved={onApproved} />;
     }
 
     case "policy.evaluated": {

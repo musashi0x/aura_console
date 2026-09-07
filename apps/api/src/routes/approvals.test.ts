@@ -70,6 +70,46 @@ describe("approving a requested action", () => {
     expect(granted?.data.action).toBe("Fund the job at 12 USDC");
     expect(granted?.data.granted_via).toBe("console_operator_click");
   });
+
+  it("triggers post-approval execution: resumes run, funds job, evaluates, settles commitment, and records outcome", async () => {
+    const runId = await createRun();
+    await append(runId, "approval.requested", {
+      action: "Fund dataset retrieval",
+      counterparty_key: "virtuals:agent:beta",
+    });
+
+    const res = await approve(runId, { ceiling_usdc: "15.000000" });
+    expect(res.status).toBe(201);
+
+    const eventsRes = await app.request(`/api/runs/${runId}/events`);
+    expect(eventsRes.status).toBe(200);
+    const body = (await eventsRes.json()) as { events: { type: string; data: Record<string, unknown> }[] };
+    const eventTypes = body.events.map((e) => e.type);
+
+    expect(eventTypes).toContain("approval.granted");
+    expect(eventTypes).toContain("run.resumed");
+    expect(eventTypes).toContain("acp.job.funded");
+    expect(eventTypes).toContain("evaluation.completed");
+    expect(eventTypes).toContain("commitment.settled");
+    expect(eventTypes).toContain("outcome.recorded");
+
+    // Check payload details matching console UI expectations
+    const funded = body.events.find((e) => e.type === "acp.job.funded")?.data;
+    expect(funded?.counterparty_key).toBe("virtuals:agent:beta");
+    expect(funded?.amount_usdc).toBe("15.000000");
+    expect(funded?.job_state).toBe("FUNDED");
+
+    const evaluation = body.events.find((e) => e.type === "evaluation.completed")?.data;
+    expect(evaluation?.result).toBe("ACCEPTED");
+    expect(evaluation?.evaluated_by).toBe("verifier_agent");
+
+    const settled = body.events.find((e) => e.type === "commitment.settled")?.data;
+    expect(settled?.amount_usdc).toBe("15.000000");
+    expect(String(settled?.tx_hash)).toMatch(/^0x[a-f0-9]{64}$/);
+
+    const outcome = body.events.find((e) => e.type === "outcome.recorded")?.data;
+    expect(outcome?.result).toBe("ACCEPTED");
+  });
 });
 
 describe("what the approval endpoint refuses", () => {

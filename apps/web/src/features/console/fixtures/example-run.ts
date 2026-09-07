@@ -57,23 +57,7 @@ export const exampleEvents: RunEvent[] = [
     retrieval_status: "AVAILABLE",
     episodes_used: 2,
   }),
-  /* Scores carry their memory component so the no-memory comparison has
-     recorded evidence to subtract. Alpha leads on price and marketplace
-     reputation; the recalled failure is the only thing that puts Beta ahead,
-     which is exactly the claim the counterfactual exists to evidence. */
-  ev(5, 4, "candidate.scored", 44, "Counterparties ranked by settlement record and price", {
-    candidates: [
-      {
-        key: "alpha_research",
-        score: 72,
-        memory_adjustment: -24,
-        memory_note:
-          "A previous Alpha Research delivery failed acceptance, applying a 24 point risk penalty.",
-      },
-      { key: "beta_labs", score: 91, memory_adjustment: 6 },
-      { key: "gamma_data", score: 64, memory_adjustment: 0 },
-    ],
-  }),
+  ev(5, 4, "candidate.scored", 44, "Counterparties ranked by settlement record and price"),
   ev(6, 5, "policy.evaluated", 52, "Operator policy allows this counterparty class", {
     policy_version: "v4",
     passed: true,

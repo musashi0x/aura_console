@@ -307,10 +307,52 @@ def main() -> None:
             except absent_errors as error:
                 fail("entity_absent", f"Sibyl holds no {positional[0]}/{positional[1]}: {error}")
             payload = {"ok": True, "record": as_record(found)}
+        elif command == "record_episode":
+            if len(positional) < 2:
+                fail("bad_argument", "record_episode needs a counterparty key and a JSON episode payload")
+            key = positional[0]
+            try:
+                episode_data = json.loads(positional[1])
+            except json.JSONDecodeError as err:
+                fail("bad_json", f"Invalid episode JSON payload: {err}")
+
+            try:
+                found = client.get_entity("counterparty", key)
+                body = dict((found or {}).get("body") or {})
+            except absent_errors:
+                body = {"display_name": key, "source": "real"}
+
+            episodes = list(body.get("episodes") or [])
+            episodes.append(episode_data)
+            body["episodes"] = episodes
+
+            client.set_entity("counterparty", key, body)
+            event_id = client.write_event(
+                evaluated={"counterparty": key, "episode": episode_data},
+                acted={"action": "record_episode", "outcome": episode_data.get("outcome")},
+            )
+            payload = {"ok": True, "event_id": event_id, "episodes_count": len(episodes)}
+        elif command == "update_counterparty":
+            if len(positional) < 2:
+                fail("bad_argument", "update_counterparty needs a counterparty key and a JSON update payload")
+            key = positional[0]
+            try:
+                update_data = json.loads(positional[1])
+            except json.JSONDecodeError as err:
+                fail("bad_json", f"Invalid update JSON payload: {err}")
+
+            try:
+                found = client.get_entity("counterparty", key)
+                body = dict((found or {}).get("body") or {})
+            except absent_errors:
+                body = {"display_name": key, "source": "real"}
+
+            for k, v in update_data.items():
+                body[k] = v
+
+            client.set_entity("counterparty", key, body)
+            payload = {"ok": True, "key": key, "body": body}
         elif command == "events":
-            # Event fields are already flat single words (id, ts, evaluated,
-            # acted, forward, extra), so there is no snake_case to translate and
-            # nothing is lost by handing them over exactly as Sibyl returned them.
             payload = {"ok": True, "events": client.read_events(limit=int_flag(flags, "limit", 50))}
         else:
             fail("unknown_command", f"{command} is not a bridge command")
