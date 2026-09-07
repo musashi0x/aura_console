@@ -6,6 +6,7 @@ import {
   computeCommitment,
   getSaltFromSibyl,
   storeSaltInSibyl,
+  verifyMemoryCommitment,
 } from "./memory-commitment.js";
 
 describe("memory-commitment service", () => {
@@ -15,6 +16,28 @@ describe("memory-commitment service", () => {
 
     expect(canonicalizeJson(objA)).toBe(canonicalizeJson(objB));
     expect(canonicalizeJson(objA)).toBe('{"a":1,"b":2,"nested":{"x":10,"y":"test"}}');
+  });
+
+  it("omits undefined properties from objects and preserves valid JSON", () => {
+    const objWithUndefined = {
+      b: 2,
+      a: undefined,
+      nested: {
+        y: "test",
+        z: undefined,
+        x: 10,
+      },
+    };
+
+    const canonical = canonicalizeJson(objWithUndefined);
+    expect(canonical).toBe('{"b":2,"nested":{"x":10,"y":"test"}}');
+    expect(JSON.parse(canonical)).toEqual({
+      b: 2,
+      nested: {
+        x: 10,
+        y: "test",
+      },
+    });
   });
 
   it("computes reproducible keccak256 commitment when given the same salt", () => {
@@ -64,5 +87,57 @@ describe("memory-commitment service", () => {
     if (stored) {
       expect(retrieved).toBe("0xtest_salt_1234");
     }
+  });
+
+  it("verifies memory commitment successfully when expected commitment matches recomputed hash", async () => {
+    const counterpartyKey = "virtuals:agent:beta";
+    const version = 1;
+
+    const check = await verifyMemoryCommitment({
+      counterpartyKey,
+      version,
+    });
+
+    expect(check.saltFound).toBe(true);
+    expect(check.computedCommitment).toMatch(/^0x[0-9a-f]{64}$/);
+
+    const verifiedResult = await verifyMemoryCommitment({
+      counterpartyKey,
+      version,
+      expectedCommitment: check.computedCommitment,
+    });
+
+    expect(verifiedResult.verified).toBe(true);
+    expect(verifiedResult.saltFound).toBe(true);
+    expect(verifiedResult.computedCommitment).toBe(check.computedCommitment);
+    expect(verifiedResult.details).toContain("verified successfully");
+  });
+
+  it("fails verification when expected commitment does not match recomputed hash", async () => {
+    const counterpartyKey = "virtuals:agent:beta";
+    const version = 1;
+    const fraudulentHash = "0x0000000000000000000000000000000000000000000000000000000000000000";
+
+    const verifiedResult = await verifyMemoryCommitment({
+      counterpartyKey,
+      version,
+      expectedCommitment: fraudulentHash,
+    });
+
+    expect(verifiedResult.verified).toBe(false);
+    expect(verifiedResult.saltFound).toBe(true);
+    expect(verifiedResult.details).toContain("Commitment mismatch");
+  });
+
+  it("returns verified false when salt is not found in Sibyl REFERENCE tier", async () => {
+    const verifiedResult = await verifyMemoryCommitment({
+      counterpartyKey: "virtuals:agent:non_existent_key_xyz",
+      version: 999,
+      expectedCommitment: "0x1234",
+    });
+
+    expect(verifiedResult.verified).toBe(false);
+    expect(verifiedResult.saltFound).toBe(false);
+    expect(verifiedResult.details).toContain("not found in Sibyl REFERENCE tier");
   });
 });

@@ -8,6 +8,10 @@
  * - Half B: SIBYL_PYTHON is active -> Mission recalls memory and scores candidates
  */
 
+import { existsSync } from "node:fs";
+import path from "node:path";
+
+import { env } from "../apps/api/src/env.js";
 import { MissionAgent } from "../apps/api/src/services/mission-agent.js";
 import { RunStore } from "../apps/api/src/services/run-store.js";
 
@@ -17,7 +21,7 @@ async function runTest() {
   console.log("   Deadline Gate: Build with Agents That Don't Forget");
   console.log("===========================================================\n");
 
-  const originalPython = process.env.SIBYL_PYTHON;
+  const originalPython = process.env.SIBYL_PYTHON || env.SIBYL_PYTHON;
   const store = new RunStore();
   const agent = new MissionAgent(store);
 
@@ -62,7 +66,9 @@ async function runTest() {
   console.log("          Env: SIBYL_PYTHON active");
   console.log("-----------------------------------------------------------");
 
-  process.env.SIBYL_PYTHON = originalPython || "/Users/harryphan/Documents/dev/aura_memory/.venv-sibyl/bin/python";
+  const localVenv = path.resolve(".venv-sibyl/bin/python");
+  process.env.SIBYL_PYTHON =
+    originalPython || (existsSync(localVenv) ? localVenv : "python3");
 
   const runB = await store.createRun({
     objective: "Hire a research agent (Deletion Test B - Memory Active)",

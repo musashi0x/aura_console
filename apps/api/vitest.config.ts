@@ -16,5 +16,6 @@ export default defineConfig({
     // Route handlers share one connection pool and one schema, so parallel
     // files would truncate each other's rows mid-test.
     fileParallelism: false,
+    maxWorkers: 1,
   },
 });

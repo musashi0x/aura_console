@@ -18,15 +18,21 @@ export interface MemoryCommitmentResult {
  * Sorts object keys recursively to produce a canonical JSON string.
  */
 export function canonicalizeJson(value: unknown): string {
+  if (value === undefined) {
+    return "null";
+  }
   if (value === null || typeof value !== "object") {
     return JSON.stringify(value);
   }
   if (Array.isArray(value)) {
-    return `[${value.map(canonicalizeJson).join(",")}]`;
+    return `[${value.map((v) => (v === undefined ? "null" : canonicalizeJson(v))).join(",")}]`;
   }
-  const keys = Object.keys(value as Record<string, unknown>).sort();
+  const obj = value as Record<string, unknown>;
+  const keys = Object.keys(obj)
+    .filter((k) => obj[k] !== undefined)
+    .sort();
   const entries = keys.map(
-    (k) => `${JSON.stringify(k)}:${canonicalizeJson((value as Record<string, unknown>)[k])}`,
+    (k) => `${JSON.stringify(k)}:${canonicalizeJson(obj[k])}`,
   );
   return `{${entries.join(",")}}`;
 }
@@ -100,7 +106,10 @@ export async function commitMemoryToBaseSepolia(options: {
   const { salt, commitment } = computeCommitment(profile);
 
   // Store salt ONLY in Sibyl REFERENCE tier
-  await storeSaltInSibyl(counterpartyKey, version, salt);
+  const stored = await storeSaltInSibyl(counterpartyKey, version, salt);
+  if (!stored) {
+    throw new Error("Failed to store salt in Sibyl REFERENCE tier");
+  }
 
   // Calldata payload: 32-byte commitment
   const calldata = commitment;
@@ -161,7 +170,7 @@ export async function commitMemoryToBaseSepolia(options: {
 export async function verifyMemoryCommitment(options: {
   counterpartyKey: string;
   version: number;
-  expectedCommitment: string;
+  expectedCommitment?: string;
 }): Promise<{
   verified: boolean;
   computedCommitment?: string;
@@ -199,14 +208,18 @@ export async function verifyMemoryCommitment(options: {
 
   // 3. Recompute commitment
   const { commitment } = computeCommitment(profile, salt);
-  const verified = commitment.toLowerCase() === expectedCommitment.toLowerCase();
+  const verified = expectedCommitment
+    ? commitment.toLowerCase() === expectedCommitment.toLowerCase()
+    : true;
 
   return {
     verified,
     computedCommitment: commitment,
     saltFound: true,
-    details: verified
-      ? `Memory commitment verified successfully against Base Sepolia calldata!`
-      : `Commitment mismatch: computed ${commitment} but expected ${expectedCommitment}`,
+    details: !expectedCommitment
+      ? `Recomputed commitment: ${commitment} (current Sibyl state)`
+      : verified
+        ? `Memory commitment verified successfully against Base Sepolia calldata!`
+        : `Commitment mismatch: computed ${commitment} but expected ${expectedCommitment}`,
   };
 }

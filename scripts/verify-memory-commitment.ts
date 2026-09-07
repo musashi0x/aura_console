@@ -12,19 +12,28 @@
  *   tsx scripts/verify-memory-commitment.ts virtuals:agent:beta 1
  */
 
-import { computeCommitment, getSaltFromSibyl } from "../apps/api/src/services/memory-commitment.js";
+import {
+  computeCommitment,
+  getSaltFromSibyl,
+  verifyMemoryCommitment,
+} from "../apps/api/src/services/memory-commitment.js";
 import { retrieveFromSibyl } from "../apps/api/src/services/sibyl.js";
 
 async function main() {
   const args = process.argv.slice(2);
   const counterpartyKey = args[0] || "virtuals:agent:beta";
   const version = Number(args[1] || 1);
+  const expectedCommitment = args[2];
 
   console.log("\n=======================================================");
   console.log("  AURA MEMORY — BASE SEPOLIA COMMITMENT VERIFICATION  ");
   console.log("=======================================================\n");
   console.log(`Target Counterparty : ${counterpartyKey}`);
-  console.log(`Memory Version      : v${version}\n`);
+  console.log(`Memory Version      : v${version}`);
+  if (expectedCommitment) {
+    console.log(`Expected Commitment : ${expectedCommitment}`);
+  }
+  console.log("");
 
   // 1. Retrieve salt from Sibyl REFERENCE tier
   console.log("--> [1/3] Reading salt from Sibyl REFERENCE tier...");
@@ -53,20 +62,56 @@ async function main() {
   };
   console.log(`    ✓ Profile retrieved (status: ${retrieval.relationshipStatus}, reliability: ${retrieval.overallReliability})`);
 
-  // 3. Recompute Keccak256 commitment
+  // 3. Recompute Keccak256 commitment & verify via verifyMemoryCommitment
   console.log("--> [3/3] Recomputing Keccak256(canonical || salt)...");
-  const { canonical, commitment } = computeCommitment(profile, salt);
-
+  const { canonical } = computeCommitment(profile, salt);
   console.log(`    ✓ Canonical Body: ${canonical}`);
-  console.log(`    ✓ Recomputed Hash: ${commitment}\n`);
 
-  console.log("=======================================================");
-  console.log("  VERIFICATION RESULT: SUCCESS (100% CRYPTOGRAPHIC MATCH)");
-  console.log("=======================================================");
-  console.log(`  The committed calldata payload on Base Sepolia represents`);
-  console.log(`  authentic, tamper-proof private memory stored in Sibyl.\n`);
+  const verification = await verifyMemoryCommitment({
+    counterpartyKey,
+    version,
+    expectedCommitment,
+  });
 
-  process.exit(0);
+  if (!verification.computedCommitment) {
+    console.error(`❌ FAILED: ${verification.details}`);
+    process.exit(1);
+  }
+
+  console.log(`    ✓ Recomputed Hash: ${verification.computedCommitment}\n`);
+
+  if (expectedCommitment) {
+    if (verification.verified) {
+      console.log("=======================================================");
+      console.log("  VERIFICATION RESULT: SUCCESS (100% CRYPTOGRAPHIC MATCH)");
+      console.log("=======================================================");
+      console.log(`  Expected Commitment : ${expectedCommitment}`);
+      console.log(`  Recomputed Hash     : ${verification.computedCommitment}`);
+      console.log(`  The committed calldata payload on Base Sepolia represents`);
+      console.log(`  authentic, tamper-proof private memory stored in Sibyl.\n`);
+      process.exit(0);
+    } else {
+      console.error("=======================================================");
+      console.error("  VERIFICATION RESULT: FAILED (COMMITMENT MISMATCH)");
+      console.error("=======================================================");
+      console.error(`  Expected Commitment : ${expectedCommitment}`);
+      console.error(`  Recomputed Hash     : ${verification.computedCommitment}`);
+      console.error(`  ${verification.details}\n`);
+      process.exit(1);
+    }
+  } else {
+    console.log("=======================================================");
+    console.log("  CURRENT SIBYL STATE & RECOMPUTED COMMITMENT");
+    console.log("=======================================================");
+    console.log(`  Target Counterparty : ${counterpartyKey}`);
+    console.log(`  Memory Version      : v${version}`);
+    console.log(`  Recomputed Hash     : ${verification.computedCommitment}`);
+    console.log(`  Sibyl State         : Authenticated in WARM & REFERENCE tiers`);
+    console.log(`\n  Note: To verify against an on-chain transaction calldata hash,`);
+    console.log(`  pass expectedCommitment as the 3rd argument:`);
+    console.log(`    pnpm memory:verify ${counterpartyKey} ${version} <expectedCommitment>\n`);
+    process.exit(0);
+  }
 }
 
 main().catch((err) => {
