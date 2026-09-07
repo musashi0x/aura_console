@@ -57,6 +57,26 @@ export function authorizeFromRetrieval(
     };
   }
 
+  if (retrieval.memoryVersion === null) {
+    // Recall exists, but no committed memory version does: Sibyl remembered
+    // something Postgres has never versioned, salted or diffed.
+    //
+    // This is the clause that lets `compose()` report a Sibyl-only recall as
+    // AVAILABLE — which is the truth, because memory WAS found — without
+    // loosening the gate on money. An automatic action has to be able to name
+    // the memory version it relied on; that name is what tracker #35 commits to
+    // Base, and a recall with no version to name cannot supply it.
+    //
+    // Without this branch a Sibyl-only recall would fall through to AUTO on any
+    // agent whose policy sets no reliability floor, and the reason string would
+    // read "Memory is available at version null".
+    return {
+      approval: "REQUIRE_APPROVAL",
+      reason:
+        "Relationship memory was recalled, but no committed memory version exists to name, so this needs a human.",
+    };
+  }
+
   if (
     policy.minimum_reliability !== null &&
     (retrieval.overallReliability ?? -1) < policy.minimum_reliability
