@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { console_ } from "../copy";
 import { EventCard } from "./cards/event-card";
 import type { TimelineEntry } from "../model/types";
+import type { Counterfactual } from "../projection/counterfactual";
 
 export interface MissionOperatorProps {
   entries: readonly TimelineEntry[];
@@ -17,6 +18,12 @@ export interface MissionOperatorProps {
    * not a column docked to one edge of it.
    */
   conversation?: ReactNode;
+  /** The live Mission. Absent for the fixture, which offers no live control. */
+  runId?: string;
+  /** Re-read the Mission once an approval is recorded. */
+  onApproved?: () => void;
+  /** The no-memory comparison, folded from this Mission's own events. */
+  counterfactual?: Counterfactual;
 }
 
 /**
@@ -32,7 +39,14 @@ export interface MissionOperatorProps {
  * rendered a number the stream does not contain, would take every guarantee
  * this Console has with it.
  */
-export function MissionOperator({ entries, onScrubTo, conversation }: MissionOperatorProps) {
+export function MissionOperator({
+  entries,
+  onScrubTo,
+  conversation,
+  runId,
+  onApproved,
+  counterfactual,
+}: MissionOperatorProps) {
   if (entries.length === 0) {
     return (
       <section className="mw__operator" aria-labelledby="mission-operator-heading">
@@ -54,7 +68,12 @@ export function MissionOperator({ entries, onScrubTo, conversation }: MissionOpe
       <ol className="mw__stream">
         {entries.map((entry) => (
           <li key={entry.eventId} id={`event-${entry.eventId}`} className="mw__entry">
-            <EventCard entry={entry} />
+            <EventCard
+              entry={entry}
+              runId={runId}
+              onApproved={onApproved}
+              counterfactual={counterfactual}
+            />
             {/* Scrubbing is a control on the card, not the card itself. Making
                 the whole card a button put a decision's contents inside a
                 clickable label, so a screen reader read the entire record as

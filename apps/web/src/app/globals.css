@@ -2133,7 +2133,11 @@ input[type="range"].fluid-slider::-moz-range-thumb {
    prose. */
 .mw__conversation {
   inline-size: 100%;
-  max-inline-size: 72ch;
+  /* Wider than the 72ch measure the transcript would want on its own. This is
+     the primary way to direct a Mission, and at a reading measure it read as a
+     footnote under the events rather than the thing you act with. The cap stays
+     so it does not stretch to the full width of a large display. */
+  max-inline-size: 60rem;
   margin-inline: auto;
   /* The transcript scrolls inside itself, so it needs a height to scroll
      within rather than growing the page forever. */

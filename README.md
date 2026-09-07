@@ -24,14 +24,34 @@ pnpm db:migrate               # apply committed migrations
 pnpm dev                      # web on :3000, API on :3001
 ```
 
+Sibyl Memory is optional and off by default. With `SIBYL_PYTHON` unset the API
+never consults it and says so; setting it opts the deployment in. It needs its
+own Python 3.10+ interpreter — `/usr/bin/python3` on macOS is still 3.9 and the
+install fails there:
+
+```bash
+python3.11 -m venv .venv-sibyl
+.venv-sibyl/bin/pip install sibyl-memory-client
+# the bridge never creates the store; the tenant must match AGENT_ID in .env
+SIBYL_TENANT_ID=agent_buyer_1 .venv-sibyl/bin/python tools/sibyl_seed.py
+# then uncomment SIBYL_PYTHON in .env
+```
+
+[Counterparty memory](docs/ai/api/memory.md) covers what changes once it is set.
+
 Open http://localhost:3000. A fresh browser is routed to `/onboarding`; once you
 acknowledge or skip, `/` shows the landing page. The header readiness badge comes
 from the real API database check, so `SYSTEM READY` means the whole chain is
 wired: web → API → Postgres.
 
-Current routes: `/` (landing), `/onboarding`, and `/runs/new` and `/runs/example`,
-which are labelled placeholders until the Console shell lands. See the
-[landing page documentation](docs/product/landing-page.md).
+Current routes: `/` (landing), `/onboarding`, and the Console shell at `/runs`,
+`/runs/new`, `/runs/example`, `/runs/[runId]`, `/counterparties`, `/policies`,
+`/system` and `/docs` (with `installation`, `theming`, `skills`, `ai-agents` and
+`changelog` beneath it). `/runs`, `/runs/new` and `/runs/[runId]` are backed by
+the real API; `/runs/example` renders a labelled fixture through the same fold,
+so the example cannot drift from the product. See the
+[landing page documentation](docs/product/landing-page.md) and the
+[Console shell](docs/ai/web/console-shell.md).
 
 Ports are configurable (`WEB_PORT`, `PORT`, `POSTGRES_PORT`) because the
 defaults collide with whatever else you have running.
@@ -100,6 +120,7 @@ replicas can never race to rewrite the schema during a deploy.
 |---|---|
 | `GET /health` | Liveness. Answers 200 even when Postgres is down. |
 | `GET /health/db` | Readiness. 200 with `latencyMs`, or 503 when Postgres is unreachable. |
+| `GET /health/sibyl` | Sibyl Memory readiness. Always 200: `reachable: false` carries the reason and no numbers, because the API is fine when one dependency is not, and a zeroed entity count would read as "no history". |
 
 Errors are always JSON: `{ "error": { "code": "...", "message": "..." } }`.
 Stack traces and connection strings stay server-side.

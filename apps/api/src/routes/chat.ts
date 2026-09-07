@@ -191,7 +191,7 @@ globalChat.get("/", async (c) => {
         data: JSON.stringify({ name: "console_list_missions", args: { limit: 5 }, result: toolResult }),
       });
       const count = toolResult.count;
-      const missionsList = toolResult.missions
+      const missionsList = (toolResult.missions as Array<{ objective: string | null; id: string; budgetUsdc: string | null }>)
         .map((m) => `• ${m.objective || "Untitled"} (${m.id.slice(0, 8)}) - Budget: ${m.budgetUsdc ? `$${m.budgetUsdc} USDC` : "Open"}`)
         .join("\n");
       const summary = `Recent Missions (${count} found):\n${missionsList}`;

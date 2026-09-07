@@ -420,7 +420,7 @@ The redesign is a surface change. Every safety invariant survives it intact:
 | Progress rail | Built. Six steps over the ten canonical stages |
 | `Why this?` drawer | Not built |
 | Memory drawer | Not built; needs the memory endpoints (tracker #32) |
-| Counterfactual | Not built |
+| Counterfactual | Built. Folded from `candidate.scored`, which now carries each candidate's memory component. `Memory changed this decision` renders only when the winner actually moves |
 | Navigation rename | Done. Missions, Agents, Network, Guardrails, Docs |
 | Light Operator layer | Not done. Console surfaces use the operational scale |
 | `foldRun` projection | Built and tested. The redesign reuses it unchanged |
@@ -434,13 +434,13 @@ The redesign is a surface change. Every safety invariant survives it intact:
 2. ~~Add the `Operator` / `Board` / `Trace` switch.~~ Done.
 3. ~~Replace the floating ask control with the persistent composer.~~ Done.
 4. Build the shared event renderer that maps canonical events to cards.
-5. Add `MemoryRecallCard`, `DecisionCard`, `ApprovalCard`, `AgentJobCard`,
-   `TransactionCard`, `OutcomeCard`, `MemoryDiffCard`.
+5. ~~Add `MemoryRecallCard`, `DecisionCard`, `ApprovalCard`, `AgentJobCard`,
+   `TransactionCard`, `OutcomeCard`, `MemoryDiffCard`.~~ Done.
 6. ~~Build Board from the same Run events.~~ Done.
 7. ~~Move the raw causal stages and lifecycle data into Trace.~~ Done.
 8. Replace the Evidence stage with the contextual `Why this?` drawer.
 9. Add the memory drawer with source, impact, correction and archive controls.
-10. Add the counterfactual view.
+10. ~~Add the counterfactual view.~~ Done.
 11. ~~Replace empty stage sections with progressive rendering.~~ Done for stages; the cards in step 5 are still outstanding.
 12. Restyle Operator, Board and the drawers to the editorial layer, and reserve
     the dark layer for Trace.
