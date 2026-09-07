@@ -173,7 +173,7 @@ export function ChatConsoleView({
               <Text as="span" size="sm" weight="medium">
                 Global Assistant
               </Text>
-              <Token label="SYSTEM" size="sm" color="cyan" />
+              <Token label="SYSTEM" size="sm" color="gray" />
             </HStack>
             <Text as="span" size="xsm" color="secondary">
               General commands, orientation & system controls
@@ -234,7 +234,7 @@ export function ChatConsoleView({
                       <Token
                         label={formattedBudget}
                         size="sm"
-                        color={isSelected ? "cyan" : "gray"}
+                        color="gray"
                       />
                     </div>
                   </HStack>
@@ -289,7 +289,7 @@ export function ChatConsoleView({
                 <Token
                   label={activeRun ? "MISSION SCOPED" : "GLOBAL"}
                   size="sm"
-                  color={activeRun ? "green" : "cyan"}
+                  color="gray"
                 />
               </HStack>
               {activeRun ? (

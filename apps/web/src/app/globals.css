@@ -2873,18 +2873,18 @@ input[type="range"].fluid-slider::-moz-range-thumb {
 .cs__chat-context-item:hover {
   background: var(--color-glass-strong);
   border-color: var(--color-border-strong);
-  box-shadow: var(--glow-cyan);
+  box-shadow: var(--shadow-panel);
 }
 
 .cs__chat-context-item:focus-visible {
-  outline: 2px solid var(--color-cyan);
+  outline: 2px solid var(--color-border-strong);
   outline-offset: 2px;
 }
 
 .cs__chat-context-item.is-active {
   background: var(--color-surface-raised);
-  border-color: var(--color-cyan);
-  box-shadow: 0 0 0 1px var(--color-cyan), var(--glow-cyan);
+  border-color: var(--color-border-strong);
+  box-shadow: 0 0 0 1px var(--color-border-strong), var(--shadow-panel);
 }
 
 .cs__chat-context-id {
@@ -2959,8 +2959,8 @@ input[type="range"].fluid-slider::-moz-range-thumb {
 }
 
 .astryx-chat-composer:focus-within > div {
-  border-color: var(--color-cyan) !important;
-  box-shadow: 0 0 0 1px var(--color-cyan), var(--glow-cyan-strong) !important;
+  border-color: var(--color-border-strong) !important;
+  box-shadow: 0 0 0 1px var(--color-border-strong), var(--shadow-panel) !important;
 }
 
 /* Chat composer contenteditable input */
@@ -2968,7 +2968,7 @@ input[type="range"].fluid-slider::-moz-range-thumb {
   color: var(--color-text) !important;
   font-family: var(--font-sans) !important;
   font-size: var(--text-sm) !important;
-  caret-color: var(--color-cyan) !important;
+  caret-color: var(--color-text) !important;
 }
 
 /* Send button in Chat Composer */
@@ -2980,19 +2980,19 @@ input[type="range"].fluid-slider::-moz-range-thumb {
     opacity 150ms ease !important;
 }
 
-/* Primary send state: cyan accent with ink text */
+/* Primary send state: neutral monochrome matching the dark theme */
 .astryx-chat-send-button:not(:disabled):not([aria-disabled="true"]):not([data-variant="secondary"]) {
-  background-color: var(--color-cyan) !important;
-  color: var(--color-accent-ink) !important;
-  border-color: var(--color-cyan) !important;
-  box-shadow: var(--glow-cyan) !important;
+  background-color: var(--color-surface-raised) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-border-strong) !important;
+  box-shadow: var(--shadow-panel) !important;
 }
 
 .astryx-chat-send-button:not(:disabled):not([aria-disabled="true"]):not([data-variant="secondary"]):hover {
-  background-color: var(--color-cyan) !important;
-  border-color: var(--color-cyan) !important;
-  box-shadow: var(--glow-cyan-strong) !important;
-  opacity: 0.92 !important;
+  background-color: var(--color-glass-strong) !important;
+  border-color: var(--color-text) !important;
+  box-shadow: var(--shadow-panel) !important;
+  opacity: 1 !important;
 }
 
 /* Disabled state */
@@ -3051,8 +3051,8 @@ input[type="range"].fluid-slider::-moz-range-thumb {
 .cs__chat-console-body .astryx-clickable-card:hover,
 .cs__chat-console-body .astryx-card:hover {
   background: var(--color-surface-raised) !important;
-  border-color: var(--color-cyan) !important;
-  box-shadow: var(--glow-cyan) !important;
+  border-color: var(--color-border-strong) !important;
+  box-shadow: var(--shadow-panel) !important;
 }
 
 /* ---------------------------------------------------------------------------
@@ -3093,18 +3093,17 @@ input[type="range"].fluid-slider::-moz-range-thumb {
   gap: var(--space-1);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--color-cyan) !important;
-  text-decoration: none;
+  color: var(--color-text) !important;
+  text-decoration: underline;
   transition: opacity 150ms ease;
 }
 
 .cs__tx-link:hover {
-  text-decoration: underline;
   opacity: 0.85;
 }
 
 .cs__tx-link:focus-visible {
-  outline: 2px solid var(--color-cyan);
+  outline: 2px solid var(--color-border-strong);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }

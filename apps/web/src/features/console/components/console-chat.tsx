@@ -96,7 +96,7 @@ export const SLASH_COMMANDS_BLOCKED_ON_ARIA: ChatComposerTrigger = {
   onSelect: (item) => ({
     value: item.label,
     label: item.label,
-    variant: "cyan",
+    variant: "gray",
   }),
 };
 
@@ -125,6 +125,7 @@ export interface ConsoleChatProps {
    * state"; it is an override for tests, not a second source of truth.
    */
   memoryEnabled?: boolean;
+  placement?: string;
 }
 
 /**
@@ -438,7 +439,7 @@ export function ConsoleChat({ runId, grounding, memoryEnabled }: ConsoleChatProp
                   key={source.counterpartyKey}
                   label={`${index + 1}. ${source.label}`}
                   size="sm"
-                  color="cyan"
+                  color="gray"
                 />
               ))}
             </HStack>

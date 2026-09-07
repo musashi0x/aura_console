@@ -13,6 +13,12 @@ export type RelationshipStatus =
   | "NEW"
   | "ARCHIVED";
 
+export interface McpToolCall {
+  name: string;
+  args: Record<string, unknown>;
+  result?: unknown;
+}
+
 export interface CounterpartyMemorySummary {
   counterpartyKey: string;
   displayName: string;
