@@ -105,6 +105,23 @@ body {
   outline: none;
 }
 
+/* Astryx ChatComposer owns its own container elevation and focus-within state.
+   The inner contenteditable textbox must not draw the global unlayered focus ring,
+   which draws an extraneous white box directly around the input line. */
+.astryx-chat-composer [contenteditable]:focus,
+.astryx-chat-composer [contenteditable]:focus-visible,
+.astryx-chat-composer-input [contenteditable]:focus,
+.astryx-chat-composer-input [contenteditable]:focus-visible,
+.astryx-chat-composer [role="textbox"]:focus,
+.astryx-chat-composer [role="textbox"]:focus-visible,
+.astryx-chat-composer textarea:focus,
+.astryx-chat-composer textarea:focus-visible,
+.astryx-chat-composer input:focus,
+.astryx-chat-composer input:focus-visible {
+  outline: none;
+}
+
+
 /* The step heading had no rule at all, so Tailwind's preflight left it at the
    inherited 1rem — smaller and lighter than the lede beneath it, which read as
    the lede being the title. It sits on the same step as the Console's own

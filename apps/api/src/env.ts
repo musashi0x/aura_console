@@ -49,7 +49,9 @@ const envSchema = z.object({
   SIBYL_TIMEOUT_MS: z.coerce.number().int().min(500).max(30_000).default(5_000),
   CORS_ORIGINS: z
     .string()
-    .default("http://localhost:3000")
+    .default(
+      "http://localhost:3000,http://localhost:3010,http://127.0.0.1:3000,http://127.0.0.1:3010",
+    )
     .transform((value) =>
       value
         .split(",")

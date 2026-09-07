@@ -41,6 +41,8 @@ export const console_ = {
      * would be navigation that opens nothing. */
     primary: [
       { href: "/runs", label: "Missions" },
+      { href: "/runs/new", label: "New Mission" },
+      { href: "/ai-chat", label: "Chat Console" },
       { href: "/counterparties", label: "Agents" },
       { href: "/system", label: "Network" },
       { href: "/policies", label: "Guardrails" },

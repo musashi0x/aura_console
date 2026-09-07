@@ -5,7 +5,7 @@ import { SegmentedControl, SegmentedControlItem } from "@astryxdesign/core/Segme
 import { Theme } from "@astryxdesign/core/theme";
 
 import { MonoRef, StatusBadge, type StatusTone } from "@/components/primitives";
-import { neutralTheme } from "@/themes/neutral/neutral.js";
+import { stoneTheme } from "@/themes/stone/stone.js";
 
 import { console_ } from "../copy";
 import {
@@ -202,7 +202,7 @@ export function MissionWorkspace({
           onScrubTo={scrubTo}
         />
       ) : (
-        <Theme theme={neutralTheme} mode="light">
+        <Theme theme={stoneTheme} mode="light">
           <div className="mw__editorial">
             {mode === "OPERATOR" ? (
               <MissionOperator

@@ -243,3 +243,18 @@ describe("progressive rendering", () => {
     expect(screen.queryAllByRole("heading", { level: 3 })).toHaveLength(1);
   });
 });
+
+describe("theme", () => {
+  it("renders editorial mode with Stone theme active", () => {
+    const { container } = workspace();
+    const themedRoots = container.querySelectorAll("[data-astryx-theme]");
+    expect(themedRoots.length).toBeGreaterThan(0);
+    const stoneRoot = Array.from(themedRoots).find(
+      (el) => el.getAttribute("data-astryx-theme") === "stone",
+    );
+    expect(stoneRoot).toBeDefined();
+    expect(stoneRoot?.getAttribute("data-astryx-theme")).toBe("stone");
+    expect(stoneRoot?.getAttribute("data-theme")).toBe("light");
+  });
+});
+
