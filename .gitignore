@@ -25,6 +25,8 @@ pnpm-debug.log*
 
 openspec/
 .claude
+.agents/
+ORIGINAL_REQUEST.md
 
 # Next.js generated types
 apps/web/next-env.d.ts

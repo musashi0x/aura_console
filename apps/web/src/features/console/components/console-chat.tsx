@@ -241,6 +241,8 @@ export function ConsoleChat({
       ? `${env.NEXT_PUBLIC_API_URL}/api/runs/${encodeURIComponent(runId)}/chat?q=${encodeURIComponent(question)}`
       : `${env.NEXT_PUBLIC_API_URL}/api/chat?q=${encodeURIComponent(question)}`;
 
+    let hadToolCalls = false;
+
     handleRef.current = openChatStream({
       // GET only. EventSource cannot issue anything else, which is why the
       // read-only requirement holds without a separate guard.
@@ -252,12 +254,16 @@ export function ConsoleChat({
       onCitation: (citation) =>
         update((m) => ({ ...m, citations: [...m.citations, citation] })),
       onToolCall: (toolCall) => {
+        hadToolCalls = true;
         update((m) => ({
           ...m,
           toolCalls: [...(m.toolCalls ?? []), toolCall],
         }));
         if (toolCall.name === "console_navigate" && typeof toolCall.args?.destination === "string") {
           router.push(toolCall.args.destination);
+        }
+        if (toolCall.name === "mission_propose_approval") {
+          router.refresh();
         }
       },
       onState: setConnection,
@@ -266,6 +272,9 @@ export function ConsoleChat({
         update((m) => ({ ...m, complete: true }));
         setConnection({ kind: "idle" });
         setLiveId(null);
+        if (hadToolCalls) {
+          router.refresh();
+        }
       },
     });
   }

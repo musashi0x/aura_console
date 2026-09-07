@@ -1,9 +1,13 @@
+import { randomUUID } from "node:crypto";
+
 import { getDb, sql } from "@aura/db";
 import { z } from "zod";
 
 import { env } from "../env.js";
+import { httpError } from "../errors.js";
 import { getAgentStatus } from "../services/adk-agent.js";
-import { MemoryStore } from "../services/memory-store.js";
+import { authorizeFromRetrieval } from "../services/memory-authorization.js";
+import { MemoryStore, type RetrievalResult } from "../services/memory-store.js";
 import { PolicyStore } from "../services/policy-store.js";
 import { RunStore } from "../services/run-store.js";
 import {
@@ -217,6 +221,199 @@ export const guardrailsGetPoliciesTool: McpToolDefinition<Record<string, never>>
   },
 };
 
+export const missionProposeApprovalTool: McpToolDefinition<{
+  counterpartyKey: string;
+  amountUsdc: string | number;
+  reason: string;
+  runId?: string;
+}> = {
+  name: "mission_propose_approval",
+  description:
+    "Proposes a mission spend or counterparty engagement under active guardrail limits, evaluating PolicyStore and Sibyl relationship memory and recording an approval.requested event.",
+  parameters: z.object({
+    counterpartyKey: z.string().trim().min(1, "counterpartyKey is required"),
+    amountUsdc: z.union([
+      z.number().positive("amountUsdc must be greater than 0"),
+      z
+        .string()
+        .regex(/^\d+(\.\d{1,6})?$/, "amountUsdc must be a positive decimal amount")
+        .refine((s) => parseFloat(s) > 0, "amountUsdc must be greater than 0"),
+    ]),
+    reason: z.string().trim().min(1, "reason is required"),
+    runId: z.string().uuid().optional(),
+  }),
+  execute: async ({ counterpartyKey, amountUsdc, reason, runId }) => {
+    const cleanCounterpartyKey = counterpartyKey.trim();
+    const cleanReason = reason.trim();
+    if (cleanCounterpartyKey.length === 0) {
+      throw httpError(400, "invalid_counterparty_key", "counterpartyKey is required");
+    }
+    if (cleanReason.length === 0) {
+      throw httpError(400, "invalid_reason", "reason is required");
+    }
+
+    const num = typeof amountUsdc === "number" ? amountUsdc : parseFloat(amountUsdc);
+    if (Number.isNaN(num) || num <= 0) {
+      throw httpError(400, "invalid_amount", "amountUsdc must be greater than 0");
+    }
+    if (typeof amountUsdc === "string" && !/^\d+(\.\d{1,6})?$/.test(amountUsdc)) {
+      throw httpError(400, "invalid_amount", "amountUsdc must be a decimal amount with up to 6 decimal places");
+    }
+    const formattedAmount = num.toFixed(6);
+
+    const policy = await policies.get(env.AGENT_ID);
+    const memoryResult = await retrieveFromSibyl(cleanCounterpartyKey);
+
+    const authOutcome = authorizeFromRetrieval(memoryResult as unknown as RetrievalResult, policy);
+    const autoSpendLimit = policy?.auto_spend_limit_usdc ?? "25.000000";
+    const humanApprovalAbove = policy?.human_approval_above_usdc ?? "15.000000";
+
+    let mode: "AUTO" | "REQUIRE_APPROVAL" | "DENY" = authOutcome.approval;
+    let evalReason = authOutcome.reason;
+    let allowedByPolicy = mode !== "DENY";
+
+    if (
+      policy?.absolute_spend_limit_usdc &&
+      num > parseFloat(policy.absolute_spend_limit_usdc)
+    ) {
+      mode = "DENY";
+      allowedByPolicy = false;
+      evalReason = `Proposed spend of ${formattedAmount} USDC exceeds absolute spend limit of ${policy.absolute_spend_limit_usdc} USDC.`;
+    } else {
+      const autoLimitNum = parseFloat(autoSpendLimit);
+      const humanApprovalAboveNum = parseFloat(humanApprovalAbove);
+      if (num > autoLimitNum) {
+        mode = "REQUIRE_APPROVAL";
+        evalReason = `Proposed spend of ${formattedAmount} USDC exceeds auto-spend threshold (${autoSpendLimit} USDC), requiring operator approval.`;
+      } else if (num > humanApprovalAboveNum) {
+        mode = "REQUIRE_APPROVAL";
+        evalReason = `Proposed spend of ${formattedAmount} USDC exceeds human approval threshold (${humanApprovalAbove} USDC), requiring operator approval.`;
+      }
+    }
+
+    let counterfactualRationale: string;
+    if (memoryResult.status === "AVAILABLE") {
+      const name = memoryResult.displayName ?? cleanCounterpartyKey;
+      const relPct =
+        memoryResult.overallReliability !== null
+          ? memoryResult.overallReliability <= 1 && memoryResult.overallReliability > 0
+            ? `${Math.round(memoryResult.overallReliability * 100)}%`
+            : `${Math.round(memoryResult.overallReliability)}%`
+          : null;
+      const relText = relPct ? ` has ${relPct} reliability` : "";
+      const epText =
+        memoryResult.episodesUsed > 0
+          ? ` across ${memoryResult.episodesUsed} recorded interaction${memoryResult.episodesUsed === 1 ? "" : "s"}`
+          : "";
+      const trackRecord = memoryResult.relationshipStatus
+        ? ` with ${memoryResult.relationshipStatus} status`
+        : "";
+      counterfactualRationale = `Memory checked; ${name}${relText}${epText}${trackRecord}.`;
+    } else if (memoryResult.status === "NO_HISTORY") {
+      counterfactualRationale = `No prior relationship history found for ${cleanCounterpartyKey}. Initial interaction requires operator approval.`;
+    } else {
+      counterfactualRationale = `Relationship memory could not be retrieved for ${cleanCounterpartyKey}; proceeding under active guardrail limits.`;
+    }
+
+    if (runId) {
+      const run = await runs.getRun(runId);
+      if (!run) {
+        return {
+          proposed: false,
+          runId,
+          counterpartyKey: cleanCounterpartyKey,
+          amountUsdc: formattedAmount,
+          status: "DENIED" as const,
+          policyEvaluation: {
+            allowedByPolicy: false,
+            autoSpendLimitUsdc: autoSpendLimit,
+            humanApprovalAboveUsdc: humanApprovalAbove,
+            mode: "DENY" as const,
+            reason: `Run ${runId} not found`,
+          },
+          memoryRetrieval: {
+            status: memoryResult.status,
+            overallReliability:
+              memoryResult.status === "AVAILABLE" ? memoryResult.overallReliability : null,
+            relationshipStatus:
+              memoryResult.status === "AVAILABLE" ? memoryResult.relationshipStatus : null,
+          },
+          counterfactualRationale,
+        };
+      }
+    }
+
+    if (mode === "DENY") {
+      return {
+        proposed: false,
+        ...(runId ? { runId } : {}),
+        counterpartyKey: cleanCounterpartyKey,
+        amountUsdc: formattedAmount,
+        status: "DENIED" as const,
+        policyEvaluation: {
+          allowedByPolicy: false,
+          autoSpendLimitUsdc: autoSpendLimit,
+          humanApprovalAboveUsdc: humanApprovalAbove,
+          mode: "DENY" as const,
+          reason: evalReason,
+        },
+        memoryRetrieval: {
+          status: memoryResult.status,
+          overallReliability:
+            memoryResult.status === "AVAILABLE" ? memoryResult.overallReliability : null,
+          relationshipStatus:
+            memoryResult.status === "AVAILABLE" ? memoryResult.relationshipStatus : null,
+        },
+        counterfactualRationale,
+      };
+    }
+
+    let eventId: string | undefined;
+    if (runId) {
+      eventId = randomUUID();
+      await runs.appendEvent({
+        runId,
+        eventId,
+        type: "approval.requested",
+        eventTime: new Date(),
+        data: {
+          action: `Spend ${amountUsdc} USDC with ${cleanCounterpartyKey}`,
+          counterparty_key: cleanCounterpartyKey,
+          amount_usdc: formattedAmount,
+          ceiling_usdc: formattedAmount,
+          reason: cleanReason,
+          summary: cleanReason,
+          counterfactual_rationale: counterfactualRationale,
+        },
+      });
+    }
+
+    return {
+      proposed: true,
+      ...(runId ? { runId } : {}),
+      counterpartyKey: cleanCounterpartyKey,
+      amountUsdc: formattedAmount,
+      status: "AWAITING_APPROVAL" as const,
+      policyEvaluation: {
+        allowedByPolicy,
+        autoSpendLimitUsdc: autoSpendLimit,
+        humanApprovalAboveUsdc: humanApprovalAbove,
+        mode,
+        reason: evalReason,
+      },
+      memoryRetrieval: {
+        status: memoryResult.status,
+        overallReliability:
+          memoryResult.status === "AVAILABLE" ? memoryResult.overallReliability : null,
+        relationshipStatus:
+          memoryResult.status === "AVAILABLE" ? memoryResult.relationshipStatus : null,
+      },
+      counterfactualRationale,
+      ...(eventId ? { eventId } : {}),
+    };
+  },
+};
+
 export const MCP_TOOLS: McpToolDefinition[] = [
   consoleNavigateTool,
   consoleToggleMemoryViewTool,
@@ -226,6 +423,7 @@ export const MCP_TOOLS: McpToolDefinition[] = [
   consoleListMissionsTool,
   consoleGetMissionTool,
   guardrailsGetPoliciesTool,
+  missionProposeApprovalTool,
 ];
 
 export function findMcpTool(name: string): McpToolDefinition | undefined {
