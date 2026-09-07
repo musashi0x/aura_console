@@ -16,6 +16,7 @@ import { usdcString } from "./usdc.js";
 
 export const ACP_ENVIRONMENTS: Record<number, string> = {
   84_532: "base-sepolia",
+  8_453: "base",
 };
 
 export function environmentForChain(chainId: number): string {
@@ -269,6 +270,75 @@ export function fundFailedEvent(input: {
   return {
     eventId: derivedEventId({ type: "acp.fund.failed", data }),
     type: "acp.fund.failed",
+    eventTime: input.failedAt,
+    data,
+  };
+}
+
+/**
+ * A completion the agent paid for, as history.
+ *
+ * Compute spend belongs in the same timeline as job spend because it is the
+ * same wallet: auto-top-up refills the compute balance from the agent's funds,
+ * so an operator reading a run's history would otherwise see the escrow leave
+ * and never see the inference that also drew on it.
+ *
+ * `content` is deliberately absent. The event records that a completion was
+ * bought and what it cost; the text itself is the caller's to keep or discard,
+ * and copying it here would put arbitrary model output into an append-only
+ * table that can never be edited.
+ */
+export function computeCompletedEvent(input: {
+  model: string;
+  provider: string | null;
+  finishReason: string;
+  promptTokens: number;
+  completionTokens: number;
+  reasoningTokens: number;
+  costUsdc: string;
+  completedAt: Date;
+}): TranslatedEvent {
+  const data = {
+    model: input.model,
+    provider: input.provider,
+    finish_reason: input.finishReason,
+    prompt_tokens: input.promptTokens,
+    completion_tokens: input.completionTokens,
+    reasoning_tokens: input.reasoningTokens,
+    cost_usdc: input.costUsdc,
+  };
+
+  return {
+    eventId: derivedEventId({ type: "acp.compute.completed", data, at: input.completedAt.toISOString() }),
+    type: "acp.compute.completed",
+    eventTime: input.completedAt,
+    data,
+  };
+}
+
+/**
+ * A completion that did not return one.
+ *
+ * Recorded because a failed call can still have been billed — a request that
+ * exhausts its budget on reasoning tokens returns no content and costs the
+ * full amount — and a history that only shows successes would understate what
+ * the agent spent.
+ */
+export function computeFailedEvent(input: {
+  model: string;
+  code: string;
+  reason: string;
+  failedAt: Date;
+}): TranslatedEvent {
+  const data = {
+    model: input.model,
+    code: input.code,
+    reason: input.reason,
+  };
+
+  return {
+    eventId: derivedEventId({ type: "acp.compute.failed", data, at: input.failedAt.toISOString() }),
+    type: "acp.compute.failed",
     eventTime: input.failedAt,
     data,
   };

@@ -4,29 +4,64 @@ import { z } from "zod";
 loadRootEnvFile();
 
 /**
- * Base Sepolia. The runtime is non-mainnet by construction, so the chain id is
- * a fixed literal rather than a range: a typo that reached Base mainnet would
- * be a real-money mistake, and there is no reason for this slice to accept one.
+ * The two chains this runtime knows how to talk to, as fixed literals rather
+ * than a range: every other chain id is a typo, and a typo that reached one is
+ * a real-money mistake.
+ *
+ * Base mainnet is real money. It is accepted because an operator asked for it,
+ * not because it is safe by default — the chain id has to be written out in
+ * full, and `ACP_SPEND_ENABLED` still gates every transfer independently.
  */
 export const BASE_SEPOLIA_CHAIN_ID = 84_532;
+export const BASE_MAINNET_CHAIN_ID = 8_453;
+
+const SUPPORTED_CHAIN_IDS = [BASE_SEPOLIA_CHAIN_ID, BASE_MAINNET_CHAIN_ID];
 
 const hexAddress = /^0x[0-9a-fA-F]{40}$/;
-const hexPrivateKey = /^0x[0-9a-fA-F]{64}$/;
+
+/**
+ * Privy's authorization key: base64 PKCS8 with no PEM headers, which Privy
+ * hands out with a `wallet-auth:` prefix. It authorizes a signing request
+ * against `api.privy.io`; it is not the wallet's own key and there is no EOA
+ * key to hold, because the agent wallet is Privy-managed.
+ */
+const privyAuthorizationKey = /^(wallet-auth:)?[A-Za-z0-9+/]{40,}={0,2}$/;
 
 const acpEnvSchema = z.object({
   ACP_CHAIN_ID: z.coerce
     .number()
     .int("ACP_CHAIN_ID must be an integer")
     .refine(
-      (value) => value === BASE_SEPOLIA_CHAIN_ID,
-      `ACP_CHAIN_ID must be ${BASE_SEPOLIA_CHAIN_ID} (Base Sepolia); this runtime is non-mainnet`,
+      (value) => SUPPORTED_CHAIN_IDS.includes(value),
+      `ACP_CHAIN_ID must be ${BASE_SEPOLIA_CHAIN_ID} (Base Sepolia) or ${BASE_MAINNET_CHAIN_ID} (Base mainnet, real funds)`,
     ),
   ACP_WALLET_ADDRESS: z
     .string()
     .regex(hexAddress, "ACP_WALLET_ADDRESS must be a 0x-prefixed 20-byte address"),
-  ACP_WALLET_PRIVATE_KEY: z
+  /**
+   * The Privy wallet backing ACP_WALLET_ADDRESS. Both are needed: the address
+   * is what ACP and the chain see, the id is what Privy's RPC is addressed by,
+   * and nothing in this runtime can derive one from the other.
+   */
+  ACP_PRIVY_WALLET_ID: z
     .string()
-    .regex(hexPrivateKey, "ACP_WALLET_PRIVATE_KEY must be a 0x-prefixed 32-byte private key"),
+    .regex(/^\S{8,}$/, "ACP_PRIVY_WALLET_ID must be the Privy wallet id, with no whitespace"),
+  ACP_PRIVY_AUTHORIZATION_KEY: z
+    .string()
+    .refine(
+      (value) => !value.startsWith("0x"),
+      "ACP_PRIVY_AUTHORIZATION_KEY is Privy's authorization key, not a 0x EOA private key; a Privy-managed agent wallet has no exportable EOA key",
+    )
+    .refine(
+      (value) => privyAuthorizationKey.test(value),
+      "ACP_PRIVY_AUTHORIZATION_KEY must be a base64 PKCS8 key, optionally prefixed with 'wallet-auth:'",
+    ),
+  /**
+   * Optional. Left unset the runtime uses the SDK's testnet Privy app, which is
+   * the one that matches the dev ACP host. Set it only when Virtuals tells you
+   * your agent lives under a different app.
+   */
+  ACP_PRIVY_APP_ID: z.string().min(1, "ACP_PRIVY_APP_ID must not be empty").optional(),
   ACP_RPC_URL: z
     .string()
     .refine(
@@ -78,8 +113,8 @@ export function parseAcpEnv(source: NodeJS.ProcessEnv = process.env): AcpEnvResu
  * signing client is constructed, so a misconfigured runtime dies immediately
  * and never half-connects.
  *
- * The private key is never echoed: the message names the variable, not its
- * value.
+ * The authorization key is never echoed: the message names the variable, not
+ * its value.
  */
 export function loadAcpEnv(source: NodeJS.ProcessEnv = process.env): AcpEnv {
   const result = parseAcpEnv(source);

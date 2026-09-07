@@ -8,6 +8,7 @@
     "dev": "tsx watch src/server.ts",
     "acp": "tsx src/acp/worker.ts",
     "acp:create-job": "tsx src/acp/create-job.ts",
+    "acp:compute": "tsx src/acp/compute/cli.ts",
     "start": "node dist/server.js",
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc -p tsconfig.json --noEmit",

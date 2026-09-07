@@ -74,7 +74,7 @@ These are load-bearing claims about honesty, not style preferences. Docs: `docs/
 - **No inferred readiness.** While a check is in flight the shell says `CHECKING`, never a borrowed `SYSTEM READY`.
 - **No stream exists.** `GET /api/runs/{id}/stream` is not implemented, so there is deliberately no client method for it, and the transport label is `LATEST SNAPSHOT`, never `LIVE`. `play`/`pause` are removed from `TransportCommand` so `PLAYING`/`PAUSED` are unreachable at compile time until a playhead can actually advance.
 - **Never automatic:** authorize spending, execute an economic action, expose private relationship memory, or treat unavailable memory as valid history. The API sends no derived economic value; USDC amounts move as strings so floating point cannot rewrite them.
-- **No auth in v0.1.** Single-operator, non-mainnet. Do not add sign-in, accounts, or workspaces to make a UI feel complete.
+- **No auth in v0.1.** Single-operator. Do not add sign-in, accounts, or workspaces to make a UI feel complete. The ACP runtime now accepts Base mainnet as well as Base Sepolia, so on mainnet `ACP_SPEND_ENABLED` is the only gate between an unauthenticated API and a real transfer — keep it `false` unless a transfer is actively being tested.
 - **Origin survives the whole chain.** `CONSOLE` / `AGENT` / `FIXTURE` reach the screen intact; the API is transport, not an actor.
 - Do not invent backend state to fill a gap. Not implemented: run stream, replay progression, auth, browser E2E.
 

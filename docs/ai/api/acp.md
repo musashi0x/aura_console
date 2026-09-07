@@ -30,11 +30,20 @@ only two EVM adapters shipped are:
 | Export | Status |
 |---|---|
 | `ViemProviderAdapter` | Abstract base. Every method except `getNetworkContext` throws `"... not implemented. Override in subclass."` |
-| `PrivyAlchemyEvmProviderAdapter` | Real, but requires a Privy `walletId` and app id — not a local private key |
+| `PrivyAlchemyEvmProviderAdapter` | Real. Takes a Privy `walletId` and an authorization key; signing is server-side, so no local private key is involved |
 
-Consequence: a local-private-key signer requires implementing
-`IEvmProviderAdapter` in this repository, subclassing `ViemProviderAdapter`. See
-the design's Decisions section.
+This repository uses `PrivyAlchemyEvmProviderAdapter`, because an agent wallet
+provisioned by Virtuals is Privy-managed and has no exportable EOA key. A
+local-key adapter (`LocalKeyEvmProviderAdapter`, subclassing
+`ViemProviderAdapter`) lived at `apps/api/src/acp/connection/provider.ts` until
+that became clear; recover it from git history if a self-custodied EOA is ever
+the wallet.
+
+Three of `PrivyAlchemyEvmProviderAdapter.create`'s defaults decide which
+network you land on, and all three point at production: `chains` defaults to
+`EVM_MAINNET_CHAINS`, `serverUrl` to `https://api.acp.virtuals.io`, and
+`privyAppId` to the mainnet `PRIVY_APP_ID`. `agent.ts` passes all three
+explicitly.
 
 ## What the EVM client actually asks of a provider
 
@@ -92,7 +101,7 @@ class AcpAgent {
 Notes that change behaviour:
 
 - There is **no `builderCode` on `CreateAgentInput`**. It is a field on
-  `PrivyAlchemyChainConfig` only, so on the local-key path it has nowhere to go.
+  `PrivyAlchemyChainConfig` only. This runtime leaves it unset.
 - Omitting `opts.evaluatorAddress` selects **skip-evaluation**: the job
   auto-completes and releases funds when the provider submits, and
   `job.submitted` never fires. Passing our own address selects self-evaluation,
@@ -182,8 +191,9 @@ from `AcpJobApi.getJob(chainId, jobId)`, whose `OffChainJob.description` is
 `string | null`. The bridge must therefore tolerate a missing description rather
 than inventing one.
 
-**Is `builderCode` needed on testnet?** Moot — the local-key path has no field
-to pass it through. Dropped from scope.
+**Is `builderCode` needed on testnet?** `PrivyAlchemyChainConfig` accepts one
+and this runtime does not pass it. Nothing observed so far needs it; dropped
+from scope until something does.
 
 ## `event_id` derivation
 
@@ -257,12 +267,11 @@ settles a job, proposes a price, or submits a deliverable.
 
 ## Where
 
-- `apps/api/src/acp/connection/env.ts` — the five variables, Zod-validated, exit 1 naming
+- `apps/api/src/acp/connection/env.ts` — the seven variables, Zod-validated, exit 1 naming
   the offender.
-- `apps/api/src/acp/connection/provider.ts` — `LocalKeyEvmProviderAdapter`, the local-key
-  `IEvmProviderAdapter` the SDK does not ship.
-- `apps/api/src/acp/connection/agent.ts` — builds `AcpAgent` with an explicit transport and
-  API client so the host is never the SDK's production default.
+- `apps/api/src/acp/connection/agent.ts` — builds `AcpAgent` on
+  `PrivyAlchemyEvmProviderAdapter`, with explicit chain, transport, API client and Privy
+  app id so no SDK default can point the runtime at production.
 - `apps/api/src/acp/domain/events.ts` — every `run_events` row this module can produce,
   observed and authored, plus the Run seed an ACP job gets.
 - `apps/api/src/acp/domain/ids.ts` — canonical JSON and the uuidv5 derivation. Changing
@@ -443,15 +452,94 @@ releases escrow the moment a provider submits.
 ## Operator setup
 
 1. Register an agent at <https://app.virtuals.io/acp/new> and note its wallet
-   address.
-2. Fund that wallet on Base Sepolia with test ETH and test USDC. Use a throwaway
-   key that controls nothing else.
-3. Fill `ACP_CHAIN_ID`, `ACP_WALLET_ADDRESS`, `ACP_WALLET_PRIVATE_KEY`,
-   `ACP_RPC_URL` and `ACP_SERVER_URL` in the root `.env` — see `.env.example`.
-   The runtime rejects any chain but Base Sepolia.
-4. `pnpm db:migrate`, then `pnpm --filter @aura/api acp`.
-5. To exercise it end to end, create a job with `acp:create-job` and watch the
+   address. The wallet it provisions is Privy-managed: there is no EOA private
+   key to export, and looking for one is the wrong turn.
+2. Fund that wallet with ETH for gas and USDC for escrow, on whichever chain
+   the agent is registered on. On Base Sepolia keep it a throwaway that holds
+   nothing else; on Base mainnet the funds are real and `ACP_SPEND_ENABLED`
+   is the only thing standing between an unauthenticated API and a transfer.
+3. Get the wallet's Privy `walletId` and an authorization key from Virtuals.
+   The authorization key is base64 PKCS8, usually `wallet-auth:`-prefixed; it
+   authorizes a signing request against `api.privy.io` rather than signing
+   locally, and it grants signing on the wallet, so treat it as a secret.
+4. Fill `ACP_CHAIN_ID`, `ACP_WALLET_ADDRESS`, `ACP_PRIVY_WALLET_ID`,
+   `ACP_PRIVY_AUTHORIZATION_KEY`, `ACP_RPC_URL` and `ACP_SERVER_URL` in the root
+   `.env` — see `.env.example`. The runtime accepts Base Sepolia (84532) and
+   Base mainnet (8453) and rejects every other chain id.
+
+   The three network decisions have to agree, and only the chain id is
+   checked. `ACP_CHAIN_ID` selects the viem chain *and* the Privy app —
+   `TESTNET_PRIVY_APP_ID` for Sepolia, `PRIVY_APP_ID` for mainnet — while
+   `ACP_SERVER_URL` picks the host (`api-dev.acp.virtuals.io` for testnet,
+   `api.acp.virtuals.io` for production). Pointing a mainnet-registered agent
+   at the dev host fails as `{"message":"Agent not found"}` from
+   `/wallets/sign-message`, which viem surfaces as a bare `BaseError: Not
+   Found` with no mention of the environment. `ACP_PRIVY_APP_ID` overrides the
+   chain-derived app id and is only needed when Virtuals says your agent lives
+   under a different one.
+5. `pnpm db:migrate`, then `pnpm --filter @aura/api acp`.
+6. To exercise it end to end, create a job with `acp:create-job` and watch the
    entries land as `run_events`.
+
+## Agent Compute
+
+A second, independent product on the same wallet. The marketplace is agents
+hiring agents; Compute is the agent buying its own inference. Neither needs the
+other: the ACP worker runs with no compute key, and compute works with no ACP
+variables set at all.
+
+| File | Holds |
+|---|---|
+| `apps/api/src/acp/compute/env.ts` | `ACP_API_KEY` + `ACP_COMPUTE_BASE_URL`, its own Zod schema and `isComputeConfigured` |
+| `apps/api/src/acp/compute/client.ts` | `listModels` and `complete`, returning `ComputeResult<T>` and never throwing |
+| `apps/api/src/acp/compute/cli.ts` | `pnpm --filter @aura/api acp:compute models\|complete` |
+| `apps/api/src/acp/domain/events.ts` | `computeCompletedEvent`, `computeFailedEvent` |
+
+Endpoint: `https://compute.virtuals.io/v1`, OpenAI-shaped, `Authorization:
+Bearer acp-...`. Docs: <https://os.virtuals.io/agent-identity/compute/overview>.
+
+Four things about this endpoint are load-bearing and none of them are obvious
+from the OpenAI shape.
+
+**A completion answers 201, not 200.** `send` accepts any 2xx. An equality
+check on 200 would report a request that succeeded, and was billed, as a
+failure.
+
+**Content is nullable.** A reasoning model whose `max_tokens` is consumed by
+its own reasoning returns `content: null` with `finish_reason: "length"`, fully
+charged. `ComputeCompletion.content` is `string | null` so that a caller cannot
+write an empty string into history and call it an answer, and the CLI prints an
+explicit warning naming the finish reason.
+
+**Cost arrives as a float and leaves as a string.** `usage.cost` is a JSON
+number, so the float has already happened; `usdcString` converts once at the
+boundary, the same trade documented for the SDK's `number` amounts. Nothing
+downstream sees a float.
+
+**Model ids are fetched, never hardcoded.** The catalog changes, and the docs
+say to call `/models` to discover or validate an id. `acp:compute complete`
+resolves a default from the live list rather than shipping a constant that
+rots.
+
+### Why compute spend is an event
+
+`acp.compute.completed` carries the model, provider, finish reason, the token
+split including `reasoning_tokens`, and `cost_usdc` as a string. It does not
+carry the completion text: the event records that a completion was bought and
+what it cost, and copying arbitrary model output into an append-only table
+would put text there that can never be edited or redacted.
+
+`acp.compute.failed` exists because a failed call can still have been billed —
+a request that exhausts its budget on reasoning returns nothing and costs the
+full amount — and a history showing only successes would understate the spend.
+
+Unlike a translated stream entry, two identical completions are two charges
+rather than one re-delivered fact, so the derived id includes the timestamp and
+does not collapse them.
+
+Nothing emits these on a schedule. Buying a completion draws on the agent's
+wallet through auto-top-up, so it is a command an operator runs, exactly like
+`acp:create-job`.
 
 ## Not verified against a live agent
 
