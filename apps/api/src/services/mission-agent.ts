@@ -85,6 +85,14 @@ export class MissionAgent {
       return { status: "BLOCKED", domain: "market", detail };
     }
 
+    await this.append(runId, "memory.retrieved", {
+      source: "SIBYL",
+      verdict_code: memory.code ?? "ok",
+      count: memory.items.length,
+      retrieval_status: "AVAILABLE",
+      summary: `Recalled ${memory.items.length} counterparties from Sibyl relationship memory`,
+    });
+
     await this.append(runId, "candidate.scored", {
       summary: `Ranked ${ranked.length} ${ranked.length === 1 ? "counterparty" : "counterparties"} on price and relationship memory`,
       candidates: ranked,

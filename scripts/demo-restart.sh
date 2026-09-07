@@ -8,6 +8,7 @@ echo "==========================================================="
 echo "  Wiping Postgres event store while preserving Sibyl memory.db"
 echo "-----------------------------------------------------------"
 
+pnpm --filter @aura/api exec tsx ../../scripts/wipe-event-store.ts
 pnpm --filter @aura/db db:migrate
 
 echo "✓ Event store wiped clean."

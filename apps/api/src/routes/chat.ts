@@ -155,6 +155,8 @@ chat.get("/:runId/chat", async (c) => {
                 type: "memory.retrieved",
                 eventTime: new Date(),
                 data: {
+                  source: "SIBYL",
+                  verdict: "ok",
                   counterparty_key: key,
                   memory_version: ret.memoryVersion,
                   episodes_used: ret.episodesUsed,
