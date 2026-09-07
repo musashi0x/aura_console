@@ -2737,6 +2737,9 @@ input[type="range"].fluid-slider::-moz-range-thumb {
 /* The chat panel's query container, so the surfaces inside size against the
    panel rather than the window. */
 .cs__chat-region {
+  --color-surface: var(--color-background-card);
+  --color-surface-raised: var(--color-background-surface);
+  --color-border-strong: var(--color-border-emphasized);
   container-type: inline-size;
   /* Three rows: the dock heading, the conversation, the command list.
      As a flex column the conversation asked for height:100% of the whole
@@ -2807,6 +2810,9 @@ input[type="range"].fluid-slider::-moz-range-thumb {
 --------------------------------------------------------------------------- */
 
 .cs__chat-console-layout {
+  --color-surface: var(--color-background-card);
+  --color-surface-raised: var(--color-background-surface);
+  --color-border-strong: var(--color-border-emphasized);
   display: grid;
   grid-template-columns: minmax(260px, 320px) 1fr;
   gap: var(--space-4);
