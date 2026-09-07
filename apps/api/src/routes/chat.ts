@@ -48,6 +48,18 @@ globalChat.get("/", async (c) => {
             data: JSON.stringify(citation),
           });
         },
+        onThought: async (thought) => {
+          await stream.writeSSE({
+            event: "thought",
+            data: thought,
+          });
+        },
+        onUsage: async (usage) => {
+          await stream.writeSSE({
+            event: "usage",
+            data: JSON.stringify(usage),
+          });
+        },
         onToken: async (token) => {
           await stream.writeSSE({
             event: "token",
@@ -147,6 +159,18 @@ chat.get("/:runId/chat", async (c) => {
           await stream.writeSSE({
             event: "citation",
             data: JSON.stringify(citation),
+          });
+        },
+        onThought: async (thought) => {
+          await stream.writeSSE({
+            event: "thought",
+            data: thought,
+          });
+        },
+        onUsage: async (usage) => {
+          await stream.writeSSE({
+            event: "usage",
+            data: JSON.stringify(usage),
           });
         },
         onToken: async (token) => {

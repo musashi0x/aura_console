@@ -253,6 +253,15 @@ export function ConsoleChat({
       },
       onCitation: (citation) =>
         update((m) => ({ ...m, citations: [...m.citations, citation] })),
+      onThought: (thought) => {
+        update((m) => ({
+          ...m,
+          thought: (m.thought ? m.thought + "\n" : "") + thought,
+        }));
+      },
+      onUsage: (usage) => {
+        update((m) => ({ ...m, usage }));
+      },
       onToolCall: (toolCall) => {
         hadToolCalls = true;
         update((m) => ({

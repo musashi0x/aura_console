@@ -4,12 +4,15 @@ import type {
   EventStreamFactory,
   MemoryCitation,
   McpToolCall,
+  TokenUsage,
 } from "./chat-types";
 
 export interface ChatStreamHandlers {
   onToken: (text: string) => void;
   onCitation: (citation: MemoryCitation) => void;
   onToolCall?: (toolCall: McpToolCall) => void;
+  onThought?: (thought: string) => void;
+  onUsage?: (usage: TokenUsage) => void;
   onState: (state: ChatConnection) => void;
   onDone: () => void;
 }
@@ -55,6 +58,8 @@ export function openChatStream(options: ChatStreamOptions): ChatStreamHandle {
     onToken,
     onCitation,
     onToolCall,
+    onThought,
+    onUsage,
     onState,
     onDone,
     createStream = defaultFactory,
@@ -126,6 +131,23 @@ export function openChatStream(options: ChatStreamOptions): ChatStreamHandle {
         }
       } catch {
         // Malformed tool call dropped
+      }
+    });
+
+    created.addEventListener("thought", (event) => {
+      if (closed) return;
+      onThought?.(String(event.data ?? ""));
+    });
+
+    created.addEventListener("usage", (event) => {
+      if (closed) return;
+      try {
+        const parsed: unknown = JSON.parse(String(event.data ?? "null"));
+        if (parsed && typeof parsed === "object" && "totalTokens" in parsed) {
+          onUsage?.(parsed as TokenUsage);
+        }
+      } catch {
+        // Malformed usage dropped
       }
     });
 

@@ -45,7 +45,7 @@ import { ConsoleNavigation } from '@/features/console/components/console-navigat
 import { ConsoleTopbar } from '@/features/console/components/console-topbar';
 import { ConsoleChatSuggestions } from '@/features/console/components/console-chat-suggestions';
 import { openChatStream, type ChatStreamHandle } from '@/features/console/chat/chat-transport';
-import type { ChatConnection, ChatMessage } from '@/features/console/chat/chat-types';
+import type { ChatConnection, ChatMessage, TokenUsage } from '@/features/console/chat/chat-types';
 import { env } from '@/lib/env';
 import { matchCommand } from '@/features/console/console-commands';
 
@@ -57,6 +57,8 @@ import {
   Paperclip,
   X,
   ChevronRight,
+  Sparkles,
+  Cpu,
 } from 'lucide-react';
 import type { IconType } from '@astryxdesign/core/Icon';
 
@@ -227,6 +229,144 @@ const AI_CHAT_CSS = `
     flex-shrink: 1;
   }
 }
+
+/* Thought Process Card */
+.ai-chat-thought-card {
+  margin-block: var(--space-2);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  overflow: hidden;
+  max-width: 600px;
+}
+.ai-chat-thought-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  font-size: var(--text-supporting-size);
+  font-family: inherit;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+.ai-chat-thought-header:hover {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--color-text);
+}
+.ai-chat-thought-badge {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.ai-chat-thought-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  box-shadow: 0 0 8px var(--color-accent);
+  animation: aiPulse 1.4s ease-in-out infinite alternate;
+}
+@keyframes aiPulse {
+  0% { opacity: 0.3; transform: scale(0.85); }
+  100% { opacity: 1; transform: scale(1.15); }
+}
+.ai-chat-thought-spark {
+  color: var(--color-accent);
+}
+.ai-chat-thought-label {
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.ai-chat-thought-arrow {
+  color: var(--color-text-tertiary);
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.ai-chat-thought-arrow.is-expanded {
+  transform: rotate(90deg);
+}
+.ai-chat-thought-body {
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--text-supporting-size);
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+  background: color-mix(in srgb, var(--color-canvas) 40%, transparent);
+}
+
+/* Token Meter */
+.ai-chat-token-meter {
+  padding: 6px var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 65%, transparent);
+  backdrop-filter: blur(12px);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ai-chat-token-stats {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: 11px;
+  color: var(--color-text-secondary);
+}
+.ai-chat-token-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.ai-chat-token-icon {
+  color: var(--color-accent);
+}
+.ai-chat-token-model {
+  font-weight: 600;
+  color: var(--color-text);
+  letter-spacing: -0.01em;
+}
+.ai-chat-token-divider {
+  width: 1px;
+  height: 10px;
+  background: var(--color-border);
+}
+.ai-chat-token-metric {
+  color: var(--color-text);
+}
+.ai-chat-token-sub {
+  color: var(--color-text-tertiary);
+}
+.ai-chat-token-pct {
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono);
+}
+.ai-chat-token-bar-track {
+  width: 100%;
+  height: 2px;
+  background: color-mix(in srgb, var(--color-border) 60%, transparent);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.ai-chat-token-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #8c8c94, #d8d8db);
+  border-radius: 999px;
+  transition: width 300ms ease;
+}
+.ai-chat-turn-tokens {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--color-text-secondary);
+  margin-left: var(--space-2);
+}
 `;
 
 // Artifact content
@@ -381,6 +521,82 @@ function ArtifactCard({ onOpen }: { onOpen: () => void }) {
   );
 }
 
+function ThinkingProcessCard({
+  thought,
+  isStreaming,
+}: {
+  thought: string;
+  isStreaming?: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="ai-chat-thought-card">
+      <button
+        type="button"
+        className="ai-chat-thought-header"
+        onClick={() => setIsOpen((prev) => !prev)}
+        aria-expanded={isOpen}
+      >
+        <span className="ai-chat-thought-badge">
+          {isStreaming ? (
+            <span className="ai-chat-thought-pulse" />
+          ) : (
+            <Sparkles size={13} className="ai-chat-thought-spark" />
+          )}
+          <span className="ai-chat-thought-label">
+            {isStreaming ? 'Reasoning in progress...' : 'Thought process'}
+          </span>
+        </span>
+        <ChevronRight
+          size={14}
+          className={`ai-chat-thought-arrow ${isOpen ? 'is-expanded' : ''}`}
+        />
+      </button>
+      {isOpen && (
+        <div className="ai-chat-thought-body">
+          <Markdown density="compact">{thought}</Markdown>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TokenMeter({ usage }: { usage: TokenUsage }) {
+  const maxContext = 1048576; // 1M context window for Gemini 2.5 Flash
+  const percent = Math.min(100, Math.max(0.01, (usage.totalTokens / maxContext) * 100));
+
+  return (
+    <div className="ai-chat-token-meter">
+      <div className="ai-chat-token-stats">
+        <div className="ai-chat-token-item">
+          <Cpu size={13} className="ai-chat-token-icon" />
+          <span className="ai-chat-token-model">Gemini 2.5 Flash</span>
+        </div>
+        <div className="ai-chat-token-divider" />
+        <div className="ai-chat-token-item">
+          <span className="ai-chat-token-metric">
+            <strong>{usage.totalTokens.toLocaleString()}</strong> tokens
+          </span>
+          <span className="ai-chat-token-sub">
+            ({usage.promptTokens.toLocaleString()} prompt · {usage.candidateTokens.toLocaleString()} gen)
+          </span>
+        </div>
+        <div className="ai-chat-token-divider" />
+        <div className="ai-chat-token-item">
+          <span className="ai-chat-token-pct">{percent.toFixed(2)}% of 1M context</span>
+        </div>
+      </div>
+      <div className="ai-chat-token-bar-track">
+        <div
+          className="ai-chat-token-bar-fill"
+          style={{ width: `${Math.max(percent, 0.4)}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 // Initial demo message seeds so the conversation starts rich and informative
 const INITIAL_DEMO_MESSAGES: ChatMessage[] = [
   {
@@ -394,6 +610,12 @@ const INITIAL_DEMO_MESSAGES: ChatMessage[] = [
     id: 'demo-agent-1',
     role: 'agent',
     text: `Found the issue. In \`middleware.ts\`, the token validation runs **before** the refresh check. When a token expires, the middleware rejects the request immediately instead of attempting a refresh.\n\nHere's the problematic sequence:\n1. Request arrives with an expired access token\n2. \`validateToken()\` throws \`TokenExpiredError\`\n3. The catch block returns \`401\` — never reaching \`refreshToken()\`\n\nThe fix is to catch \`TokenExpiredError\` specifically and attempt a refresh before rejecting.\n\nI have drafted a design and rollout doc. You can open the artifact on the right to review it.`,
+    thought: `1. Analyzed operator inquiry regarding JWT expiration and middleware failure.\n2. Read auth-service.ts and middleware.ts token interception flows.\n3. Identified ordering bug: validateToken() executed before refreshToken().\n4. Formulated architecture fix and generated rollout artifact.`,
+    usage: {
+      promptTokens: 840,
+      candidateTokens: 440,
+      totalTokens: 1280,
+    },
     complete: true,
     citations: [],
     toolCalls: [
@@ -409,6 +631,11 @@ const INITIAL_DEMO_MESSAGES: ChatMessage[] = [
 export default function AIChatConversationTemplate() {
   const router = useRouter();
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_DEMO_MESSAGES);
+  const [sessionUsage, setSessionUsage] = useState<TokenUsage>({
+    promptTokens: 840,
+    candidateTokens: 440,
+    totalTokens: 1280,
+  });
   const [draft, setDraft] = useState('');
   const [connection, setConnection] = useState<ChatConnection>({ kind: 'idle' });
   const [composerMode, setComposerMode] = useState('ask');
@@ -484,6 +711,20 @@ export default function AIChatConversationTemplate() {
         onCitation: (citation) => {
           update((m) => ({ ...m, citations: [...m.citations, citation] }));
         },
+        onThought: (thought) => {
+          update((m) => ({
+            ...m,
+            thought: (m.thought ? m.thought + '\n' : '') + thought,
+          }));
+        },
+        onUsage: (usage) => {
+          update((m) => ({ ...m, usage }));
+          setSessionUsage((prev) => ({
+            promptTokens: prev.promptTokens + usage.promptTokens,
+            candidateTokens: prev.candidateTokens + usage.candidateTokens,
+            totalTokens: prev.totalTokens + usage.totalTokens,
+          }));
+        },
         onToolCall: (toolCall) => {
           update((m) => ({
             ...m,
@@ -550,6 +791,7 @@ export default function AIChatConversationTemplate() {
           <HStack height="100%">
             {/* Chat column — flexes to fill the space the artifact leaves */}
             <VStack style={chatColumn}>
+              <TokenMeter usage={sessionUsage} />
               <ChatLayout
                 density="spacious"
                 style={chatLayout}
@@ -658,6 +900,15 @@ export default function AIChatConversationTemplate() {
                         sender="assistant"
                         avatar={<Avatar name="Agent" size="md" />}
                       >
+                        {message.thought && (
+                          <ChatMessageBubble variant="ghost" width="100%">
+                            <ThinkingProcessCard
+                              thought={message.thought}
+                              isStreaming={busy && !message.complete}
+                            />
+                          </ChatMessageBubble>
+                        )}
+
                         {message.toolCalls && message.toolCalls.length > 0 && (
                           <ChatToolCalls
                             defaultIsExpanded
@@ -696,9 +947,16 @@ export default function AIChatConversationTemplate() {
                             />
                           }
                           footer={
-                            <Text type="supporting" color="secondary">
-                              ADK Gemini Agent
-                            </Text>
+                            <HStack gap={2} vAlign="center">
+                              <Text type="supporting" color="secondary">
+                                ADK Gemini Agent
+                              </Text>
+                              {message.usage && (
+                                <span className="ai-chat-turn-tokens">
+                                  {message.usage.totalTokens.toLocaleString()} tokens
+                                </span>
+                              )}
+                            </HStack>
                           }
                         />
                       </ChatMessageRow>
