@@ -8,17 +8,17 @@
 
 * **Theme**: *Build with Agents That Don't Forget* (Deadline: Wed 10 Sep 2026 23:59 UTC)
 * **Repository**: [https://github.com/musashi0x/aura_console](https://github.com/musashi0x/aura_console) (MIT License)
-* **Demo Video**: [Demo Walkthrough (4:00)]() | Recorded on Commit `0e5190e`
-  - `0:00–0:20`: The problem & architecture overview
+* **Demo Video**: [Demo Walkthrough (4:00)]() | Recorded on Freeze Tag `hackathon-freeze-1` (Commit `7414ed0`)
+  - `0:00–0:20`: The problem & core architecture overview
   - `0:20–1:40`: Session A — Autonomous candidate scoring, spend approval, seller failure, and Sibyl episode write-back
   - `1:40–2:10`: **Continuous Unedited Restart Boundary** — Process kill, database drop, Sibyl `memory.db` survival
   - `2:10–3:10`: Session B — Fresh cold-start process picks different counterparty because Sibyl remembered
-  - `3:10–3:35`: Multi-Agent Coordination — Fresh Claude Code session queries Aura's MCP memory tools
+  - `3:10–3:35`: Multi-Agent Coordination — External Claude Code session queries Aura's MCP memory tools
   - `3:35–4:00`: Base Sepolia cryptographic commitment & event trace audit
 
 ---
 
-### 1. Run in Five Commands
+### 1. Quickstart (Run in Five Commands)
 
 ```bash
 pnpm install
@@ -41,74 +41,138 @@ pnpm demo:seed && pnpm dev     # Web on :3010, API on :3011
 
 ---
 
-### 2. The Load-Bearing Deletion Test (Pass/Fail Gate)
+### 2. Core Architecture
+
+Aura Console coordinates autonomous procurement agents under strict financial guardrails, backed by persistent relationship memory, an immutable event store, and on-chain cryptographic proof:
+
+* **Web Frontend (`@aura/web`)**: Next.js 16 App Router application styled with the Astryx Stone design system (`#111015` canvas, `#1b1b1f` surface), Beautiful UI streaming primitives (`ThinkingState`, `StreamingText`, `ToolChips`, `ApprovalCard`, `DiffTable`, `PromptBar`), synthesized Web Audio cues (`InteractionSounds`), real-time SSE execution stream, and live ticking clock + commit badge in `ConsoleTopbar`.
+* **Backend API (`@aura/api`)**: Node.js/TypeScript running Hono HTTP server, Model Context Protocol (MCP) server, native Gemini 2.5 function-calling loop, PostgreSQL event store for immutable run event logs (`runs` and `run_events`), Base Sepolia cryptographic memory commitment pipeline, and Python Sibyl memory bridge.
+* **Database (`@aura/db`)**: Drizzle ORM managing relational schema, connection pooling, and migrations for PostgreSQL.
+* **Sibyl Memory (`~/.sibyl-memory/memory.db`)**: Persistent relationship memory database providing 5-tier storage (HOT, WARM, COLD, REFERENCE, ARCHIVE) across autonomous agent sessions.
+
+---
+
+### 3. 5-Tier Dynamic Storage Map
+
+| Tier | Sibyl Call | Source Code Location | What Aura Stores | Read Back Where |
+|---|---|---|---|---|
+| **HOT** | `set_state` / `get_state` | `tools/sibyl_bridge.py`, `apps/api/src/services/sibyl.ts` | Live mission context, active execution stage, pending spend ceilings | API restart recovery & Mission Trace |
+| **WARM** | `set_entity` / `get_entity` | `tools/sibyl_bridge.py`, `apps/api/src/services/sibyl.ts` | Counterparty relationship profile, reliability score, Bayesian confidence, FSM status | `MissionAgent.openMission`, `listCounterpartiesFromSibyl`, `authorizeFromRetrieval` |
+| **COLD** | `write_event` / `read_events` | `tools/sibyl_bridge.py`, `apps/api/src/services/sibyl.ts` | Immutable mission episode log with provenance actors (`buyer_agent`, `verifier_agent`, `operator`) | `readMemoryJournal`, `GET /api/memory/journal`, MCP tool `memory_journal` |
+| **REFERENCE** | `set_reference` / `get_reference` | `tools/sibyl_bridge.py`, `apps/api/src/services/sibyl.ts` | Cryptographic salts (`commitment:<key>:v<version>`) & policy guardrail snapshots | `apps/api/src/services/memory-commitment.ts`, `commitMemoryToBaseSepolia`, `pnpm memory:verify` |
+| **ARCHIVE** | `archive_entity` | `tools/sibyl_bridge.py`, `apps/api/src/services/sibyl.ts` | Blocked / decommissioned counterparties with full audit trail | Counterparty catalog query, manual unblock UI |
+
+---
+
+### 4. Load-Bearing Deletion Test Commands (Pass/Fail Gate)
+
 Sibyl relationship memory is strictly load-bearing on the critical path. Without Sibyl, the buyer agent fails-closed into `run.blocked` rather than making blind financial commitments:
 
 ```bash
 # Run both halves side-by-side:
 pnpm demo:deletion-test
 ```
-- **Half A (`SIBYL_PYTHON=""`)**: Mission halts in `run.blocked`, citing missing Sibyl dependency.
-- **Half B (`SIBYL_PYTHON` active)**: Recalls persistent memory, scores candidates, and opens approval (`run.created -> candidate.scored -> decision.made -> approval.requested`).
+- **Half A (`SIBYL_PYTHON=""`)**: Mission halts in `run.blocked`, citing missing Sibyl dependency (`[run.created, run.blocked]`).
+- **Half B (`SIBYL_PYTHON` active)**: Recalls persistent memory, scores candidates, and opens approval (`[run.created, memory.retrieved, candidate.scored, decision.made, approval.requested]`).
 
 ---
 
-### 3. The Fresh-Session Restart Protocol (State Survival Proof)
+### 5. Camera One-Take Restart Protocol (State Survival Proof)
+
 Proves that relationship memory survives complete process termination and database wipe. Memory lives exclusively in persistent Sibyl SQLite (`~/.sibyl-memory/memory.db`):
 
 ```bash
 # Wipes Postgres event store completely; leaves Sibyl memory.db intact:
 pnpm demo:restart
 ```
-On camera: the API reconnects, the Console topbar updates its `startedAt` timestamp, and Session B loads zero historical Missions but recalls counterparty reliability from Sibyl.
+On camera:
+1. `pnpm demo:restart` truncates `runs` and `run_events` via CASCADE and restarts the API process.
+2. The UI topbar shows the active commit hash and a fresh ticking UTC clock.
+3. Session B cold-starts with zero historical runs in PostgreSQL, yet immediately recalls counterparty reputation and past failure episodes from Sibyl SQLite.
 
 ---
 
-### 4. Where Memory is Read and Written
+### 6. Counterfactual Divergence
 
-| Tier | Sibyl Call | Source Code Location | What Aura Stores | Read Back Where |
-|---|---|---|---|---|
-| **HOT** | `set_state` / `get_state` | `tools/sibyl_bridge.py`, `apps/api/src/services/sibyl.ts` | Live mission context, active execution stage, pending ceilings | API restart recovery & Mission Trace |
-| **WARM** | `set_entity` / `get_entity` | `tools/sibyl_bridge.py`, `apps/api/src/services/sibyl.ts` | Counterparty relationship profile, reliability, FSM status | `MissionAgent.openMission`, `listCounterpartiesFromSibyl` |
-| **COLD** | `write_event` / `read_events` | `tools/sibyl_bridge.py`, `apps/api/src/services/sibyl.ts` | Immutable mission episode log with provenance actors | `readMemoryJournal`, `GET /api/memory/journal`, MCP tool `memory_journal` |
-| **REFERENCE** | `set_reference` / `get_reference` | `tools/sibyl_bridge.py`, `apps/api/src/services/sibyl.ts` | Cryptographic salts & policy guardrail snapshots | `apps/api/src/services/memory-commitment.ts`, Policy Gate card |
-| **ARCHIVE** | `archive_entity` | `tools/sibyl_bridge.py`, `apps/api/src/services/sibyl.ts` | Blocked / decommissioned counterparties with audit trail | Counterparty catalog query, manual unblock UI |
+Every autonomous counterparty engagement in Aura is decided by ranking candidates over Sibyl Memory records:
+- **Session A**: Operator posts a mission. Candidates `virtuals:agent:alpha` and `virtuals:agent:beta` are evaluated. Alpha initially holds a higher base score (0.50) and is selected. Spend is approved (0.20 USDC ceiling). Alpha delivers an invalid payload (missing JSON schema requirements). The outcome is recorded as a failure via `record_episode`. Alpha's reliability in Sibyl drops from 0.50 to 0.33. Memory diff is rendered, and the new memory state is committed to Base Sepolia.
+- **Process Restart Boundary**: PostgreSQL event store is wiped with `pnpm demo:restart`.
+- **Session B**: The exact same objective is posted to a fresh API process. The agent queries Sibyl WARM memory. Because Alpha's reliability was penalized (0.33), Beta Labs (0.67) wins the procurement auction.
+- **Counterfactual Projection**: The UI renders an active counterfactual diff badge: `"Memory changed this decision by -0.35"`. The counterfactual model projects what would have happened in a stateless world (Alpha would have won without memory), mathematically demonstrating memory's causal impact on financial execution.
 
 ---
 
-### 5. How Memory Made This Possible
-Every autonomous counterparty engagement in Aura is decided by ranking candidates over Sibyl Memory records. Without memory, the agent halts. With memory, previous task failures penalize unreliable actors, directly altering who wins the procurement auction and projecting a counterfactual diff card (`Memory changed this decision by -0.35`). Once settled, the new memory version is committed to Base Sepolia as a cryptographic commitment hash.
+### 7. Partner Stacks
 
----
-
-### 6. Partner Stacks
-
-* **Base Sepolia (L2)**:
+* **Base Sepolia (L2)** — *Verified Production Memory Commitment*:
   - Memory Commitment Service: [`apps/api/src/services/memory-commitment.ts`](apps/api/src/services/memory-commitment.ts)
-  - Cryptographic verification: Salt stored in Sibyl REFERENCE tier; commitment verifiable with `pnpm memory:verify virtuals:agent:alpha 1`.
-  - Transaction Broadcast: Verified Base Sepolia calldata commitment hash.
-* **Virtuals Protocol (ACP)**:
-  - Agent-to-Agent Commerce: [`apps/api/src/acp`](apps/api/src/acp) client runtime, job inbox projection, and operator spend authorization.
+  - Canonical JSON serialization and salted Keccak256 hash generation (`keccak256(canonicalJson(profile) + ":" + salt)`).
+  - Salt stored strictly in Sibyl REFERENCE tier (`commitment:<key>:v<version>`).
+  - Zero-value self-transaction broadcasting the 32-byte hash calldata to Base Sepolia (with deterministic offline hash fallback if testnet RPC is unavailable).
+  - Independent CLI verification:
+    ```bash
+    # State inspection (exit 0)
+    pnpm memory:verify virtuals:agent:beta 1
+    # Adversarial mismatch check (exit 1)
+    pnpm memory:verify virtuals:agent:beta 1 0x0000000000000000000000000000000000000000000000000000000000000000
+    # Authentic cryptographic match (exit 0)
+    pnpm memory:verify virtuals:agent:beta 1 <hash>
+    ```
+* **Virtuals Protocol (ACP)** — *Single-Stack Fallback Posture*:
+  - Agent-to-Agent Commerce client runtime evaluated in `origin/feat/acp_job` ([`apps/api/src/acp`](apps/api/src/acp)).
+  - Single-Stack Fallback Posture: In accordance with hackathon guidelines (`docs/hackathon/04-partner-stacks-plan.md` §1.4), to ensure 100% test integrity, zero flakiness, and deterministic testnet execution without external sandbox registration or third-party bot dependencies during judging, Aura locks into the verified Base Sepolia single-stack posture for cryptographic memory commitments.
 
 ---
 
-### 7. Known Limits
-- **Storage Cap**: Free-tier local Sibyl SQLite capped at 5 MB (sufficient for thousands of counterparty profiles).
-- **Scope**: Single-operator console (non-mainnet testnet environment).
-- **Features**: Paid-tier Sibyl features (`learn`, `lint`) are not required and not used.
+### 8. Multi-Agent Coordination via MCP
+
+Aura implements a Model Context Protocol (MCP) server (`apps/api/src/mcp/server.ts`, `tools.ts`, `stdio.ts`), enabling external agents (Claude Code, Cursor, peer worker agents) and internal Gemini agents to coordinate over shared relationship memory:
+* **`memory_recall_counterparty`**:
+  - Input: `{ counterpartyKey: string }`
+  - Reads Sibyl WARM tier to inspect counterparty reliability scores, Bayesian confidence, and relationship FSM status.
+* **`memory_journal`**:
+  - Input: `{ counterpartyKey?: string, limit?: number }`
+  - Reads Sibyl COLD tier (`readMemoryJournal` / `read_events`) to inspect immutable episode provenance logs and cite specific task failure evidence.
+* **`mission_propose_approval`**:
+  - Input: `{ counterpartyKey: string, amountUsdc: number, reason: string, runId?: string }`
+  - Proposes spend against active policy ceilings while strictly maintaining the Human-in-the-Loop approval invariant (agent proposes; human operator signs).
+* **Native Gemini 2.5 Function-Calling Loop**:
+  - Automatically converts MCP tool definitions into Gemini `FunctionDeclaration` objects (`apps/api/src/mcp/gemini-converter.ts`), enabling multi-turn autonomous tool chaining (e.g. recalling past memory → inspecting journal → proposing spend approval) with live SSE stream telemetry (`thought`, `tool_call`, `token`, `usage`, `done`).
 
 ---
 
-### 8. Prior Work Declaration
+### 9. Known Limits
+
+- **Storage Cap**: Free-tier local Sibyl SQLite capped at 5 MB (sufficient for thousands of counterparty profiles; tests use isolated temporary stores to prevent host cap collisions).
+- **Single Operator & Testnet Scope**: Designed as a single-operator console on Base Sepolia testnet without multi-tenant authentication (Decision 31).
+- **Stream Replay**: Stream playback is event-sourced from PostgreSQL and SSE, not a live cluster tail.
+- **Paid-Tier Features**: Sibyl paid-tier features (`learn`, `lint`) are not required and not used.
+
+---
+
+### 10. Prior Work Declaration
+
 > This repository was created on 26 Aug 2026 as "Aura Console", before the hackathon build window opened. Work that predates 1 Sep 2026: the monorepo skeleton, landing page, onboarding, Console shell, the event-sourced Run API, the product design pack, and a read-only Sibyl Memory bridge with fixture data.  
-> Built during the window (1–10 Sep): the Mission workspace, the MCP tool layer (`tools.ts`, `server.ts`, `stdio.ts`), the Gemini native function-calling loop, the Mission agent scoring from Sibyl, episode write-back and the Bayesian reputation loop, the five-tier memory usage (HOT, WARM, COLD, REFERENCE, ARCHIVE), the Beautiful UI agent harness with synthesized Web Audio (`InteractionSounds.tsx`), the Base memory commitment verifier, the demo instrumentation (`ConsoleTopbar` live clock and commit badge), and the scripted deletion/restart protocols. Full commit history is preserved in `git log`.
+> Built during the window (1–10 Sep): the Mission workspace, the MCP tool layer (`tools.ts`, `server.ts`, `stdio.ts`), the Gemini native function-calling loop (`gemini-agent.ts`, `gemini-converter.ts`), the Mission agent scoring from Sibyl (`mission-agent.ts`), episode write-back and the Bayesian reputation loop, the five-tier memory usage (HOT, WARM, COLD, REFERENCE, ARCHIVE), the Beautiful UI agent harness with synthesized Web Audio (`InteractionSounds.tsx`), the Base memory commitment verifier (`apps/api/src/services/memory-commitment.ts`, `scripts/verify-memory-commitment.ts`), the demo instrumentation (`ConsoleTopbar` live clock and commit badge), and the scripted deletion/restart protocols. Full commit history is preserved in `git log`. No code from other hackathons was reused.
 
 ---
 
-### 9. Team
-- **Harry Phan** — Core Architecture, Memory Tiers, MCP Loop, and UI Primitives
-- **Rick** — Partner Stacks (Base Sepolia, Virtuals ACP)
-- **Lia** — Narration, Documentation, and Submission Delivery
+### 11. Team Roles & Contributions
+
+- **Harry Phan** — Core Architecture, Memory Tiers, MCP Loop, UI Primitives & Astryx Stone Theme
+- **Rick** — Partner Stacks (Base Sepolia Memory Commitment, Virtuals ACP Evaluation)
+- **Lia** — Narration, Documentation, Submission Delivery & Verification
+
+---
+
+### Build-in-Public Social Copy
+
+* **Post 1 — Build Log (Tue/Wed)**:
+  > Building Aura Console for the @sibylcap hackathon. The agent ranks counterparties from Sibyl Memory before it spends; if memory can't be read it refuses to score rather than pretending nobody is there. Today: episode write-back + a Bayesian reputation loop, all in a local SQLite file. Repo: https://github.com/musashi0x/aura_console #SibylHackathon
+
+* **Post 2 — The Demo & Restart Boundary (Wed/Thu)**:
+  > Kill the API, drop the database, keep one file. A fresh process picks a different counterparty because Sibyl remembered the one that failed. Memory version committed to @base Sepolia. 4-minute demo walkthrough · Repo: https://github.com/musashi0x/aura_console · #SibylHackathon #Base
+
 
 ---
 
