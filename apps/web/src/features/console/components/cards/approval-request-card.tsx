@@ -8,7 +8,9 @@ import { Token } from "@astryxdesign/core/Token";
 
 import { console_ } from "@/features/console/copy";
 import type { TimelineEntry } from "@/features/console/model/types";
+import type { Counterfactual } from "@/features/console/projection/counterfactual";
 import { apiClient } from "@/lib/api-client";
+import { CounterfactualView } from "./counterfactual-view";
 import { amount, text } from "./fields";
 
 /**
@@ -35,22 +37,36 @@ export interface ApprovalRequestCardProps {
   runId?: string;
   /** Re-read the Mission so the granted event appears in the stream. */
   onApproved?: () => void;
+  /** Re-read the Mission so the rejected event appears in the stream. */
+  onRejected?: () => void;
+  /** The counterfactual comparison or rationale. */
+  counterfactual?: Counterfactual;
 }
 
-export function ApprovalRequestCard({ entry, runId, onApproved }: ApprovalRequestCardProps) {
+export function ApprovalRequestCard({
+  entry,
+  runId,
+  onApproved,
+  onRejected,
+  counterfactual,
+}: ApprovalRequestCardProps) {
   const copy = console_.cards.approval.pending;
   const [busy, setBusy] = useState(false);
+  const [rejectBusy, setRejectBusy] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [rejectFailed, setRejectFailed] = useState(false);
 
   const d = entry.data;
-  const action = text(d, "action");
+  const action = text(d, "action") ?? text(d, "reason") ?? text(d, "summary");
   const counterparty = text(d, "counterparty_key");
   const ceiling = amount(d, "ceiling_usdc") ?? amount(d, "amount_usdc");
+  const counterfactualRationale = text(d, "counterfactual_rationale");
 
   async function approve() {
-    if (!runId || !ceiling || busy) return;
+    if (!runId || !ceiling || busy || rejectBusy) return;
     setBusy(true);
     setFailed(false);
+    setRejectFailed(false);
     const result = await apiClient.approveRun(runId, ceiling);
     setBusy(false);
     if (!result.ok) {
@@ -60,6 +76,26 @@ export function ApprovalRequestCard({ entry, runId, onApproved }: ApprovalReques
       return;
     }
     onApproved?.();
+  }
+
+  async function reject() {
+    if (!runId || busy || rejectBusy) return;
+    setRejectBusy(true);
+    setFailed(false);
+    setRejectFailed(false);
+    const result = await apiClient.rejectRun(runId);
+    setRejectBusy(false);
+    if (!result.ok) {
+      /* Reported, never swallowed. A rejection that silently failed would
+         leave the operator believing they rejected something. */
+      setRejectFailed(true);
+      return;
+    }
+    if (onRejected) {
+      onRejected();
+    } else {
+      onApproved?.();
+    }
   }
 
   return (
@@ -79,6 +115,14 @@ export function ApprovalRequestCard({ entry, runId, onApproved }: ApprovalReques
       {counterparty ? <Field label={copy.counterparty} value={counterparty} /> : null}
       {ceiling ? <Field label={copy.ceilingLabel} value={ceiling} /> : null}
 
+      {counterfactual && counterfactual.status !== "UNAVAILABLE" ? (
+        <CounterfactualView counterfactual={counterfactual} />
+      ) : counterfactualRationale ? (
+        <Field label="Counterfactual" value={counterfactualRationale} />
+      ) : counterfactual ? (
+        <CounterfactualView counterfactual={counterfactual} />
+      ) : null}
+
       {/* No ceiling, no button: there is nothing to approve against. */}
       {ceiling === null ? (
         <Text as="p" size="xsm" color="secondary">
@@ -93,8 +137,15 @@ export function ApprovalRequestCard({ entry, runId, onApproved }: ApprovalReques
             <Button
               label={busy ? copy.approving : copy.approve}
               onClick={approve}
-              isDisabled={busy}
+              isDisabled={busy || rejectBusy}
               isLoading={busy}
+            />
+            <Button
+              label={rejectBusy ? "Rejecting…" : "Reject"}
+              variant="secondary"
+              onClick={reject}
+              isDisabled={busy || rejectBusy}
+              isLoading={rejectBusy}
             />
           </HStack>
           <Text as="p" size="xsm" color="secondary">
@@ -103,6 +154,11 @@ export function ApprovalRequestCard({ entry, runId, onApproved }: ApprovalReques
           {failed ? (
             <Text as="p" size="xsm" color="secondary">
               {copy.failed}
+            </Text>
+          ) : null}
+          {rejectFailed ? (
+            <Text as="p" size="xsm" color="secondary">
+              The rejection was not recorded.
             </Text>
           ) : null}
         </VStack>

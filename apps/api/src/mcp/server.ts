@@ -11,6 +11,7 @@ import {
   guardrailsGetPoliciesTool,
   memoryListCounterpartiesTool,
   memoryRecallCounterpartyTool,
+  missionProposeApprovalTool,
 } from "./tools.js";
 
 /**
@@ -114,6 +115,28 @@ export function createAuraMcpServer(): McpServer {
     {},
     async () => {
       const result = await guardrailsGetPoliciesTool.execute({});
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    },
+  );
+
+  server.tool(
+    "mission_propose_approval",
+    missionProposeApprovalTool.description,
+    {
+      counterpartyKey: z.string().min(1, "counterpartyKey is required"),
+      amountUsdc: z.union([z.string(), z.number()]),
+      reason: z.string().min(1, "reason is required"),
+      runId: z.string().uuid().optional(),
+    },
+    async ({ counterpartyKey, amountUsdc, reason, runId }) => {
+      const result = await missionProposeApprovalTool.execute({
+        counterpartyKey,
+        amountUsdc,
+        reason,
+        runId,
+      });
       return {
         content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
       };

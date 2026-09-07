@@ -22,8 +22,9 @@ const approveSchema = z.object({
 
 export const approvals = new Hono();
 
-const REQUESTED = "approval.requested";
-const GRANTED = "approval.granted";
+const rejectSchema = z.object({
+  reason: z.string().optional(),
+});
 
 /**
  * The only path to an economic authorization.
@@ -68,51 +69,51 @@ approvals.post("/:runId/approve", async (c) => {
     );
   }
 
-  const run = await store.getRun(runId.data);
-  if (!run) throw httpError(404, "run_not_found", `No Run ${runId.data}`);
-
-  /* Read the log rather than trust the caller. The pending request is a fact
-     about the Run, and a client that believed one was pending when it was not
-     would otherwise author an approval out of nothing. */
-  const events = await store.listEvents(runId.data);
-  const lastRequested = events.filter((e) => e.type === REQUESTED).at(-1);
-  if (!lastRequested) {
-    throw httpError(
-      409,
-      "no_pending_approval",
-      "Nothing has asked for approval on this Mission, so there is nothing to approve.",
-    );
-  }
-  const grantedAfter = events.some(
-    (e) => e.type === GRANTED && e.sequence > lastRequested.sequence,
-  );
-  if (grantedAfter) {
-    throw httpError(
-      409,
-      "already_approved",
-      "This request was already approved. A second grant would authorize a second action.",
-    );
-  }
-
-  const requested = (lastRequested.data ?? {}) as Record<string, unknown>;
-  const { event } = await store.appendEvent({
+  const { event } = await store.recordApprovalDecision({
     runId: runId.data,
     eventId: randomUUID(),
-    type: GRANTED,
-    eventTime: new Date(),
-    data: {
-      summary: "Operator approved the requested action",
-      ceiling_usdc: parsed.data.ceiling_usdc,
-      /* Carried from the request so the grant names the same action that was
-         asked about, rather than whatever the client chose to send. */
-      approves_event_id: lastRequested.eventId,
-      action: requested.action ?? null,
-      counterparty_key: requested.counterparty_key ?? null,
-      /* v0.1 has no account model, so this records HOW the approval arrived,
-         not WHO gave it. Naming an operator we cannot authenticate would be a
-         claim the deployment cannot support. */
-      granted_via: "console_operator_click",
-    },
+    decision: "approve",
+    ceilingUsdc: parsed.data.ceiling_usdc,
+  });
+
+  return c.json({ event: { event_id: event.eventId, type: event.type, sequence: event.sequence } }, 201);
+});
+
+/**
+ * Operator rejection of an economic authorization request.
+ *
+ * Like approve, it requires a pending `approval.requested` event and refuses to reject
+ * an already granted or already rejected request.
+ */
+approvals.post("/:runId/reject", async (c) => {
+  const runId = uuidSchema.safeParse(c.req.param("runId"));
+  if (!runId.success) {
+    throw httpError(400, "invalid_run_id", `${c.req.param("runId")} is not a valid Run id`);
+  }
+
+  let body: unknown = {};
+  const rawBody = await c.req.text();
+  if (rawBody.trim().length > 0) {
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
+      throw httpError(400, "invalid_body", "The rejection needs a valid JSON body.");
+    }
+  }
+  const parsed = rejectSchema.safeParse(body);
+  if (!parsed.success) {
+    throw httpError(
+      422,
+      "invalid_reason",
+      parsed.error.issues[0]?.message ?? "reason must be a string",
+    );
+  }
+
+  const { event } = await store.recordApprovalDecision({
+    runId: runId.data,
+    eventId: randomUUID(),
+    decision: "reject",
+    reason: parsed.data.reason,
   });
 
   return c.json({ event: { event_id: event.eventId, type: event.type, sequence: event.sequence } }, 201);

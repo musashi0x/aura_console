@@ -38,6 +38,8 @@ export interface EventCardProps {
   runId?: string;
   /** Re-read the Mission after an approval lands. */
   onApproved?: () => void;
+  /** Re-read the Mission after an approval rejection lands. */
+  onRejected?: () => void;
   /**
    * The no-memory comparison, folded from this Mission's recorded events.
    *
@@ -108,7 +110,13 @@ function retrievalStatus(value: string | null): RetrievalStatus | null {
   return RETRIEVAL_STATUSES.find((status) => status === value) ?? null;
 }
 
-export function EventCard({ entry, runId, onApproved, counterfactual }: EventCardProps) {
+export function EventCard({
+  entry,
+  runId,
+  onApproved,
+  onRejected,
+  counterfactual,
+}: EventCardProps) {
   const d = entry.data;
   const copy = console_.cards;
 
@@ -147,7 +155,15 @@ export function EventCard({ entry, runId, onApproved, counterfactual }: EventCar
     /* The pending request. Its own component because it is the only card that
        carries a control, and that deserves to be read in one place. */
     case "approval.requested": {
-      return <ApprovalRequestCard entry={entry} runId={runId} onApproved={onApproved} />;
+      return (
+        <ApprovalRequestCard
+          entry={entry}
+          runId={runId}
+          onApproved={onApproved}
+          onRejected={onRejected}
+          counterfactual={counterfactual}
+        />
+      );
     }
 
     case "policy.evaluated": {

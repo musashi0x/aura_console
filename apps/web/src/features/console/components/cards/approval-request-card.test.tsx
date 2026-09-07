@@ -3,12 +3,19 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { TimelineEntry } from "@/features/console/model/types";
+import type { Counterfactual } from "@/features/console/projection/counterfactual";
 
 const api = vi.hoisted(() => ({
   approve: vi.fn(async () => ({ ok: true as const, data: { event: { event_id: "e", type: "approval.granted", sequence: 5 } } })),
+  reject: vi.fn(async () => ({ ok: true as const, data: { event: { event_id: "e", type: "approval.rejected", sequence: 5 } } })),
 }));
 
-vi.mock("@/lib/api-client", () => ({ apiClient: { approveRun: api.approve } }));
+vi.mock("@/lib/api-client", () => ({
+  apiClient: {
+    approveRun: api.approve,
+    rejectRun: api.reject,
+  },
+}));
 
 const { ApprovalRequestCard } = await import("./approval-request-card");
 
@@ -39,8 +46,22 @@ const PENDING = requested({
   ceiling_usdc: "25.000000",
 });
 
+const CHANGED: Counterfactual = {
+  status: "DECISION_CHANGED",
+  withMemory: [
+    { key: "virtuals:agent:beta", score: 92 },
+    { key: "virtuals:agent:gamma", score: 85 },
+  ],
+  withoutMemory: [
+    { key: "virtuals:agent:gamma", score: 85 },
+    { key: "virtuals:agent:beta", score: 82 },
+  ],
+  explanation: "Beta ranked higher due to historical reliability.",
+};
+
 beforeEach(() => {
   api.approve.mockClear();
+  api.reject.mockClear();
 });
 
 describe("the approval control", () => {
@@ -55,12 +76,13 @@ describe("the approval control", () => {
     // Rendering is not consent. Nothing on a render path may approve.
     render(<ApprovalRequestCard entry={PENDING} runId="run-1" />);
     expect(api.approve).not.toHaveBeenCalled();
+    expect(api.reject).not.toHaveBeenCalled();
   });
 
   it("sends the ceiling the request recorded, not one it invented", async () => {
     const onApproved = vi.fn();
     render(<ApprovalRequestCard entry={PENDING} runId="run-1" onApproved={onApproved} />);
-    await userEvent.click(screen.getByRole("button", { name: /approve/i }));
+    await userEvent.click(screen.getByRole("button", { name: /^approve/i }));
 
     expect(api.approve).toHaveBeenCalledTimes(1);
     expect(api.approve).toHaveBeenCalledWith("run-1", "25.000000");
@@ -70,13 +92,15 @@ describe("the approval control", () => {
   it("offers no control on example data, which has no Run to authorize", async () => {
     // Labelling a fixture is not enough when the control would act.
     render(<ApprovalRequestCard entry={PENDING} />);
-    expect(screen.queryByRole("button", { name: /approve/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^approve/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^reject/i })).not.toBeInTheDocument();
   });
 
   it("offers no control when the request carries no ceiling", async () => {
     // Approving to an unknown limit is a blank cheque.
     render(<ApprovalRequestCard entry={requested({ action: "Fund the job" })} runId="run-1" />);
-    expect(screen.queryByRole("button", { name: /approve/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^approve/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^reject/i })).not.toBeInTheDocument();
     expect(screen.getByText(/nothing to approve against/i)).toBeInTheDocument();
   });
 
@@ -89,9 +113,74 @@ describe("the approval control", () => {
     } as never);
     const onApproved = vi.fn();
     render(<ApprovalRequestCard entry={PENDING} runId="run-1" onApproved={onApproved} />);
-    await userEvent.click(screen.getByRole("button", { name: /approve/i }));
+    await userEvent.click(screen.getByRole("button", { name: /^approve/i }));
 
     expect(screen.getByText(/was not recorded, so nothing was authorized/i)).toBeInTheDocument();
     expect(onApproved).not.toHaveBeenCalled();
+  });
+
+  it("rejects run on operator click and invokes onRejected", async () => {
+    const onRejected = vi.fn();
+    render(<ApprovalRequestCard entry={PENDING} runId="run-1" onRejected={onRejected} />);
+    await userEvent.click(screen.getByRole("button", { name: /^reject/i }));
+
+    expect(api.reject).toHaveBeenCalledTimes(1);
+    expect(api.reject).toHaveBeenCalledWith("run-1");
+    expect(onRejected).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to onApproved if onRejected is omitted", async () => {
+    const onApproved = vi.fn();
+    render(<ApprovalRequestCard entry={PENDING} runId="run-1" onApproved={onApproved} />);
+    await userEvent.click(screen.getByRole("button", { name: /^reject/i }));
+
+    expect(api.reject).toHaveBeenCalledTimes(1);
+    expect(onApproved).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports failure when rejection fails", async () => {
+    api.reject.mockResolvedValueOnce({
+      ok: false as const,
+      error: { code: "already_resolved", message: "cannot reject" },
+    } as never);
+    const onRejected = vi.fn();
+    render(<ApprovalRequestCard entry={PENDING} runId="run-1" onRejected={onRejected} />);
+    await userEvent.click(screen.getByRole("button", { name: /^reject/i }));
+
+    expect(screen.getByText(/The rejection was not recorded/i)).toBeInTheDocument();
+    expect(onRejected).not.toHaveBeenCalled();
+  });
+
+  it("falls back from action to reason, then to summary", () => {
+    const withReason = requested({
+      reason: "Proposed contract draft",
+      ceiling_usdc: "10.000000",
+    });
+    const { unmount } = render(<ApprovalRequestCard entry={withReason} runId="run-1" />);
+    expect(screen.getByText("Proposed contract draft")).toBeInTheDocument();
+    unmount();
+
+    const withSummary = requested({
+      summary: "Proposal summary fallback",
+      amount_usdc: "15.000000",
+    });
+    render(<ApprovalRequestCard entry={withSummary} runId="run-1" />);
+    expect(screen.getByText("Proposal summary fallback")).toBeInTheDocument();
+    expect(screen.getByText("15.000000")).toBeInTheDocument();
+  });
+
+  it("renders counterfactual view when counterfactual prop is provided", () => {
+    render(<ApprovalRequestCard entry={PENDING} runId="run-1" counterfactual={CHANGED} />);
+    expect(screen.getByRole("button", { name: /compare without memory/i })).toBeInTheDocument();
+  });
+
+  it("renders inline counterfactual rationale when present in event data", () => {
+    const withRationale = requested({
+      action: "Spend with beta",
+      ceiling_usdc: "20.000000",
+      counterfactual_rationale: "Sibyl memory checked: Beta Labs has 96% reliability.",
+    });
+    render(<ApprovalRequestCard entry={withRationale} runId="run-1" />);
+    expect(screen.getByText("Sibyl memory checked: Beta Labs has 96% reliability.")).toBeInTheDocument();
   });
 });

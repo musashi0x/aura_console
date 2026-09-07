@@ -29,6 +29,9 @@ const RUN_STATUS_BY_TYPE: Record<string, RunStatus> = {
   "run.completed": "COMPLETED",
   "run.failed": "FAILED",
   "run.cancelled": "CANCELLED",
+  "approval.requested": "WAITING_APPROVAL",
+  "approval.granted": "RUNNING",
+  "approval.rejected": "CANCELLED",
 };
 
 const RETRIEVAL_BY_TYPE: Record<string, RetrievalStatus> = {
@@ -102,7 +105,7 @@ export function foldRun(
         domain: str(event.data?.domain) ?? "unknown",
         retryable: event.data?.retryable === true,
       };
-    } else if (event.type === "run.resumed" || event.type === "approval.granted") {
+    } else if (event.type === "run.resumed" || event.type === "approval.granted" || event.type === "approval.rejected") {
       attention = { kind: "NONE" };
     }
 

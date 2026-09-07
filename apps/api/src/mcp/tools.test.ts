@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { app } from "../app.js";
+import { env } from "../env.js";
+import { PolicyStore } from "../services/policy-store.js";
 import {
   consoleGetMissionTool,
   consoleGetReadinessTool,
@@ -9,6 +11,7 @@ import {
   consoleToggleMemoryViewTool,
   guardrailsGetPoliciesTool,
   memoryRecallCounterpartyTool,
+  missionProposeApprovalTool,
 } from "./tools.js";
 
 describe("MCP Console Tools", () => {
@@ -56,6 +59,91 @@ describe("MCP Console Tools", () => {
     const result = await guardrailsGetPoliciesTool.execute({});
     expect(result.policy).toBeDefined();
   });
+
+  it("executes mission_propose_approval without runId", async () => {
+    const result = await missionProposeApprovalTool.execute({
+      counterpartyKey: "virtuals:agent:alpha",
+      amountUsdc: "10.000000",
+      reason: "Draft research proposal",
+    });
+    expect(result.proposed).toBe(true);
+    expect(result.counterpartyKey).toBe("virtuals:agent:alpha");
+    expect(result.amountUsdc).toBe("10.000000");
+    expect(result.status).toBe("AWAITING_APPROVAL");
+    expect(result.policyEvaluation).toBeDefined();
+    expect(result.memoryRetrieval).toBeDefined();
+    expect(typeof result.counterfactualRationale).toBe("string");
+    expect(result.eventId).toBeUndefined();
+  });
+
+  it("executes mission_propose_approval with runId and appends approval.requested", async () => {
+    const createRes = await app.request("/api/runs", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ objective: "Evaluate counterparty spend" }),
+    });
+    const { run } = (await createRes.json()) as { run: { id: string } };
+
+    const result = await missionProposeApprovalTool.execute({
+      counterpartyKey: "virtuals:agent:alpha",
+      amountUsdc: 15,
+      reason: "Draft research task",
+      runId: run.id,
+    });
+    expect(result.proposed).toBe(true);
+    expect(result.runId).toBe(run.id);
+    expect(result.amountUsdc).toBe("15.000000");
+    expect(result.eventId).toBeDefined();
+
+    const eventsRes = await app.request(`/api/runs/${run.id}/events`);
+    const { events } = (await eventsRes.json()) as {
+      events: { type: string; data: Record<string, unknown> }[];
+    };
+    const requested = events.find((e) => e.type === "approval.requested");
+    expect(requested).toBeDefined();
+    expect(requested?.data.counterparty_key).toBe("virtuals:agent:alpha");
+    expect(requested?.data.amount_usdc).toBe("15.000000");
+    expect(requested?.data.ceiling_usdc).toBe("15.000000");
+    expect(requested?.data.reason).toBe("Draft research task");
+    expect(requested?.data.action).toBe("Spend 15 USDC with virtuals:agent:alpha");
+  });
+
+  it("denies spend and does not append event when absolute spend limit is exceeded", async () => {
+    const policyStore = new PolicyStore();
+    await policyStore.put(env.AGENT_ID, {
+      auto_spend_limit_usdc: "10.000000",
+      human_approval_above_usdc: "20.000000",
+      absolute_spend_limit_usdc: "50.000000",
+    });
+
+    const createRes = await app.request("/api/runs", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ objective: "Evaluate excessive spend" }),
+    });
+    const { run } = (await createRes.json()) as { run: { id: string } };
+
+    const result = await missionProposeApprovalTool.execute({
+      counterpartyKey: "virtuals:agent:alpha",
+      amountUsdc: "100.000000",
+      reason: "Proposed excessive spend",
+      runId: run.id,
+    });
+
+    expect(result.proposed).toBe(false);
+    expect(result.status).toBe("DENIED");
+    expect(result.policyEvaluation.mode).toBe("DENY");
+    expect(result.policyEvaluation.allowedByPolicy).toBe(false);
+    expect(result.policyEvaluation.reason).toContain("exceeds absolute spend limit");
+    expect(result.eventId).toBeUndefined();
+
+    const eventsRes = await app.request(`/api/runs/${run.id}/events`);
+    const { events } = (await eventsRes.json()) as {
+      events: { type: string }[];
+    };
+    const requested = events.find((e) => e.type === "approval.requested");
+    expect(requested).toBeUndefined();
+  });
 });
 
 describe("MCP HTTP Endpoints", () => {
@@ -66,6 +154,7 @@ describe("MCP HTTP Endpoints", () => {
     expect(body.ok).toBe(true);
     expect(body.tools.some((t) => t.name === "console_navigate")).toBe(true);
     expect(body.tools.some((t) => t.name === "memory_recall_counterparty")).toBe(true);
+    expect(body.tools.some((t) => t.name === "mission_propose_approval")).toBe(true);
   });
 
   it("invokes an MCP tool at POST /api/mcp/tools/:toolName", async () => {
@@ -78,6 +167,138 @@ describe("MCP HTTP Endpoints", () => {
     const body = (await res.json()) as { ok: boolean; result: { destination: string } };
     expect(body.ok).toBe(true);
     expect(body.result.destination).toBe("/policies");
+  });
+
+  it("invokes mission_propose_approval at POST /api/mcp/tools/:toolName", async () => {
+    const res = await app.request("/api/mcp/tools/mission_propose_approval", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        counterpartyKey: "virtuals:agent:alpha",
+        amountUsdc: "10.000000",
+        reason: "Purchase dataset",
+      }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      ok: boolean;
+      result: { proposed: boolean; status: string; amountUsdc: string };
+    };
+    expect(body.ok).toBe(true);
+    expect(body.result.proposed).toBe(true);
+    expect(body.result.status).toBe("AWAITING_APPROVAL");
+    expect(body.result.amountUsdc).toBe("10.000000");
+  });
+
+  it("validates parameters for mission_propose_approval", async () => {
+    const missingKey = await app.request("/api/mcp/tools/mission_propose_approval", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        amountUsdc: "10.000000",
+        reason: "Purchase dataset",
+      }),
+    });
+    expect(missingKey.status).toBe(400);
+
+    const missingReason = await app.request("/api/mcp/tools/mission_propose_approval", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        counterpartyKey: "virtuals:agent:alpha",
+        amountUsdc: "10.000000",
+      }),
+    });
+    expect(missingReason.status).toBe(400);
+
+    const invalidRun = await app.request("/api/mcp/tools/mission_propose_approval", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        counterpartyKey: "virtuals:agent:alpha",
+        amountUsdc: "10.000000",
+        reason: "Purchase dataset",
+        runId: "not-a-uuid",
+      }),
+    });
+    expect(invalidRun.status).toBe(400);
+
+    const whitespaceKey = await app.request("/api/mcp/tools/mission_propose_approval", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        counterpartyKey: "    ",
+        amountUsdc: "10.000000",
+        reason: "Purchase dataset",
+      }),
+    });
+    expect(whitespaceKey.status).toBe(400);
+
+    const whitespaceReason = await app.request("/api/mcp/tools/mission_propose_approval", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        counterpartyKey: "virtuals:agent:alpha",
+        amountUsdc: "10.000000",
+        reason: "    ",
+      }),
+    });
+    expect(whitespaceReason.status).toBe(400);
+
+    const negativeAmount = await app.request("/api/mcp/tools/mission_propose_approval", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        counterpartyKey: "virtuals:agent:alpha",
+        amountUsdc: -10,
+        reason: "Negative spend",
+      }),
+    });
+    expect(negativeAmount.status).toBe(400);
+
+    const nonNumericAmount = await app.request("/api/mcp/tools/mission_propose_approval", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        counterpartyKey: "virtuals:agent:alpha",
+        amountUsdc: "not-a-number",
+        reason: "Invalid amount",
+      }),
+    });
+    expect(nonNumericAmount.status).toBe(400);
+
+    const zeroAmount = await app.request("/api/mcp/tools/mission_propose_approval", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        counterpartyKey: "virtuals:agent:alpha",
+        amountUsdc: 0,
+        reason: "Zero spend",
+      }),
+    });
+    expect(zeroAmount.status).toBe(400);
+  });
+
+  it("handles unknown runId cleanly without crashing into unhandled 500", async () => {
+    const res = await app.request("/api/mcp/tools/mission_propose_approval", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        counterpartyKey: "virtuals:agent:alpha",
+        amountUsdc: "10.000000",
+        reason: "Test unknown run",
+        runId: "00000000-0000-0000-0000-000000000000",
+      }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      ok: boolean;
+      result: { proposed: boolean; status: string; policyEvaluation: { reason: string } };
+    };
+    expect(body.ok).toBe(true);
+    expect(body.result.proposed).toBe(false);
+    expect(body.result.status).toBe("DENIED");
+    expect(body.result.policyEvaluation.reason).toContain("not found");
   });
 
   it("returns 404 for unknown MCP tool", async () => {
