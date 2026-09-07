@@ -213,7 +213,6 @@ export function ConsoleChat({
   }, [end]);
 
   function ask(question: string) {
-    if (!runId) return;
     counterRef.current += 1;
     const turn = counterRef.current;
     const agentId = `agent-${turn}`;
@@ -238,16 +237,29 @@ export function ConsoleChat({
       );
 
     handleRef.current?.close();
+    const chatUrl = runId
+      ? `${env.NEXT_PUBLIC_API_URL}/api/runs/${encodeURIComponent(runId)}/chat?q=${encodeURIComponent(question)}`
+      : `${env.NEXT_PUBLIC_API_URL}/api/chat?q=${encodeURIComponent(question)}`;
+
     handleRef.current = openChatStream({
       // GET only. EventSource cannot issue anything else, which is why the
       // read-only requirement holds without a separate guard.
-      url: `${env.NEXT_PUBLIC_API_URL}/api/runs/${encodeURIComponent(runId)}/chat?q=${encodeURIComponent(question)}`,
+      url: chatUrl,
       onToken: (text) => {
         push(text);
         update((m) => ({ ...m, text: m.text + text }));
       },
       onCitation: (citation) =>
         update((m) => ({ ...m, citations: [...m.citations, citation] })),
+      onToolCall: (toolCall) => {
+        update((m) => ({
+          ...m,
+          toolCalls: [...(m.toolCalls ?? []), toolCall],
+        }));
+        if (toolCall.name === "console_navigate" && typeof toolCall.args?.destination === "string") {
+          router.push(toolCall.args.destination);
+        }
+      },
       onState: setConnection,
       onDone: () => {
         end();
@@ -301,10 +313,10 @@ export function ConsoleChat({
       return;
     }
 
-    // Not a command, so it is a question. Questions need a Run to be about and
-    // an agent to answer them; without either the console says so rather than
-    // producing something that reads like an answer.
-    if (!runId) {
+    // Not a command, so it is a question. Questions need an agent to answer
+    // them; without one the console says so rather than producing something
+    // that reads like an answer.
+    if (!runId && grounding?.agentReachable !== true) {
       reportConsole(said, console_.chat.did.cannotAnswer);
       return;
     }
@@ -439,8 +451,16 @@ export function ConsoleChat({
                         : console_.chat.agent
                   }
                   metadata={
-                    message.citations.length > 0 ? (
+                    message.citations.length > 0 || (message.toolCalls && message.toolCalls.length > 0) ? (
                       <HStack gap={1} wrap="wrap">
+                        {message.toolCalls?.map((tool, idx) => (
+                          <Token
+                            key={`tool-${idx}-${tool.name}`}
+                            label={`MCP: ${tool.name}`}
+                            size="sm"
+                            color="cyan"
+                          />
+                        ))}
                         {message.citations.map((citation) => {
                           const index = sources.findIndex(
                             (s) =>

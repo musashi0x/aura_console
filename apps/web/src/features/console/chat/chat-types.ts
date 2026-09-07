@@ -1,3 +1,9 @@
+export interface McpToolCall {
+  name: string;
+  args: Record<string, unknown>;
+  result?: unknown;
+}
+
 /** One turn in the thread. The agent never speaks unless a stream produced it. */
 export interface ChatMessage {
   id: string;
@@ -14,6 +20,8 @@ export interface ChatMessage {
   complete: boolean;
   /** Sibyl memory records the answer cited, from #32. Empty until that lands. */
   citations: MemoryCitation[];
+  /** MCP tool calls executed during this turn */
+  toolCalls?: McpToolCall[];
 }
 
 /**
