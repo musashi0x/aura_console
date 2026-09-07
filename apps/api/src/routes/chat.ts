@@ -5,8 +5,10 @@ import { z } from "zod";
 import { httpError } from "../errors.js";
 import {
   consoleGetReadinessTool,
+  consoleListMissionsTool,
   consoleNavigateTool,
   consoleToggleMemoryViewTool,
+  guardrailsGetPoliciesTool,
   memoryRecallCounterpartyTool,
   type ConsoleDestination,
 } from "../mcp/tools.js";
@@ -151,7 +153,54 @@ globalChat.get("/", async (c) => {
       return;
     }
 
-    // 4. MCP Memory Recall / Counterparty Inquiry
+    // 4. MCP Guardrails / Policies Tool Call
+    if (
+      norm.includes("guardrail") ||
+      norm.includes("policy") ||
+      norm.includes("policies") ||
+      norm.includes("limit") ||
+      norm.includes("ceiling") ||
+      norm.includes("spend limit")
+    ) {
+      const toolResult = await guardrailsGetPoliciesTool.execute({});
+      await stream.writeSSE({
+        event: "tool_call",
+        data: JSON.stringify({ name: "guardrails_get_policies", args: {}, result: toolResult }),
+      });
+      const pol = toolResult.policy;
+      const autoLimit = pol?.auto_spend_limit_usdc ? `$${pol.auto_spend_limit_usdc} USDC` : "None";
+      const approvalLimit = pol?.human_approval_above_usdc ? `$${pol.human_approval_above_usdc} USDC` : "None";
+      const minRel = pol?.minimum_reliability ? `${pol.minimum_reliability}%` : "Not enforced";
+      const summary = `Active Guardrail Policies for agent ${toolResult.agentId}:\n- Auto-Spend Limit: ${autoLimit}\n- Human Approval Required Above: ${approvalLimit}\n- Minimum Reliability Threshold: ${minRel}\n- Prefer Previous Success: ${pol?.prefer_previous_success ? "Enabled" : "Disabled"}`;
+      await stream.writeSSE({ event: "token", data: summary });
+      await stream.writeSSE({ event: "done", data: "" });
+      return;
+    }
+
+    // 5. MCP List Missions Tool Call
+    if (
+      norm.includes("list mission") ||
+      norm.includes("show mission") ||
+      norm.includes("recent mission") ||
+      norm.includes("list run") ||
+      norm.includes("recent run")
+    ) {
+      const toolResult = await consoleListMissionsTool.execute({ limit: 5 });
+      await stream.writeSSE({
+        event: "tool_call",
+        data: JSON.stringify({ name: "console_list_missions", args: { limit: 5 }, result: toolResult }),
+      });
+      const count = toolResult.count;
+      const missionsList = toolResult.missions
+        .map((m) => `• ${m.objective || "Untitled"} (${m.id.slice(0, 8)}) - Budget: ${m.budgetUsdc ? `$${m.budgetUsdc} USDC` : "Open"}`)
+        .join("\n");
+      const summary = `Recent Missions (${count} found):\n${missionsList}`;
+      await stream.writeSSE({ event: "token", data: summary });
+      await stream.writeSSE({ event: "done", data: "" });
+      return;
+    }
+
+    // 6. MCP Memory Recall / Counterparty Inquiry
     const isCounterpartyQuery =
       norm.includes("counterparty") ||
       norm.includes("chosen") ||
