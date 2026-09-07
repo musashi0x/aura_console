@@ -196,7 +196,7 @@ export class MissionExecutionService {
       const txHash = `0x${randomBytes(32).toString("hex")}`;
       await this.append(runId, SETTLED, {
         summary: "Payment settled on-chain",
-        network: options.network ?? "sui:local",
+        network: options.network ?? "base:sepolia",
         amount_usdc: amountUsdc,
         tx_hash: txHash,
         reference: txHash,

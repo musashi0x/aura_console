@@ -3,7 +3,9 @@ import { Hono } from "hono";
 
 import { errorBody } from "../errors.js";
 import { getAgentStatus } from "../services/adk-agent.js";
+import { getBaseRpcStatus } from "../services/base-rpc.js";
 import { getSibylStatus } from "../services/sibyl.js";
+import { getVirtualsAcpStatus } from "../services/virtuals-acp.js";
 
 export const health = new Hono();
 
@@ -48,3 +50,9 @@ health.get("/sibyl", async (c) => c.json(await getSibylStatus()));
  * not.
  */
 health.get("/agent", async (c) => c.json(await getAgentStatus()));
+
+/** Readiness of Base L2 JSON-RPC endpoint. */
+health.get("/base", async (c) => c.json(await getBaseRpcStatus()));
+
+/** Readiness of Virtuals ACP integration. */
+health.get("/acp", async (c) => c.json(await getVirtualsAcpStatus()));
