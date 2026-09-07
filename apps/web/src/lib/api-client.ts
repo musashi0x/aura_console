@@ -143,6 +143,14 @@ export interface RunEvent {
   data: unknown;
 }
 
+export interface LogEntry {
+  id: string;
+  runId: string;
+  stream: "stdout" | "stderr" | "system";
+  text: string;
+  timestamp: string;
+}
+
 // ── Counterparty memory ─────────────────────────────────────────────────────
 //
 // These mirror `GET /api/counterparties/{key}/memory` and its `/records`
@@ -274,6 +282,25 @@ export const apiClient = {
   listSibylCounterparties: () =>
     request<{ items: SibylCounterparty[] }>("/api/memory/counterparties"),
 
+  unblockCounterparty: (
+    counterpartyKey: string,
+    options: { unblockedBy: string; reason: string } = {
+      unblockedBy: "operator",
+      reason: "Manual operator unblock via console",
+    },
+  ) =>
+    request<{
+      ok: boolean;
+      counterpartyKey: string;
+      newStatus: string;
+      unblockedBy: string;
+      reason: string;
+    }>(`/api/counterparties/${encodeURIComponent(counterpartyKey)}/unblock`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(options),
+    }),
+
   // ── Runs ────────────────────────────────────────────────────────────────
   //
   // Only endpoints that exist. There is deliberately no `stream` method: the
@@ -285,6 +312,10 @@ export const apiClient = {
   getRunEvents: (runId: string) =>
     request<{ runId: string; events: RunEvent[] }>(
       `/api/runs/${encodeURIComponent(runId)}/events`,
+    ),
+  getRunLogs: (runId: string) =>
+    request<{ runId: string; entries: LogEntry[] }>(
+      `/api/runs/${encodeURIComponent(runId)}/logs`,
     ),
 
   // ── Counterparty memory ─────────────────────────────────────────────────

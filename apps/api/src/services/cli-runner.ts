@@ -415,7 +415,198 @@ export class WorktreeManager {
   async createSession(runId: string, options?: WorktreeOptions): Promise<WorktreeSession> {
     return createWorktreeSession(runId, { ...this.defaultOptions, ...options });
   }
+
+  async cleanupOrphans(options?: WorktreeGcOptions): Promise<WorktreeGcResult> {
+    return cleanupOrphanWorktrees({
+      repoRoot: this.defaultOptions.repoRoot,
+      executor: this.defaultOptions.executor,
+      ...options,
+    });
+  }
 }
+
+export interface WorktreeGcOptions {
+  repoRoot?: string;
+  executor?: CommandExecutor;
+  /** Maximum age in milliseconds before a mission worktree is considered orphan. Default: 10 minutes (600_000ms). */
+  maxAgeMs?: number;
+  /** If true, removes all mission worktrees regardless of age. */
+  forceAll?: boolean;
+  /** Set of currently active run IDs to protect from cleanup. */
+  activeRunIds?: Set<string>;
+}
+
+export interface WorktreeGcResult {
+  cleaned: string[];
+  skipped: string[];
+  failed: { path: string; error: string }[];
+}
+
+/**
+ * Garbage Collector for orphan Git worktrees.
+ *
+ * Scans `git worktree list --porcelain` and the `.worktrees/` directory for detached
+ * mission worktrees left behind by abnormal exits, process crashes, or OOM events.
+ * Prunes stale worktrees exceeding `maxAgeMs` (or all if `forceAll: true`).
+ */
+export async function cleanupOrphanWorktrees(
+  options: WorktreeGcOptions = {},
+): Promise<WorktreeGcResult> {
+  const executor = options.executor ?? defaultCommandExecutor;
+  const repoRoot = options.repoRoot ?? process.cwd();
+  const maxAgeMs = options.maxAgeMs ?? 10 * 60 * 1000; // 10 minutes default
+  const forceAll = options.forceAll ?? false;
+  const activeRunIds = options.activeRunIds ?? new Set<string>();
+
+  const cleaned: string[] = [];
+  const skipped: string[] = [];
+  const failed: { path: string; error: string }[] = [];
+
+  // 1. Query git worktree list
+  try {
+    const listResult = await executor("git", ["worktree", "list", "--porcelain"], {
+      cwd: repoRoot,
+    });
+
+    if (listResult.exitCode === 0) {
+      const lines = listResult.stdout.split("\n");
+      const worktreePaths: string[] = [];
+
+      for (const line of lines) {
+        if (line.startsWith("worktree ")) {
+          const wtPath = line.substring("worktree ".length).trim();
+          if (wtPath.includes(".worktrees") || wtPath.includes("mission-")) {
+            worktreePaths.push(wtPath);
+          }
+        }
+      }
+
+      const now = Date.now();
+      for (const wtPath of worktreePaths) {
+        // Check if path corresponds to an active run ID
+        let isActive = false;
+        for (const runId of activeRunIds) {
+          const sanitized = runId.replace(/[^a-zA-Z0-9_-]/g, "_");
+          if (wtPath.includes(sanitized) || wtPath.includes(runId)) {
+            isActive = true;
+            break;
+          }
+        }
+
+        if (isActive) {
+          skipped.push(wtPath);
+          continue;
+        }
+
+        // Check file modification age
+        let isStale = forceAll;
+        if (!isStale) {
+          try {
+            const stat = await fs.promises.stat(wtPath);
+            if (now - stat.mtimeMs >= maxAgeMs) {
+              isStale = true;
+            }
+          } catch {
+            // If stat fails (e.g. broken link or deleted folder), it's definitely stale
+            isStale = true;
+          }
+        }
+
+        if (isStale) {
+          try {
+            const removeResult = await executor(
+              "git",
+              ["worktree", "remove", "--force", wtPath],
+              { cwd: repoRoot },
+            );
+            if (removeResult.exitCode === 0) {
+              cleaned.push(wtPath);
+            } else {
+              failed.push({
+                path: wtPath,
+                error: removeResult.stderr || `exit code ${removeResult.exitCode}`,
+              });
+            }
+          } catch (err) {
+            failed.push({
+              path: wtPath,
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }
+        } else {
+          skipped.push(wtPath);
+        }
+      }
+    }
+  } catch (err) {
+    // If git worktree list fails, record error
+    failed.push({
+      path: repoRoot,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  // 2. Prune git worktree records
+  try {
+    await executor("git", ["worktree", "prune"], { cwd: repoRoot });
+  } catch {
+    // ignore
+  }
+
+  // 3. Clean up any lingering directories in .worktrees/ that were not tracked or partially removed
+  const worktreesDir = path.resolve(repoRoot, ".worktrees");
+  try {
+    const entries = await fs.promises.readdir(worktreesDir, { withFileTypes: true });
+    const now = Date.now();
+
+    for (const entry of entries) {
+      if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
+      if (!entry.name.startsWith("mission-")) continue;
+
+      const fullPath = path.join(worktreesDir, entry.name);
+      if (cleaned.includes(fullPath)) continue;
+
+      // Check if active
+      let isActive = false;
+      for (const runId of activeRunIds) {
+        const sanitized = runId.replace(/[^a-zA-Z0-9_-]/g, "_");
+        if (entry.name.includes(sanitized) || entry.name.includes(runId)) {
+          isActive = true;
+          break;
+        }
+      }
+      if (isActive) continue;
+
+      let isStale = forceAll;
+      if (!isStale) {
+        try {
+          const stat = await fs.promises.stat(fullPath);
+          if (now - stat.mtimeMs >= maxAgeMs) {
+            isStale = true;
+          }
+        } catch {
+          isStale = true;
+        }
+      }
+
+      if (isStale) {
+        try {
+          await fs.promises.rm(fullPath, { recursive: true, force: true });
+          if (!cleaned.includes(fullPath)) {
+            cleaned.push(fullPath);
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
+  } catch {
+    // .worktrees directory might not exist yet; safe to ignore
+  }
+
+  return { cleaned, skipped, failed };
+}
+
 
 /**
  * Executes an AI CLI mission inside a dedicated ephemeral Git worktree.

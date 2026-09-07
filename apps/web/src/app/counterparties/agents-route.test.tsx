@@ -155,4 +155,24 @@ describe("Agents, from Sibyl", () => {
     // at all rather than a row of them.
     expect(container.textContent).not.toMatch(/Memory version/);
   });
+
+  it("renders a manual unblock button for BLOCKED agents", async () => {
+    listSibylCounterparties.mockResolvedValue({
+      ok: true,
+      data: {
+        items: [
+          profile({
+            counterpartyKey: "blocked_candidate",
+            displayName: "Blocked Candidate",
+            relationshipStatus: "BLOCKED",
+          }),
+        ],
+      },
+    });
+
+    render(await CounterpartiesPage());
+
+    expect(screen.getByText("BLOCKED")).toBeInTheDocument();
+    expect(screen.getByText("Manual Unblock (Restore to WATCH)")).toBeInTheDocument();
+  });
 });

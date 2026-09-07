@@ -1,6 +1,9 @@
 "use client";
 
 import { useReducer, useState, useSyncExternalStore } from "react";
+import Link from "next/link";
+import { Button } from "@astryxdesign/core/Button";
+import { ButtonGroup } from "@astryxdesign/core/ButtonGroup";
 import { SegmentedControl, SegmentedControlItem } from "@astryxdesign/core/SegmentedControl";
 import { Theme } from "@astryxdesign/core/theme";
 
@@ -29,6 +32,7 @@ import type { ChatGrounding } from "./console-chat";
 import { MissionBoard } from "./mission-board";
 import { MissionOperator } from "./mission-operator";
 import { MissionRail } from "./mission-rail";
+import { MissionTerminal } from "./mission-terminal";
 import { MissionTrace } from "./mission-trace";
 
 export interface MissionWorkspaceProps {
@@ -40,9 +44,9 @@ export interface MissionWorkspaceProps {
   grounding?: ChatGrounding;
 }
 
-type MissionMode = "OPERATOR" | "BOARD" | "TRACE";
+type MissionMode = "OPERATOR" | "BOARD" | "TRACE" | "TERMINAL";
 
-const MODES: readonly MissionMode[] = ["OPERATOR", "BOARD", "TRACE"];
+const MODES: readonly MissionMode[] = ["OPERATOR", "BOARD", "TRACE", "TERMINAL"];
 
 /**
  * COMPLETED is a settled success; FAILED and CANCELLED are settled too, and
@@ -140,6 +144,28 @@ export function MissionWorkspace({
           ) : (
             <StatusBadge tone="pending">{transportLabel(presentation)}</StatusBadge>
           )}
+          <ButtonGroup label="Mission actions" size="sm">
+            <Button
+              label="Copy ID"
+              variant="secondary"
+              onClick={() => {
+                if (typeof navigator !== "undefined" && navigator.clipboard) {
+                  navigator.clipboard.writeText(view.runId);
+                }
+              }}
+            />
+            <Button
+              label="Chat"
+              variant="secondary"
+              as={Link}
+              href={`/chat?runId=${view.runId}`}
+            />
+            <Button
+              label={mode === "TRACE" ? "Operator" : "Trace"}
+              variant={mode === "TRACE" ? "primary" : "ghost"}
+              onClick={() => setMode(mode === "TRACE" ? "OPERATOR" : "TRACE")}
+            />
+          </ButtonGroup>
         </div>
       </header>
 
@@ -187,7 +213,9 @@ export function MissionWorkspace({
           `Theme` is the switch because the tokens are already there: nothing
           below invents a colour, it just resolves the same names against the
           other mode. */}
-      {mode === "TRACE" ? (
+      {mode === "TERMINAL" ? (
+        <MissionTerminal runId={seed.runId} />
+      ) : mode === "TRACE" ? (
         <MissionTrace
           spine={spine}
           envelope={view.contextEnvelope}
@@ -204,6 +232,7 @@ export function MissionWorkspace({
               <MissionOperator
                 entries={view.entries}
                 onScrubTo={scrubTo}
+                onOpenTerminal={() => setMode("TERMINAL")}
               />
             ) : (
               <MissionBoard progress={progress} onSelect={jumpTo} />
@@ -215,19 +244,39 @@ export function MissionWorkspace({
       {/* No Play or Pause. Nothing advances the playhead: there is no timer and
           no stream, so pressing Play changed a badge while the Mission sat
           still. Scrubbing and returning are the two things that work. */}
-      <div className="run__transport" role="group" aria-label="Timeline transport">
-        <button
-          type="button"
-          className="btn"
-          onClick={() =>
-            ended && complete.lastSequence !== null
-              ? dispatch({ kind: "ended", finalSequence: complete.lastSequence })
-              : dispatch({ kind: "jumpToLive" })
-          }
-          disabled={!historical}
-        >
-          {ended ? "Back to the end" : "Back to latest"}
-        </button>
+      <div className="run__transport">
+        <ButtonGroup label="Timeline transport" size="md" elevation="low">
+          <Button
+            label="Previous"
+            variant="secondary"
+            isDisabled={view.entries.length <= 1}
+            onClick={() => {
+              const currentIndex = view.entries.length - 1;
+              if (currentIndex > 0) scrubTo(complete.entries[currentIndex - 1]!);
+            }}
+          />
+          <Button
+            label={ended ? "Back to the end" : "Back to latest"}
+            variant={historical ? "primary" : "secondary"}
+            isDisabled={!historical}
+            onClick={() =>
+              ended && complete.lastSequence !== null
+                ? dispatch({ kind: "ended", finalSequence: complete.lastSequence })
+                : dispatch({ kind: "jumpToLive" })
+            }
+          />
+          <Button
+            label="Next"
+            variant="secondary"
+            isDisabled={view.entries.length >= total}
+            onClick={() => {
+              const currentIndex = view.entries.length - 1;
+              if (currentIndex < complete.entries.length - 1) {
+                scrubTo(complete.entries[currentIndex + 1]!);
+              }
+            }}
+          />
+        </ButtonGroup>
       </div>
 
       <p className="run__foot">

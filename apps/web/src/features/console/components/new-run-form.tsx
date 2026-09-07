@@ -1,10 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-
-import { Button } from "@/components/primitives";
+import { Button } from "@astryxdesign/core/Button";
+import { ButtonGroup } from "@astryxdesign/core/ButtonGroup";
 import { env } from "@/lib/env";
+import {
+  MISSION_TEMPLATES,
+  getDraftMission,
+  subscribeDraftMission,
+} from "../model/draft-run-store";
 
 /**
  * Create a Run against the real endpoint.
@@ -23,6 +29,14 @@ export function NewRunForm({ disabled }: { disabled: boolean }) {
   const [budget, setBudget] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    return subscribeDraftMission(() => {
+      const draft = getDraftMission();
+      if (draft.objective) setObjective(draft.objective);
+      if (draft.budget !== undefined) setBudget(draft.budget);
+    });
+  }, []);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -60,6 +74,24 @@ export function NewRunForm({ disabled }: { disabled: boolean }) {
 
   return (
     <form className="cs__form" onSubmit={submit}>
+      <div className="cs__prompt-quickpicks">
+        <span className="cs__hint">Objective templates:</span>
+        <ButtonGroup label="Objective templates" size="sm">
+          {MISSION_TEMPLATES.map((tmpl) => (
+            <Button
+              key={tmpl.id}
+              type="button"
+              label={tmpl.title}
+              variant={objective === tmpl.objective ? "primary" : "secondary"}
+              onClick={() => {
+                setObjective(tmpl.objective);
+                setBudget(tmpl.budgetUsdc);
+              }}
+            />
+          ))}
+        </ButtonGroup>
+      </div>
+
       <label className="cs__field" htmlFor="objective">
         <span className="cs__label">Objective</span>
         <input
@@ -91,15 +123,50 @@ export function NewRunForm({ disabled }: { disabled: boolean }) {
         </span>
       </label>
 
+      <div className="cs__budget-presets">
+        <span className="cs__hint">Quick budget presets:</span>
+        <ButtonGroup label="Budget presets" size="sm">
+          {["10.000000", "25.000000", "50.000000", "100.000000"].map((preset) => (
+            <Button
+              key={preset}
+              type="button"
+              label={`${parseInt(preset, 10)} USDC`}
+              variant={budget === preset ? "primary" : "secondary"}
+              onClick={() => setBudget(preset)}
+            />
+          ))}
+          <Button
+            type="button"
+            label="No limit"
+            variant={budget === "" ? "primary" : "secondary"}
+            onClick={() => setBudget("")}
+          />
+        </ButtonGroup>
+      </div>
+
       {error === null ? null : (
         <p className="cs__form-error" role="alert">
           {error}
         </p>
       )}
 
-      <Button type="submit" disabled={disabled || pending || objective.trim() === ""}>
-        {pending ? "Creating…" : "Create Run"}
-      </Button>
+      <div className="cs__form-actions">
+        <ButtonGroup label="Run actions" size="md">
+          <Button
+            type="submit"
+            label={pending ? "Creating…" : "Create Run"}
+            variant="primary"
+            isDisabled={disabled || pending || objective.trim() === ""}
+            isLoading={pending}
+          />
+          <Button
+            label="Cancel"
+            variant="secondary"
+            as={Link}
+            href="/runs"
+          />
+        </ButtonGroup>
+      </div>
 
       {disabled ? (
         <p className="cs__hint" role="status">

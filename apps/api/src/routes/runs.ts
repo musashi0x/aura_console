@@ -1,8 +1,11 @@
 import { Hono } from "hono";
+import { streamSSE } from "hono/streaming";
 import { z } from "zod";
 
 import { httpError } from "../errors.js";
+import { cleanupOrphanWorktrees } from "../services/cli-runner.js";
 import { MissionAgent } from "../services/mission-agent.js";
+import { missionLogs, type LogEntry } from "../services/mission-logs.js";
 import { RunStore } from "../services/run-store.js";
 
 const store = new RunStore();
@@ -170,3 +173,89 @@ runs.post("/:runId/events", async (c) => {
 
   return c.json({ event: eventBody(event) }, created ? 201 : 200);
 });
+
+/**
+ * Returns or streams live stdout/stderr logs from AI CLI sandboxes and verifiers.
+ */
+runs.get("/:runId/logs", async (c) => {
+  const runId = parseRunId(c.req.param("runId"));
+  const wantsStream =
+    c.req.header("accept")?.includes("text/event-stream") ||
+    c.req.query("stream") === "true";
+
+  if (!wantsStream) {
+    const entries = missionLogs.getLogs(runId);
+    return c.json({ runId, entries });
+  }
+
+  return streamSSE(c, async (stream) => {
+    // 1. Send existing buffered logs
+    const existing = missionLogs.getLogs(runId);
+    for (const entry of existing) {
+      await stream.writeSSE({
+        event: "log",
+        id: entry.id,
+        data: JSON.stringify(entry),
+      });
+    }
+
+    // 2. Subscribe to streaming entries
+    const queue: LogEntry[] = [];
+    let resolveWait: (() => void) | null = null;
+
+    const unsubscribe = missionLogs.subscribe(runId, (entry) => {
+      queue.push(entry);
+      if (resolveWait) {
+        resolveWait();
+        resolveWait = null;
+      }
+    });
+
+    try {
+      let isConnected = true;
+      stream.onAbort(() => {
+        isConnected = false;
+        if (resolveWait) {
+          resolveWait();
+          resolveWait = null;
+        }
+      });
+
+      while (isConnected) {
+        while (queue.length > 0) {
+          const entry = queue.shift()!;
+          await stream.writeSSE({
+            event: "log",
+            id: entry.id,
+            data: JSON.stringify(entry),
+          });
+        }
+
+        const events = await store.listEvents(runId);
+        const hasOutcome = events.some((e) => e.type === "outcome.recorded");
+        if (hasOutcome && queue.length === 0) {
+          await stream.writeSSE({ event: "done", data: "" });
+          break;
+        }
+
+        await new Promise<void>((resolve) => {
+          resolveWait = resolve;
+          setTimeout(resolve, 800);
+        });
+      }
+    } finally {
+      unsubscribe();
+    }
+  });
+});
+
+/**
+ * Administrative GC endpoint to clean up orphan mission worktrees.
+ */
+runs.post("/worktree-gc", async (c) => {
+  const result = await cleanupOrphanWorktrees({
+    maxAgeMs: 10 * 60 * 1000,
+  });
+  return c.json({ ok: true, result });
+});
+

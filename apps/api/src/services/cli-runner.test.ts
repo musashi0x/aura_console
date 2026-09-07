@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { CommandExecutionOptions, CommandExecutor } from "./cli-runner.js";
 import {
   CliRunner,
+  cleanupOrphanWorktrees,
   createWorktreeSession,
   defaultCommandExecutor,
   runCli,
@@ -436,4 +437,50 @@ describe("AI CLI Runner (cli-runner)", () => {
     expect(result.error?.message).toContain("Command timed out after 250ms");
     expect(duration).toBeLessThan(3500);
   });
+
+  it("cleans up orphan mission worktrees matching .worktrees/mission-*", async () => {
+    const executedCommands: Array<{ command: string; args: string[] }> = [];
+
+    const mockExecutor: CommandExecutor = async (command, args) => {
+      executedCommands.push({ command, args });
+      if (args[0] === "worktree" && args[1] === "list") {
+        return {
+          exitCode: 0,
+          stdout: `worktree /repo/root\nHEAD 123456\nbranch refs/heads/main\n\nworktree /repo/root/.worktrees/mission-old-123\nHEAD abcdef\ndetached\n\nworktree /repo/root/.worktrees/mission-active-999\nHEAD fefedc\ndetached\n`,
+          stderr: "",
+          timedOut: false,
+        };
+      }
+      return {
+        exitCode: 0,
+        stdout: "",
+        stderr: "",
+        timedOut: false,
+      };
+    };
+
+    const result = await cleanupOrphanWorktrees({
+      repoRoot: "/repo/root",
+      executor: mockExecutor,
+      forceAll: true,
+      activeRunIds: new Set(["active-999"]),
+    });
+
+    expect(result.cleaned).toContain("/repo/root/.worktrees/mission-old-123");
+    expect(result.skipped).toContain("/repo/root/.worktrees/mission-active-999");
+    expect(result.failed).toHaveLength(0);
+
+    // Verify git worktree remove was called for old worktree
+    const removeCall = executedCommands.find(
+      (c) => c.command === "git" && c.args.includes("remove") && c.args.includes("/repo/root/.worktrees/mission-old-123"),
+    );
+    expect(removeCall).toBeDefined();
+
+    // Verify git worktree prune was called
+    const pruneCall = executedCommands.find(
+      (c) => c.command === "git" && c.args.includes("prune"),
+    );
+    expect(pruneCall).toBeDefined();
+  });
 });
+

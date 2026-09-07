@@ -16,6 +16,7 @@ import {
   retrieveFromSibyl,
   updateCounterpartyInSibyl,
 } from "./sibyl.js";
+import { missionLogs } from "./mission-logs.js";
 import {
   type VerifierEvaluation,
   verifyWorktree,
@@ -110,6 +111,12 @@ export class MissionExecutionService {
     let evaluation: VerifierEvaluation;
     const isCliWorker = options.mode === "CLI_WORKER" || grantData.mode === "CLI_WORKER";
 
+    missionLogs.append(
+      runId,
+      "system",
+      `Starting mission execution for run ${runId} (mode: ${isCliWorker ? "CLI_WORKER" : "DETERMINISTIC"}, ceiling: ${amountUsdc} USDC)`,
+    );
+
     if (options.evaluationOverride) {
       evaluation = {
         score: options.evaluationOverride.score ?? 1.0,
@@ -118,16 +125,30 @@ export class MissionExecutionService {
         diff: options.evaluationOverride.diff ?? "diff --git a/pkg b/pkg",
         failure_reason: options.evaluationOverride.failure_reason,
       };
+      missionLogs.append(runId, "system", `Execution override applied: ${evaluation.summary}`);
     } else if (isCliWorker) {
       try {
+        missionLogs.append(
+          runId,
+          "system",
+          `Creating ephemeral worktree .worktrees/mission-${runId.slice(0, 8)}...`,
+        );
+
         evaluation = await withWorktree(runId, { executor: options.executor }, async (worktreePath) => {
           const prompt = `Complete mission objective: "${run.objective}". Deliverable for counterparty "${counterpartyKey}" within ceiling ${amountUsdc} USDC. Implement code and verify tests pass.`;
+          
+          missionLogs.append(runId, "system", `Spawning AI CLI inside worktree '${worktreePath}'...`);
+
           await executeLocalAiCli({
             prompt,
             worktreePath,
             executor: options.executor,
             timeoutMs: 60_000,
+            onStdout: (data) => missionLogs.append(runId, "stdout", data),
+            onStderr: (data) => missionLogs.append(runId, "stderr", data),
           });
+
+          missionLogs.append(runId, "system", "Executing Verifier Agent tests in sandbox worktree...");
 
           return verifyWorktree({
             worktreePath,
@@ -151,10 +172,12 @@ export class MissionExecutionService {
           summary: "CLI worker execution or verification failed",
           failure_reason: err instanceof Error ? err.message : String(err),
         };
+        missionLogs.append(runId, "stderr", `Error: ${evaluation.failure_reason}`);
       }
     } else {
       // Run deterministic verifier
       try {
+        missionLogs.append(runId, "system", "Running deterministic verifier...");
         evaluation = await verifyWorktree({
           worktreePath: options.worktreePath ?? process.cwd(),
           executor: options.executor,
@@ -176,11 +199,18 @@ export class MissionExecutionService {
           summary: "Verifier failed during test execution",
           failure_reason: err instanceof Error ? err.message : String(err),
         };
+        missionLogs.append(runId, "stderr", `Verifier failure: ${evaluation.failure_reason}`);
       }
     }
 
     // 4. Record evaluation outcome
     const isPassed = evaluation.tests_passed && evaluation.score > 0;
+    missionLogs.append(
+      runId,
+      "system",
+      `Evaluation complete: ${isPassed ? "ACCEPTED" : "REJECTED"} (score: ${evaluation.score}). ${evaluation.summary}`,
+    );
+
     await this.append(runId, EVALUATED, {
       summary: isPassed
         ? "Delivery verified against the objective"
@@ -194,6 +224,11 @@ export class MissionExecutionService {
     // 5. If passed, settle commitment
     if (isPassed) {
       const txHash = `0x${randomBytes(32).toString("hex")}`;
+      missionLogs.append(
+        runId,
+        "system",
+        `Payment settled on-chain: ${txHash} (${amountUsdc} USDC on ${options.network ?? "sui:local"})`,
+      );
       await this.append(runId, SETTLED, {
         summary: "Payment settled on-chain",
         network: options.network ?? "sui:local",
@@ -201,9 +236,20 @@ export class MissionExecutionService {
         tx_hash: txHash,
         reference: txHash,
       });
+    } else {
+      missionLogs.append(
+        runId,
+        "system",
+        "Settlement omitted due to failed verification (fail-closed invariant).",
+      );
     }
 
     // 6. Record mission outcome
+    missionLogs.append(
+      runId,
+      "system",
+      `Mission outcome recorded to relationship memory: ${isPassed ? "ACCEPTED" : "REJECTED"}.`,
+    );
     await this.append(runId, OUTCOME, {
       summary: isPassed
         ? "Mission outcome recorded to relationship memory"

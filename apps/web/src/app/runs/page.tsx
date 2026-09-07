@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Button } from "@astryxdesign/core/Button";
+import { ButtonGroup } from "@astryxdesign/core/ButtonGroup";
 
 import { ConsoleShell } from "@/features/console/components/console-shell";
 import { readGrounding } from "@/features/console/grounding";
@@ -58,11 +60,28 @@ export default async function RunsPage() {
           {/* Reachable whether or not the list is empty. Starting a Mission was
               offered only on the empty state, so the moment an operator had one
               Mission the way to start the next disappeared. */}
-          <p className="cs__actions">
-            <Link href="/runs/new" className="btn btn--primary cs__action-link">
-              {console_.empty.create}
-            </Link>
-          </p>
+          <div className="cs__actions-toolbar">
+            <ButtonGroup label="Mission operations" size="md">
+              <Button
+                label={console_.empty.create}
+                variant="primary"
+                as={Link}
+                href="/runs/new"
+              />
+              <Button
+                label="Chat Console"
+                variant="secondary"
+                as={Link}
+                href="/chat"
+              />
+              <Button
+                label="System Readiness"
+                variant="secondary"
+                as={Link}
+                href="/system"
+              />
+            </ButtonGroup>
+          </div>
           <ul className="cs__list" role="list">
             {/* The demo Mission lives here, badged, rather than in a rail item of
               its own. It is not a Run the API returned and must never be

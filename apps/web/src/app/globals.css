@@ -1665,8 +1665,45 @@ a.cs__brand,
 .run__states {
   display: flex;
   gap: var(--space-2);
+  align-items: center;
   flex-wrap: wrap;
   margin: 0;
+}
+
+.cs__actions-toolbar {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+
+.cs__prompt-quickpicks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.cs__budget-presets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: calc(-1 * var(--space-2));
+  margin-bottom: var(--space-2);
+}
+
+.cs__prompt-tips {
+  background: color-mix(in srgb, var(--color-surface) 60%, transparent);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  margin-top: var(--space-2);
+}
+
+.cs__form-actions {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
 }
 
 .run__fixture {

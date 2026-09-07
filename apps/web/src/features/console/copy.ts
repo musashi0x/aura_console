@@ -278,6 +278,7 @@ export const console_ = {
       OPERATOR: "Operator",
       BOARD: "Board",
       TRACE: "Trace",
+      TERMINAL: "Terminal",
     },
     rail: {
       label: "Mission progress",

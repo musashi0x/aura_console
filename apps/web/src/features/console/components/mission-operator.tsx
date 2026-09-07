@@ -1,6 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { Button } from "@astryxdesign/core/Button";
+import { HStack } from "@astryxdesign/core/Stack";
 
 import { console_ } from "../copy";
 import { EventCard } from "./cards/event-card";
@@ -10,6 +12,8 @@ export interface MissionOperatorProps {
   entries: readonly TimelineEntry[];
   /** Scrubs the Mission back to the moment an entry was recorded. */
   onScrubTo?: (entry: TimelineEntry) => void;
+  /** Opens the live sandbox terminal log view. */
+  onOpenTerminal?: () => void;
   /**
    * The conversation, rendered in the centre of the Mission rather than in a
    * panel beside it. Conversation is the default mode INSIDE a Mission, so the
@@ -32,7 +36,12 @@ export interface MissionOperatorProps {
  * rendered a number the stream does not contain, would take every guarantee
  * this Console has with it.
  */
-export function MissionOperator({ entries, onScrubTo, conversation }: MissionOperatorProps) {
+export function MissionOperator({
+  entries,
+  onScrubTo,
+  conversation,
+  onOpenTerminal,
+}: MissionOperatorProps) {
   if (entries.length === 0) {
     return (
       <section className="mw__operator" aria-labelledby="mission-operator-heading">
@@ -51,6 +60,16 @@ export function MissionOperator({ entries, onScrubTo, conversation }: MissionOpe
       <h2 id="mission-operator-heading" className="visually-hidden">
         {console_.mission.operator.label}
       </h2>
+      {onOpenTerminal ? (
+        <HStack gap={2} justify="end" style={{ marginBottom: "12px" }}>
+          <Button
+            label="Live Sandbox Terminal"
+            size="sm"
+            variant="secondary"
+            onClick={onOpenTerminal}
+          />
+        </HStack>
+      ) : null}
       <ol className="mw__stream">
         {entries.map((entry) => (
           <li key={entry.eventId} id={`event-${entry.eventId}`} className="mw__entry">

@@ -8,7 +8,7 @@ import {
   useSyncExternalStore,
 } from "react";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import { Banner } from "@astryxdesign/core/Banner";
 import { ChatComposer } from "@astryxdesign/core/Chat";
@@ -47,6 +47,8 @@ import { useSmoothedText } from "../chat/use-smoothed-text";
 import { CONSOLE_COMMANDS, matchCommand } from "../console-commands";
 import { console_ } from "../copy";
 import { ConsoleChatSuggestions } from "./console-chat-suggestions";
+import { NewRunPromptSuggestions } from "./new-run-prompt-suggestions";
+import { setDraftMission } from "../model/draft-run-store";
 import {
   MEMORY_VIEW_SERVER_SNAPSHOT,
   getMemoryViewEnabled,
@@ -136,6 +138,9 @@ export interface ConsoleChatProps {
  */
 export function ConsoleChat({ runId, grounding, memoryEnabled }: ConsoleChatProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const isNewRun = pathname === "/runs/new";
+
   // The owning page is a server component and cannot read a client store, so
   // the chat subscribes directly rather than having the flag drilled through
   // one. Same store the palette writes, so the two cannot disagree.
@@ -283,6 +288,23 @@ export function ConsoleChat({ runId, grounding, memoryEnabled }: ConsoleChatProp
       return;
     }
 
+    // In new run drafting mode, the chat acts as a Prompt Assistant.
+    if (isNewRun) {
+      const budgetMatch =
+        said.match(/(?:budget\s*[:=]?\s*|\$|ceiling\s*[:=]?\s*)(\d+(?:\.\d+)?)(?:\s*usdc)?/i) ||
+        said.match(/(\d+(?:\.\d+)?)\s*usdc/i);
+      const matchedVal = budgetMatch?.[1];
+      const extractedBudget = matchedVal ? `${parseFloat(matchedVal).toFixed(6)}` : "25.000000";
+      const objectiveText = said.length > 15 ? said : `Execute: ${said}`;
+
+      setDraftMission(objectiveText, extractedBudget);
+      reportConsole(
+        said,
+        `Formulated mission objective and applied to form:\n• Objective: "${objectiveText}"\n• Budget Ceiling: ${extractedBudget} USDC\nReview the form on the left and click "Create Run" to launch.`,
+      );
+      return;
+    }
+
     // Not a command, so it is a question. Questions need a Run to be about and
     // an agent to answer them; without either the console says so rather than
     // producing something that reads like an answer.
@@ -304,7 +326,11 @@ export function ConsoleChat({ runId, grounding, memoryEnabled }: ConsoleChatProp
       onSubmit={submit}
       onStop={stop}
       isStopShown={busy}
-      placeholder={console_.chat.placeholder}
+      placeholder={
+        isNewRun
+          ? "Describe your mission (e.g. Scan Cetus vs DeepBook for SUI arbitrage)..."
+          : console_.chat.placeholder
+      }
       density="compact"
       input={
         /* Deliberately no `value`/`onChange` here: the input reads both from
@@ -319,7 +345,19 @@ export function ConsoleChat({ runId, grounding, memoryEnabled }: ConsoleChatProp
     />
   );
 
-  const zeroState = <ConsoleChatSuggestions onOffer={offer} />;
+  const zeroState = isNewRun ? (
+    <NewRunPromptSuggestions
+      onSelect={(template) => {
+        setDraftMission(template.objective, template.budgetUsdc);
+        reportConsole(
+          `Draft template: ${template.title}`,
+          `Applied to Run form:\n• Objective: "${template.objective}"\n• Budget Ceiling: ${template.budgetUsdc} USDC\nReview the form fields on the left and submit when ready.`,
+        );
+      }}
+    />
+  ) : (
+    <ConsoleChatSuggestions onOffer={offer} />
+  );
 
   return (
     <VStack gap={4} height="100%">
@@ -331,14 +369,18 @@ export function ConsoleChat({ runId, grounding, memoryEnabled }: ConsoleChatProp
       <StackItem>
         <VStack gap={1}>
           <Text as="p" size="sm" color="secondary">
-            {runId ? (
+            {isNewRun ? (
+              <MonoRef label="MODE">PROMPT ASSISTANT</MonoRef>
+            ) : runId ? (
               <MonoRef label={console_.chat.scopeLabel}>{runId}</MonoRef>
             ) : (
               console_.chat.noScope
             )}
           </Text>
           <Text as="p" size="xsm" color="secondary">
-            {console_.chat.readOnly}
+            {isNewRun
+              ? "Drafting a new Run. Choose a prompt template below or describe your mission."
+              : console_.chat.readOnly}
           </Text>
         </VStack>
       </StackItem>
@@ -348,7 +390,7 @@ export function ConsoleChat({ runId, grounding, memoryEnabled }: ConsoleChatProp
           was not connected after an agent and a memory were both answering.
           Silence here is not a claim that everything is fine: it renders
           nothing only when both halves were checked and both answered. */}
-      {grounding?.agentReachable === true && grounding.memoryReachable === true ? null : (
+      {isNewRun || (grounding?.agentReachable === true && grounding.memoryReachable === true) ? null : (
         <StackItem>
           <Banner
             status="warning"
