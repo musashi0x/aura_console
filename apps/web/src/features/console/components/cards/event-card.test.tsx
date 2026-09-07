@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { expectNoAxeViolations } from "@/test/axe";
+import { expectNoAxeViolations } from "@/test-support/axe";
 
 import { console_ } from "@/features/console/copy";
 import type { TimelineEntry } from "@/features/console/model/types";

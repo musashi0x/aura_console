@@ -1,13 +1,13 @@
 import { defineConfig } from "vitest/config";
 
-import { testDatabaseUrl } from "./src/test/database.js";
+import { testDatabaseUrl } from "./src/test-support/database.js";
 
 export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.ts"],
-    globalSetup: ["./src/test/global-setup.ts"],
-    setupFiles: ["./src/test/setup.ts"],
+    globalSetup: ["./src/test-support/global-setup.ts"],
+    setupFiles: ["./src/test-support/setup.ts"],
     // The suite writes, so it must never reach the development database.
     env: {
       NODE_ENV: "test",

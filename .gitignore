@@ -33,6 +33,7 @@ apps/web/next-env.d.ts
 
 # Claude Code local config
 .claude/
+.openspec/
 
 # Python runtimes for Sibyl Memory and the ADK agent. Both are created by the
 # operator (see docs/ai/api/deployment.md) and neither belongs in the tree:

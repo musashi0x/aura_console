@@ -218,4 +218,4 @@ Screenshots: [desktop](screenshots/landing-desktop-1440.png),
 ## Tests
 
 - `apps/web/src/features/landing/components/landing-page.test.tsx`
-- `apps/web/src/styles/tokens.test.ts`
+- `apps/web/src/styles/test/tokens.test.ts`

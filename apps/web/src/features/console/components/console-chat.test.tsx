@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { expectNoAxeViolations } from "@/test/axe";
+import { expectNoAxeViolations } from "@/test-support/axe";
 
 // Inlined by vitest.config.ts (`define`) — see cssRaw there.
 declare const __GLOBALS_CSS__: string;

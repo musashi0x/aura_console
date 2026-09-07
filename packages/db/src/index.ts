@@ -6,4 +6,4 @@ export { ensureDatabase, runMigrations } from "./provision.js";
 export * as schema from "./schema/index.js";
 // Query operators are re-exported so consumers never depend on drizzle-orm
 // directly; the ORM stays an implementation detail of this package.
-export { and, asc, desc, eq, sql } from "drizzle-orm";
+export { and, asc, desc, eq, gt, isNull, lt, max, sql } from "drizzle-orm";

@@ -212,7 +212,7 @@ correct the copy when wiring the surface, not before.
 
 ## Tests
 
-- `apps/web/src/features/console/projection/fold-run.test.ts`
+- `apps/web/src/features/console/test/fold-run.test.ts`
 - `apps/web/src/features/console/presentation/presentation-state.test.ts`
 - `apps/web/src/features/console/components/console-shell.test.tsx` —
   landmarks, `aria-current`, absence of account surfaces, readiness taken from

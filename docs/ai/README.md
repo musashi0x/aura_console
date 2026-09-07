@@ -25,6 +25,7 @@ backend state to fill any of these gaps.
 
 - [Web](web/README.md) — Next.js App Router routes, the landing page, onboarding, design tokens, and the browser API client.
 - [API](api/README.md) — Hono application, CORS/error handling, request logging, and health routes.
+- [ACP runtime](api/acp.md) — the Virtuals ACP client agent, run as its own process, and how its job stream becomes Run events.
 - [Database](db/README.md) — Drizzle client, environment loading, schema, and migrations.
 - [Product documentation](../product/README.md) — scope, onboarding, landing page, visual direction, demo choreography, and decisions.
 - [Mission workspace](../product/mission-workspace.md) — the target design for the Run surfaces. It reuses `foldRun` unchanged; the change is what renders above it.
