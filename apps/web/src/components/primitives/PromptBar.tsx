@@ -198,7 +198,7 @@ export function PromptBar({
       )}
 
       {/* Main Composer Box */}
-      <div className="relative rounded-[10px] border border-[rgba(216,216,219,0.16)] bg-[#1b1b1f] focus-within:border-[#d8d8db] focus-within:ring-1 focus-within:ring-[#d8d8db] transition-all shadow-sm">
+      <div className="relative rounded-[10px] border border-[rgba(216,216,219,0.16)] bg-[#1b1b1f] focus-within:border-[#d8d8db] focus-within:ring-1 focus-within:ring-[#d8d8db] transition-all shadow-sm bui-prompt-bar astryx-chat-composer">
         {/* Mentions Menu Popup */}
         {mentionOpen && (
           <div className="absolute bottom-full left-2 mb-2 w-72 rounded-[8px] border border-[rgba(216,216,219,0.16)] bg-[#1b1b1f] p-1 shadow-lg z-20">
@@ -294,7 +294,8 @@ export function PromptBar({
           placeholder={placeholder}
           rows={1}
           aria-label="Agent Prompt"
-          className="w-full bg-transparent px-3 py-2.5 text-[13.5px] text-[#f4f7fb] placeholder:text-[var(--color-text-muted,#8d9aaf)] outline-none resize-none min-h-[38px] max-h-[160px]"
+          style={{ outline: "none", boxShadow: "none" }}
+          className="w-full bg-transparent px-3 py-2.5 text-[13.5px] text-[#f4f7fb] placeholder:text-[var(--color-text-muted,#8d9aaf)] outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0 focus-visible:ring-0 resize-none min-h-[38px] max-h-[160px]"
         />
 
         {/* Action controls row */}

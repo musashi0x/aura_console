@@ -14,6 +14,8 @@ import {
 } from '@astryxdesign/core/Layout';
 import { Text, Heading } from '@astryxdesign/core/Text';
 import {
+  ChatComposer,
+  ChatComposerInput,
   ChatLayout,
   ChatMessage as ChatMessageRow,
   ChatMessageBubble,
@@ -50,11 +52,11 @@ import {
   StreamingText,
   ToolChips,
   ApprovalCard,
-  PromptBar,
   DiffTable,
   RecordsTable,
   InteractionSounds,
   SoundToggle,
+  playInteractionSound,
 } from '@/components/primitives';
 
 import {
@@ -64,6 +66,9 @@ import {
   X,
   ChevronRight,
   Cpu,
+  AtSign,
+  Paperclip,
+  Sparkles,
 } from 'lucide-react';
 import type { IconType } from '@astryxdesign/core/Icon';
 
@@ -72,6 +77,15 @@ const ClipboardDocumentIcon = Copy as unknown as IconType;
 const ShareIcon = Share2 as unknown as IconType;
 const XMarkIcon = X as unknown as IconType;
 const ChevronRightIcon = ChevronRight as unknown as IconType;
+const AtSymbolIcon = AtSign as unknown as IconType;
+const PaperClipIcon = Paperclip as unknown as IconType;
+
+const DEFAULT_SUGGESTIONS = [
+  { label: 'Why hire Beta Labs?', query: 'Why should we hire Beta Labs and what would it cost to draft a 10 USDC spend?' },
+  { label: 'Recall memory', query: 'Recall counterparty memory for virtuals:agent:beta' },
+  { label: 'Check spend guardrail', query: 'Check current active spend limit and remaining budget' },
+  { label: 'Go to missions', query: 'go to missions' },
+];
 
 // Below this width the split-pane collapses to a single chat column. Shared by
 // the CSS container query and the JS check in openArtifact so they can't drift.
@@ -669,6 +683,7 @@ export default function AIChatConversationTemplate() {
     totalTokens: 1280,
   });
   const [draft, setDraft] = useState('');
+  const [composerMode, setComposerMode] = useState<'ask' | 'edit'>('ask');
   const [connection, setConnection] = useState<ChatConnection>({ kind: 'idle' });
   const [chatScope, setChatScope] = useState<'global' | 'mission'>('global');
   const [artifactTab, setArtifactTab] = useState<'document' | 'diffs' | 'records'>('document');
@@ -848,15 +863,90 @@ export default function AIChatConversationTemplate() {
                 density="spacious"
                 style={chatLayout}
                 composer={
-                  <div className="w-full px-4 pb-4">
-                    <PromptBar
-                      value={draft}
-                      onChange={setDraft}
-                      onSubmit={(query) => submit(query)}
-                      onStop={stop}
-                      isStreaming={busy}
-                    />
-                  </div>
+                  <ChatComposer
+                    value={draft}
+                    onChange={setDraft}
+                    onSubmit={submit}
+                    onStop={stop}
+                    isStopShown={busy}
+                    placeholder={
+                      composerMode === 'ask'
+                        ? 'Ask ADK Gemini agent anything, execute MCP tools, or navigate...'
+                        : 'Describe your edit...'
+                    }
+                    input={<ChatComposerInput hasHistory={false} />}
+                    drawer={
+                      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar px-1 py-1.5">
+                        {DEFAULT_SUGGESTIONS.map((s, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            data-sound="press"
+                            onClick={() => {
+                              playInteractionSound('press');
+                              setDraft(s.query);
+                            }}
+                            className="flex items-center gap-1 shrink-0 px-2.5 py-1 rounded-[6px] text-[11.5px] bg-[#25252a] hover:bg-[#2e2d35] border border-[rgba(216,216,219,0.12)] text-[#d8d8db] hover:text-[#f4f7fb] transition-colors cursor-pointer"
+                          >
+                            <Sparkles size={11} className="text-[#d8d8db]" />
+                            <span>{s.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    }
+                    headerActions={
+                      <>
+                        <Button
+                          label="Mention"
+                          variant="ghost"
+                          size="sm"
+                          icon={<Icon icon={AtSymbolIcon} size="sm" />}
+                          isIconOnly
+                          onClick={() => {
+                            playInteractionSound('press');
+                            setDraft((d) => (d ? `${d} @agent ` : '@agent '));
+                          }}
+                        />
+                        <Button
+                          label="Attach"
+                          variant="ghost"
+                          size="sm"
+                          icon={<Icon icon={PaperClipIcon} size="sm" />}
+                          isIconOnly
+                          onClick={() => {
+                            playInteractionSound('press');
+                            setDraft((d) => `${d} auth-service.ts `);
+                          }}
+                        />
+                      </>
+                    }
+                    footerActions={
+                      <DropdownMenu
+                        button={{
+                          label: composerMode === 'ask' ? 'Ask' : 'Edit',
+                          variant: 'ghost',
+                          size: 'sm',
+                        }}
+                        items={[
+                          {
+                            label: 'Ask',
+                            onClick: () => {
+                              playInteractionSound('press');
+                              setComposerMode('ask');
+                            },
+                          },
+                          {
+                            label: 'Edit',
+                            onClick: () => {
+                              playInteractionSound('press');
+                              setComposerMode('edit');
+                            },
+                          },
+                        ]}
+                      />
+                    }
+                    sendActions={<SoundToggle variant="icon" />}
+                  />
                 }
               >
                 <ChatMessageList
@@ -892,6 +982,7 @@ export default function AIChatConversationTemplate() {
                                     format="time"
                                   />
                                 }
+                                status="delivered"
                               />
                             }
                           >
@@ -982,6 +1073,7 @@ export default function AIChatConversationTemplate() {
                               )}
                             </HStack>
                           }
+                          status={busy && !message.complete ? 'sending' : 'sent'}
                         />
                       </ChatMessageRow>
                     );

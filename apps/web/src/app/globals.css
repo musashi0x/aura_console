@@ -85,7 +85,7 @@ body {
   top: 0.5rem;
 }
 
-:focus-visible {
+:focus-visible:not(input):not(textarea):not([contenteditable="true"]):not([contenteditable=""]):not([role="textbox"]) {
   outline: 2px solid var(--color-text);
   outline-offset: 2px;
 }
@@ -105,20 +105,26 @@ body {
   outline: none;
 }
 
-/* Astryx ChatComposer owns its own container elevation and focus-within state.
-   The inner contenteditable textbox must not draw the global unlayered focus ring,
-   which draws an extraneous white box directly around the input line. */
-.astryx-chat-composer [contenteditable]:focus,
-.astryx-chat-composer [contenteditable]:focus-visible,
-.astryx-chat-composer-input [contenteditable]:focus,
-.astryx-chat-composer-input [contenteditable]:focus-visible,
-.astryx-chat-composer [role="textbox"]:focus,
-.astryx-chat-composer [role="textbox"]:focus-visible,
-.astryx-chat-composer textarea:focus,
-.astryx-chat-composer textarea:focus-visible,
-.astryx-chat-composer input:focus,
-.astryx-chat-composer input:focus-visible {
-  outline: none;
+/* Astryx ChatComposer and PromptBar own their own container elevation and focus-within state.
+   The inner contenteditable textbox and textarea must never draw the global focus ring,
+   which draws an extraneous white box directly around the input field. */
+input:focus,
+input:focus-visible,
+textarea:focus,
+textarea:focus-visible,
+[contenteditable="true"]:focus,
+[contenteditable="true"]:focus-visible,
+[role="textbox"]:focus,
+[role="textbox"]:focus-visible,
+.astryx-chat-composer,
+.astryx-chat-composer *,
+.astryx-chat-composer-input,
+.astryx-chat-composer-input *,
+.bui-prompt-bar textarea,
+.bui-prompt-bar textarea:focus,
+.bui-prompt-bar textarea:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 
