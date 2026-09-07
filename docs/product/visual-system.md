@@ -43,7 +43,7 @@ scale, and the Run preview's on the landing page.
 | Error | `#FF6B7A` |
 
 Violet is a glow and edge accent only. It does not reach WCAG AA as body text on
-this canvas, and `apps/web/src/styles/tokens.test.ts` fails if it is used as a
+this canvas, and `apps/web/src/styles/test/tokens.test.ts` fails if it is used as a
 text colour.
 
 ## Editorial tokens

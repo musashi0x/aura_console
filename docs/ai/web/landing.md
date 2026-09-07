@@ -60,5 +60,5 @@ is tracked separately.
 
 - `apps/web/src/features/landing/components/landing-page.test.tsx` — scenes,
   honesty labelling, readiness, links, motion, accessibility.
-- `apps/web/src/styles/tokens.test.ts` — token hygiene, contrast, landing link
+- `apps/web/src/styles/test/tokens.test.ts` — token hygiene, contrast, landing link
   scoping, overscroll rule.

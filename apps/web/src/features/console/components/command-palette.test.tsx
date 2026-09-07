@@ -4,8 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // Inlined by vitest.config.ts (`define`) — see cssRaw there.
 declare const __GLOBALS_CSS__: string;
 
-import { expectNoAxeViolations } from "@/test/axe";
-import { routerPushes } from "@/test/setup";
+import { expectNoAxeViolations } from "@/test-support/axe";
+import { routerPushes } from "@/test-support/setup";
 
 import { console_ } from "../copy";
 import { __resetMemoryView, getMemoryViewEnabled } from "../memory-view-state";

@@ -6,6 +6,7 @@ import { httpError } from "../errors.js";
 import { MissionAgent } from "../services/mission-agent.js";
 import { missionLogs } from "../services/mission-logs.js";
 import { RunStore } from "../services/run-store.js";
+import { authorizeFund, authorizeFundSchema } from "./acp-fund-authorizations.js";
 
 const store = new RunStore();
 const agent = new MissionAgent(store);
@@ -210,3 +211,29 @@ runs.get("/:runId/logs", async (c) => {
   });
 });
 
+/**
+ * The one endpoint that can lead to money moving. It does not move it: it
+ * records the operator's decision and the instruction that the ACP runtime
+ * executes, and the runtime only runs at all when ACP_SPEND_ENABLED is set.
+ *
+ * There is no authentication in v0.1 (see docs/product/decisions.md). That was
+ * decided when nothing here could spend. Anyone who can reach this port can now
+ * authorize a testnet spend, so do not expose it.
+ */
+runs.post("/:runId/acp/fund-authorizations", async (c) => {
+  const runId = parseRunId(c.req.param("runId"));
+  const input = parseBody(authorizeFundSchema, await readJson(c.req.raw));
+
+  const { event, job } = await authorizeFund(runId, input);
+
+  return c.json(
+    {
+      authorization: {
+        ...eventBody(event),
+        chainId: job.chainId,
+        jobId: job.jobId,
+      },
+    },
+    201,
+  );
+});

@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
-import { expectNoAxeViolations } from "@/test/axe";
+import { expectNoAxeViolations } from "@/test-support/axe";
 
 import type { CanonicalEvent } from "../model/types";
 import type { FoldSeed } from "../projection/fold-run";

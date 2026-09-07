@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { expectNoAxeViolations } from "@/test/axe";
+import { expectNoAxeViolations } from "@/test-support/axe";
 import { stoneTheme } from "@/themes/stone/stone.js";
 import DocsLayoutShell from "./docs-layout-shell";
 import { DocsPageShell } from "./docs-page-shell";

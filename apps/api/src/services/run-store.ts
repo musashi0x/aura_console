@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, getDb, schema, sql, type Database } from "@aura/db";
+import { and, asc, desc, eq, getDb, gt, max, schema, type Database } from "@aura/db";
 
 import { httpError } from "../errors.js";
 
@@ -7,6 +7,8 @@ export type RunSource = "CONSOLE" | "AGENT" | "FIXTURE";
 export interface CreateRunInput {
   objective: string;
   source: RunSource;
+  /** Free text; the column defaults to non-mainnet when this is omitted. */
+  environment?: string;
   budgetUsdc?: string | null;
   /** Domain time for the seed event. Defaults to now, explicitly, not implicitly. */
   occurredAt?: Date;
@@ -43,16 +45,21 @@ export class RunStore {
   /**
    * Creates the Run row and its `run.created` event in one transaction, so a
    * Run can never exist with no history.
+   *
+   * A caller that must commit something else alongside the Run — the ACP
+   * bridge writing its job mapping — passes its own transaction in, so the two
+   * writes land together or not at all.
    */
-  async createRun(input: CreateRunInput) {
+  async createRun(input: CreateRunInput, tx?: Tx) {
     const eventTime = input.occurredAt ?? new Date();
 
-    return this.db.transaction(async (tx) => {
+    const body = async (tx: Tx) => {
       const [run] = await tx
         .insert(schema.runs)
         .values({
           objective: input.objective,
           source: input.source,
+          ...(input.environment === undefined ? {} : { environment: input.environment }),
           budgetUsdc: input.budgetUsdc ?? null,
         })
         .returning();
@@ -74,7 +81,9 @@ export class RunStore {
       });
 
       return run;
-    });
+    };
+
+    return tx ? body(tx) : this.db.transaction(body);
   }
 
   async listRuns(limit: number) {
@@ -107,12 +116,7 @@ export class RunStore {
     return this.db
       .select()
       .from(schema.runEvents)
-      .where(
-        and(
-          eq(schema.runEvents.runId, runId),
-          sql`${schema.runEvents.sequence} > ${afterSequence}`,
-        ),
-      )
+      .where(and(eq(schema.runEvents.runId, runId), gt(schema.runEvents.sequence, afterSequence)))
       .orderBy(bySequence);
   }
 
@@ -121,9 +125,13 @@ export class RunStore {
    * returns the stored event; replaying it with different content is a
    * conflict, because silently keeping either version would make the history
    * depend on delivery order.
+   *
+   * As with `createRun`, a caller that must commit something else alongside
+   * the event passes its own transaction in. The spend route does this so an
+   * authorization event and the instruction it creates land together.
    */
-  async appendEvent(input: AppendEventInput) {
-    return this.db.transaction(async (tx) => {
+  async appendEvent(input: AppendEventInput, outerTx?: Tx) {
+    const body = async (tx: Tx) => {
       const existing = await this.findEvent(tx, input.eventId);
       if (existing) return this.reconcile(existing, input);
 
@@ -140,7 +148,7 @@ export class RunStore {
       }
 
       const [head] = await tx
-        .select({ max: sql<number | null>`max(${schema.runEvents.sequence})` })
+        .select({ max: max(schema.runEvents.sequence) })
         .from(schema.runEvents)
         .where(eq(schema.runEvents.runId, input.runId));
 
@@ -158,7 +166,9 @@ export class RunStore {
 
       if (!row) throw new Error("insert into run_events returned no row");
       return { event: row, created: true };
-    });
+    };
+
+    return outerTx ? body(outerTx) : this.db.transaction(body);
   }
 
   /**
@@ -241,7 +251,7 @@ export class RunStore {
       }
 
       const [head] = await tx
-        .select({ max: sql<number | null>`max(${schema.runEvents.sequence})` })
+        .select({ max: max(schema.runEvents.sequence) })
         .from(schema.runEvents)
         .where(eq(schema.runEvents.runId, input.runId));
 

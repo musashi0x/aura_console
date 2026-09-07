@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import { stoneTheme } from "@/themes/stone/stone.js";
-import { expectNoAxeViolations } from "@/test/axe";
+import { expectNoAxeViolations } from "@/test-support/axe";
 import AIChatPage from "./page";
 
 vi.mock("@/lib/env", () => ({

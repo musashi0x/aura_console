@@ -7,6 +7,13 @@ import type {
   RunView,
   TimelineEntry,
 } from "../model/types";
+import {
+  ACP_RUN_STATUS,
+  ACP_STAGELESS_TYPES,
+  acpAttention,
+  acpSpentUsdc,
+  acpSummary,
+} from "./acp-events";
 import { dedupeEvents, orderEvents } from "./order-events";
 import { stageFor } from "./stage-map";
 
@@ -29,6 +36,7 @@ const RUN_STATUS_BY_TYPE: Record<string, RunStatus> = {
   "run.completed": "COMPLETED",
   "run.failed": "FAILED",
   "run.cancelled": "CANCELLED",
+  ...ACP_RUN_STATUS,
   "approval.requested": "WAITING_APPROVAL",
   "approval.granted": "RUNNING",
   "approval.rejected": "CANCELLED",
@@ -92,7 +100,7 @@ export function foldRun(
     }
 
     // Money is copied from a projection-bearing event, never computed here.
-    const amount = str(event.data?.spent_usdc);
+    const amount = str(event.data?.spent_usdc) ?? acpSpentUsdc(event);
     if (amount !== null) spentUsdc = amount;
 
     if (event.type === "memory.retrieval.failed") {
@@ -107,6 +115,11 @@ export function foldRun(
       };
     } else if (event.type === "run.resumed" || event.type === "approval.granted" || event.type === "approval.rejected") {
       attention = { kind: "NONE" };
+    } else {
+      // null means this event says nothing about attention, so whatever the
+      // Run was waiting on it is still waiting on.
+      const acp = acpAttention(event);
+      if (acp) attention = acp;
     }
 
     const stage = stageFor(event.type);
@@ -121,10 +134,12 @@ export function foldRun(
       // UNSUPPORTED_TYPE told the operator the Console did not recognise an
       // event it had just acted on.
       support:
-        stage === null && RUN_STATUS_BY_TYPE[event.type] === undefined
+        stage === null &&
+        RUN_STATUS_BY_TYPE[event.type] === undefined &&
+        !ACP_STAGELESS_TYPES.has(event.type)
           ? "UNSUPPORTED_TYPE"
           : "SUPPORTED",
-      summary: str(event.data?.summary) ?? event.type,
+      summary: str(event.data?.summary) ?? acpSummary(event) ?? event.type,
       data: event.data,
     };
   });

@@ -2,8 +2,8 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { expectNoAxeViolations } from "@/test/axe";
-import { routerPushes } from "@/test/setup";
+import { expectNoAxeViolations } from "@/test-support/axe";
+import { routerPushes } from "@/test-support/setup";
 
 import { __resetChatSession } from "../chat/chat-session";
 import { console_ } from "../copy";

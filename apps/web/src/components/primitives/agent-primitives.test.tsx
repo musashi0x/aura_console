@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-import { expectNoAxeViolations } from "@/test/axe";
+import { expectNoAxeViolations } from "@/test-support/axe";
 import {
   ThinkingState,
   StreamingText,
