@@ -12,11 +12,13 @@
     "start": "node dist/server.js",
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "mcp:stdio": "tsx src/mcp/stdio.ts"
   },
   "dependencies": {
     "@aura/db": "workspace:*",
     "@hono/node-server": "2.1.1",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@virtuals-protocol/acp-node-v2": "0.1.12",
     "hono": "4.13.5",
     "viem": "2.56.3",

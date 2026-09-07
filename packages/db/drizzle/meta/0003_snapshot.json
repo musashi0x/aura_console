@@ -1,6 +1,6 @@
 {
-  "id": "27221bb0-24b5-40c8-a74e-bfc3f67ebf56",
-  "prevId": "1e9c7a91-8f0d-450a-802f-86914de0f85b",
+  "id": "edcebb92-f26f-402a-bf5b-267b0d27cf04",
+  "prevId": "20fc04ad-f43c-48ec-82d8-b9e8dc7d2b78",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -216,6 +216,165 @@
       },
       "isRLSEnabled": false
     },
+    "public.acp_spend_intents": {
+      "name": "acp_spend_intents",
+      "schema": "",
+      "columns": {
+        "authorization_event_id": {
+          "name": "authorization_event_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "run_id": {
+          "name": "run_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "chain_id": {
+          "name": "chain_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "job_id": {
+          "name": "job_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount_usdc": {
+          "name": "amount_usdc",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "authorized_at": {
+          "name": "authorized_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "claimed_at": {
+          "name": "claimed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "submitted_at": {
+          "name": "submitted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attempts": {
+          "name": "attempts",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "last_error": {
+          "name": "last_error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "acp_spend_intents_pending_job_key": {
+          "name": "acp_spend_intents_pending_job_key",
+          "columns": [
+            {
+              "expression": "chain_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "job_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"acp_spend_intents\".\"submitted_at\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "acp_spend_intents_unclaimed_idx": {
+          "name": "acp_spend_intents_unclaimed_idx",
+          "columns": [
+            {
+              "expression": "authorized_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"acp_spend_intents\".\"claimed_at\" is null and \"acp_spend_intents\".\"submitted_at\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "acp_spend_intents_run_id_idx": {
+          "name": "acp_spend_intents_run_id_idx",
+          "columns": [
+            {
+              "expression": "run_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "acp_spend_intents_run_id_runs_id_fk": {
+          "name": "acp_spend_intents_run_id_runs_id_fk",
+          "tableFrom": "acp_spend_intents",
+          "tableTo": "runs",
+          "columnsFrom": [
+            "run_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "acp_spend_intents_amount_positive": {
+          "name": "acp_spend_intents_amount_positive",
+          "value": "\"acp_spend_intents\".\"amount_usdc\" > 0"
+        },
+        "acp_spend_intents_chain_id_positive": {
+          "name": "acp_spend_intents_chain_id_positive",
+          "value": "\"acp_spend_intents\".\"chain_id\" > 0"
+        },
+        "acp_spend_intents_job_id_not_blank": {
+          "name": "acp_spend_intents_job_id_not_blank",
+          "value": "length(btrim(\"acp_spend_intents\".\"job_id\")) > 0"
+        },
+        "acp_spend_intents_attempts_non_negative": {
+          "name": "acp_spend_intents_attempts_non_negative",
+          "value": "\"acp_spend_intents\".\"attempts\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.health_checks": {
       "name": "health_checks",
       "schema": "",
@@ -241,6 +400,649 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.agent_policies": {
+      "name": "agent_policies",
+      "schema": "",
+      "columns": {
+        "agent_id": {
+          "name": "agent_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "policy_version": {
+          "name": "policy_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "auto_spend_limit_usdc": {
+          "name": "auto_spend_limit_usdc",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "absolute_spend_limit_usdc": {
+          "name": "absolute_spend_limit_usdc",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "daily_spend_limit_usdc": {
+          "name": "daily_spend_limit_usdc",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "human_approval_above_usdc": {
+          "name": "human_approval_above_usdc",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "minimum_reliability": {
+          "name": "minimum_reliability",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "preferred_provider_premium_limit": {
+          "name": "preferred_provider_premium_limit",
+          "type": "numeric(6, 4)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "block_after_recent_failures": {
+          "name": "block_after_recent_failures",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "prefer_previous_success": {
+          "name": "prefer_previous_success",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "require_verified_commitment": {
+          "name": "require_verified_commitment",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "memory_error_override_allowed": {
+          "name": "memory_error_override_allowed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "agent_policies_version_positive": {
+          "name": "agent_policies_version_positive",
+          "value": "\"agent_policies\".\"policy_version\" > 0"
+        },
+        "agent_policies_reliability_range": {
+          "name": "agent_policies_reliability_range",
+          "value": "\"agent_policies\".\"minimum_reliability\" is null or (\"agent_policies\".\"minimum_reliability\" between 0 and 100)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.counterparties": {
+      "name": "counterparties",
+      "schema": "",
+      "columns": {
+        "counterparty_key": {
+          "name": "counterparty_key",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "protocol": {
+          "name": "protocol",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "agent_id": {
+          "name": "agent_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "avatar_url": {
+          "name": "avatar_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "acp_lifecycle_state": {
+          "name": "acp_lifecycle_state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'UNKNOWN'"
+        },
+        "relationship_status": {
+          "name": "relationship_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'NEW'"
+        },
+        "latest_memory_version": {
+          "name": "latest_memory_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "classified_aggregates": {
+          "name": "classified_aggregates",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "offerings": {
+          "name": "offerings",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "public_trust": {
+          "name": "public_trust",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "counterparties_relationship_idx": {
+          "name": "counterparties_relationship_idx",
+          "columns": [
+            {
+              "expression": "relationship_status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "counterparties_relationship_known": {
+          "name": "counterparties_relationship_known",
+          "value": "\"counterparties\".\"relationship_status\" in ('NEW', 'KNOWN', 'PREFERRED', 'WATCH', 'BLOCKED', 'ARCHIVED')"
+        },
+        "counterparties_memory_version_non_negative": {
+          "name": "counterparties_memory_version_non_negative",
+          "value": "\"counterparties\".\"latest_memory_version\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.counterparty_episodes": {
+      "name": "counterparty_episodes",
+      "schema": "",
+      "columns": {
+        "episode_id": {
+          "name": "episode_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "counterparty_key": {
+          "name": "counterparty_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "owner_agent_id": {
+          "name": "owner_agent_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "task_type": {
+          "name": "task_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "outcome": {
+          "name": "outcome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount_usdc": {
+          "name": "amount_usdc",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "occurred_at": {
+          "name": "occurred_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_run_id": {
+          "name": "source_run_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "body": {
+          "name": "body",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "counterparty_episodes_key_idx": {
+          "name": "counterparty_episodes_key_idx",
+          "columns": [
+            {
+              "expression": "counterparty_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "occurred_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "counterparty_episodes_owner_idx": {
+          "name": "counterparty_episodes_owner_idx",
+          "columns": [
+            {
+              "expression": "owner_agent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "counterparty_episodes_counterparty_key_counterparties_counterparty_key_fk": {
+          "name": "counterparty_episodes_counterparty_key_counterparties_counterparty_key_fk",
+          "tableFrom": "counterparty_episodes",
+          "tableTo": "counterparties",
+          "columnsFrom": [
+            "counterparty_key"
+          ],
+          "columnsTo": [
+            "counterparty_key"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "counterparty_episodes_outcome_known": {
+          "name": "counterparty_episodes_outcome_known",
+          "value": "\"counterparty_episodes\".\"outcome\" in ('DELIVERED', 'FAILED', 'DISPUTED', 'CANCELLED')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.counterparty_profiles": {
+      "name": "counterparty_profiles",
+      "schema": "",
+      "columns": {
+        "profile_id": {
+          "name": "profile_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "counterparty_key": {
+          "name": "counterparty_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "owner_agent_id": {
+          "name": "owner_agent_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "memory_version": {
+          "name": "memory_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "overall_reliability": {
+          "name": "overall_reliability",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "task_fit": {
+          "name": "task_fit",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "confidence": {
+          "name": "confidence",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "body": {
+          "name": "body",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "counterparty_profiles_version_key": {
+          "name": "counterparty_profiles_version_key",
+          "columns": [
+            {
+              "expression": "counterparty_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "owner_agent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "memory_version",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "counterparty_profiles_counterparty_key_counterparties_counterparty_key_fk": {
+          "name": "counterparty_profiles_counterparty_key_counterparties_counterparty_key_fk",
+          "tableFrom": "counterparty_profiles",
+          "tableTo": "counterparties",
+          "columnsFrom": [
+            "counterparty_key"
+          ],
+          "columnsTo": [
+            "counterparty_key"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "counterparty_profiles_version_positive": {
+          "name": "counterparty_profiles_version_positive",
+          "value": "\"counterparty_profiles\".\"memory_version\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.counterparty_salts": {
+      "name": "counterparty_salts",
+      "schema": "",
+      "columns": {
+        "counterparty_key": {
+          "name": "counterparty_key",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "salt": {
+          "name": "salt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "counterparty_salts_counterparty_key_counterparties_counterparty_key_fk": {
+          "name": "counterparty_salts_counterparty_key_counterparties_counterparty_key_fk",
+          "tableFrom": "counterparty_salts",
+          "tableTo": "counterparties",
+          "columnsFrom": [
+            "counterparty_key"
+          ],
+          "columnsTo": [
+            "counterparty_key"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.memory_diffs": {
+      "name": "memory_diffs",
+      "schema": "",
+      "columns": {
+        "diff_id": {
+          "name": "diff_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "counterparty_key": {
+          "name": "counterparty_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "owner_agent_id": {
+          "name": "owner_agent_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "before_version": {
+          "name": "before_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "after_version": {
+          "name": "after_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "changes": {
+          "name": "changes",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "evidence_event_ids": {
+          "name": "evidence_event_ids",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "explanation": {
+          "name": "explanation",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "memory_diffs_key_idx": {
+          "name": "memory_diffs_key_idx",
+          "columns": [
+            {
+              "expression": "counterparty_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "after_version",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "memory_diffs_counterparty_key_counterparties_counterparty_key_fk": {
+          "name": "memory_diffs_counterparty_key_counterparties_counterparty_key_fk",
+          "tableFrom": "memory_diffs",
+          "tableTo": "counterparties",
+          "columnsFrom": [
+            "counterparty_key"
+          ],
+          "columnsTo": [
+            "counterparty_key"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "memory_diffs_versions_ordered": {
+          "name": "memory_diffs_versions_ordered",
+          "value": "\"memory_diffs\".\"after_version\" > \"memory_diffs\".\"before_version\""
+        }
+      },
       "isRLSEnabled": false
     },
     "public.run_events": {

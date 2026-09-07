@@ -5,10 +5,21 @@ Hono API, and a Drizzle/Postgres data layer.
 
 Implemented today: the editorial landing page at `/`, the first-run onboarding
 flow at `/onboarding`, the Console shell at `/runs`, `/counterparties`,
-`/policies`, and `/system`, and health endpoints. The Console renders honest
-unavailable states because no Run endpoints exist. Not implemented: Run
-creation, the events and stream endpoints, real Run data, authentication, and
-any economic action. Do not invent backend state to fill those gaps.
+`/policies`, `/system` and `/docs`, and the three health endpoints. The Run API
+exists and the Run surfaces are mounted against it: Runs are created through
+`POST /api/runs`, listed from `GET /api/runs`, and folded from
+`GET /api/runs/{id}/events`. `GET /api/runs/{id}/stream` exists too, as an
+ordered **finite replay** of stored events that ends with `replay.complete` —
+not a live tail, and no client method calls it yet, which is why a Run surface
+still reads once and says `LATEST SNAPSHOT`. Counterparty memory is composed
+from Postgres and Sibyl behind `GET /api/counterparties/{key}/memory`.
+
+Not implemented: authentication, any economic action, a stream that stays open
+and pushes new events, the event-to-card renderer in the Mission conversation,
+and any write to Sibyl through the API — the bridge is read-only on purpose.
+Route-level tests for the counterparty memory endpoints are not written yet, so
+treat those two routes as landed code without landed coverage. Do not invent
+backend state to fill any of these gaps.
 
 ## Areas
 

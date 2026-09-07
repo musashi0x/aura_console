@@ -169,3 +169,50 @@ describe("a later malformed context event", () => {
     expect(view.contextEnvelope).toEqual(second);
   });
 });
+
+describe("approval status mapping", () => {
+  it("maps approval.requested to WAITING_APPROVAL status", () => {
+    const view = foldRun(
+      [
+        ...base.slice(0, 2),
+        ev(3, "approval.requested", {
+          action: "Spend 10.000000 USDC",
+          reason: "Engagement with Beta Labs",
+          ceiling_usdc: "10.000000",
+        }),
+      ],
+      seed,
+    );
+    expect(view.status).toBe("WAITING_APPROVAL");
+    expect(view.attention.kind).toBe("AWAITING_APPROVAL");
+    if (view.attention.kind === "AWAITING_APPROVAL") {
+      expect(view.attention.reason).toBe("Engagement with Beta Labs");
+    }
+  });
+
+  it("maps approval.granted back to RUNNING status and clears attention", () => {
+    const view = foldRun(
+      [
+        ...base.slice(0, 2),
+        ev(3, "approval.requested", { reason: "Need approval" }),
+        ev(4, "approval.granted", { ceiling_usdc: "10.000000" }),
+      ],
+      seed,
+    );
+    expect(view.status).toBe("RUNNING");
+    expect(view.attention.kind).toBe("NONE");
+  });
+
+  it("maps approval.rejected to CANCELLED status and clears attention", () => {
+    const view = foldRun(
+      [
+        ...base.slice(0, 2),
+        ev(3, "approval.requested", { reason: "Need approval" }),
+        ev(4, "approval.rejected", { reason: "Rejected by operator" }),
+      ],
+      seed,
+    );
+    expect(view.status).toBe("CANCELLED");
+    expect(view.attention.kind).toBe("NONE");
+  });
+});

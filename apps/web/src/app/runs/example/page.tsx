@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 
 import { ConsoleShell } from "@/features/console/components/console-shell";
-import { RunTimeline } from "@/features/console/components/run-timeline";
+import { readGrounding } from "@/features/console/grounding";
+import { MissionWorkspace } from "@/features/console/components/mission-workspace";
 import { exampleEvents, exampleRun } from "@/features/console/fixtures/example-run";
 import { eventsFromApi, seedFromRun } from "@/features/console/model/from-api";
 import { apiClient } from "@/lib/api-client";
@@ -20,17 +21,21 @@ export const metadata: Metadata = { title: "Example Run — Aura Console" };
  * make the badge a decoration.
  */
 export default async function ExampleRunPage() {
-  const health = await apiClient.dbHealth();
+  const [health, grounding] = await Promise.all([apiClient.dbHealth(), readGrounding()]);
 
   return (
     <ConsoleShell
-      surface="Example Run"
+      surface="Missions"
       readiness={health.ok ? "ready" : "degraded"}
       runRef={exampleRun.id}
+      hostsConversation
     >
-      <RunTimeline
+      {/* First, not last. Below the timeline the panel sat off-screen on
+          every Run long enough to matter. */}
+      <MissionWorkspace
         events={eventsFromApi(exampleEvents)}
         seed={seedFromRun(exampleRun)}
+        grounding={grounding}
         fixtureLabel="Example data. This Run was not executed and no economic action was taken."
       />
     </ConsoleShell>

@@ -22,8 +22,9 @@ nothing".
 The Run surfaces are being rebuilt into the
 [Mission workspace](../../product/mission-workspace.md): one Mission screen with
 `Operator`, `Board` and `Trace` modes, a persistent composer, and a conversation
-that renders cards folded from canonical events. None of it exists yet. This
-document describes the code that does.
+that renders cards folded from canonical events. The shell, the three modes, the
+six-step rail and the Board are built; the event-to-card renderer and the cards
+are not, so Operator currently lists each event as an inspectable raw entry.
 
 Two things about that redesign matter when changing anything below.
 
@@ -44,8 +45,8 @@ and `/policies`. `Run` stays the system word everywhere in code, the same way
 | `/runs/[runId]` | `apps/web/src/app/runs/[runId]/page.tsx` | Folds real events from `GET /api/runs/{id}/events` |
 | `/runs/new` | `apps/web/src/app/runs/new/page.tsx` | Creates a Run through `POST /api/runs` |
 | `/runs/example` | `apps/web/src/app/runs/example/page.tsx` | Labelled fixture through the real fold |
-| `/counterparties` | `apps/web/src/app/counterparties/page.tsx` | Shell renders; no projection |
-| `/policies` | `apps/web/src/app/policies/page.tsx` | Shell renders; no policy endpoint |
+| `/counterparties` | `apps/web/src/app/counterparties/page.tsx` | Shell renders an unavailable state; the projection endpoint exists but this page does not read it |
+| `/policies` | `apps/web/src/app/policies/page.tsx` | Shell renders an unavailable state; `GET /api/policies/{agentId}` exists but this page does not read it |
 | `/system` | `apps/web/src/app/system/page.tsx` | Live readiness, fully working |
 
 `/` remains the landing page and `FirstRunGate` still routes a new browser to
@@ -58,11 +59,9 @@ and `/policies`. `Run` stays the system word everywhere in code, the same way
 - `apps/web/src/features/console/components/console-topbar.tsx` —
   `ConsoleTopbar`; brand, environment label, Run reference, readiness.
 - `apps/web/src/features/console/components/console-navigation.tsx` —
-  `ConsoleNavigation`; primary list (Runs, Counterparties, Policies) and a
-  secondary list (Example Run, Readiness, Back to landing). The secondary list
-  is scheduled to disappear: the example Mission moves into the primary list
-  with a `Demo` badge, readiness moves to the Network status chip, and the
-  landing page is reached from the brand mark.
+  `ConsoleNavigation`; one list: Missions, Agents, Network, Guardrails, Docs.
+  The secondary list is gone. The example Mission still needs its `Demo` badge
+  in Missions, and readiness still needs to reach the Network status chip.
 - `apps/web/src/features/console/components/console-status.tsx` —
   `ConsoleStatus`, `ReadinessState` = `"ready" | "degraded" | "checking"`.
 - `apps/web/src/features/console/components/console-states.tsx` —
@@ -70,10 +69,18 @@ and `/policies`. `Run` stays the system word everywhere in code, the same way
   `ConsoleUnavailableMemory`, `ConsoleTransportLabel`.
 - `apps/web/src/features/console/copy.ts` — `console_`; every visible string in
   the shell, so wording is reviewed in one place rather than per component.
-- `apps/web/src/features/console/components/run-timeline.tsx` — `RunTimeline`;
-  mounted on `/runs/[runId]` with real events and on `/runs/example` with a
-  labelled fixture. Both go through the same fold, so the example cannot
-  diverge from the product it demonstrates.
+- `apps/web/src/features/console/components/mission-workspace.tsx` —
+  `MissionWorkspace`; mounted on `/runs/[runId]` with real events and on
+  `/runs/example` with a labelled fixture. Both go through the same fold, so the
+  example cannot diverge from the product it demonstrates. It owns the playhead
+  and hands one `RunView` to all three modes.
+- `apps/web/src/features/console/components/mission-operator.tsx`,
+  `mission-board.tsx`, `mission-trace.tsx`, `mission-rail.tsx` — the three modes
+  and the six-step rail. None of them fetch or fold; they render what
+  `MissionWorkspace` already projected.
+- `apps/web/src/features/console/projection/mission-rail.ts` —
+  `buildMissionProgress`; the total mapping from the ten canonical stages to the
+  six rail steps, and the Board column each step falls in.
 - `apps/web/src/features/console/model/from-api.ts` — the only place the API's
   wire shape meets the projection's input shape.
 - `apps/web/src/features/console/fixtures/example-run.ts` — the example Run.
@@ -132,7 +139,9 @@ about whether to wait.
 
 ## Transport
 
-There is no stream, so a Run surface reads once. What it offers reflects that.
+A Run surface reads once — not because no stream exists, but because the one
+that exists is a finite replay and nothing subscribes to it. What the surface
+offers reflects that.
 
 | Control | When | What it does |
 |---|---|---|
@@ -171,14 +180,27 @@ without removing any content or state.
 
 ## Endpoints
 
-Four of the five exist and are mounted: `POST /api/runs`, `GET /api/runs`,
-`GET /api/runs/{id}` and `GET /api/runs/{id}/events`.
+All five exist and are mounted: `POST /api/runs`, `GET /api/runs`,
+`GET /api/runs/{id}`, `GET /api/runs/{id}/events`, and
+`GET /api/runs/{id}/stream`.
 
-`GET /api/runs/{id}/stream` does not. There is deliberately no client method for
-it: a method that 404s turns a known gap into a runtime failure. Until it lands,
-a Run surface reads its events ONCE, so the transport says `LATEST SNAPSHOT`
-rather than `LIVE`. "Live" would claim a subscription the Console does not
-have.
+The stream landing did not make the Console live, and adding a client method for
+it would not either. It is a **finite replay**: it writes the stored events in
+sequence order, ends with `replay.complete`, and pushes nothing appended after
+it started (see
+[the stream is a replay](../api/runs.md#the-stream-is-a-replay-not-a-live-tail)).
+So `apps/web/src/lib/api-client.ts` still has no `stream` method — its comment
+saying the server has no stream is now out of date, but the conclusion it draws
+is not — and a Run surface still reads its events ONCE, which is why the
+transport says `LATEST SNAPSHOT` rather than `LIVE`. "Live" would claim a
+subscription the Console does not have.
+
+The counterparty and policy surfaces are the reverse case: `GET
+/api/counterparties`, `GET /api/counterparties/{key}`,
+`GET /api/counterparties/{key}/memory` and `GET /api/policies/{agentId}` all
+exist, and neither page reads any of them. Their unavailable copy still says the
+endpoint does not exist, which is now the wrong reason for the right state —
+correct the copy when wiring the surface, not before.
 
 ## Screenshots
 
@@ -196,4 +218,5 @@ have.
   landmarks, `aria-current`, absence of account surfaces, readiness taken from
   the prop rather than assumed, every state surface, axe, responsive and motion
   rules read from `globals.css`.
-- `apps/web/src/features/console/components/run-timeline.test.tsx`
+- `apps/web/src/features/console/components/mission-workspace.test.tsx`
+- `apps/web/src/features/console/projection/mission-rail.test.ts`

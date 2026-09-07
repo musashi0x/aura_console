@@ -23,6 +23,15 @@ export interface AppendEventInput {
   data: unknown;
 }
 
+export interface RecordApprovalDecisionInput {
+  runId: string;
+  eventId: string;
+  decision: "approve" | "reject";
+  eventTime?: Date;
+  ceilingUsdc?: string;
+  reason?: string;
+}
+
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
 /**
@@ -160,6 +169,136 @@ export class RunStore {
     };
 
     return outerTx ? body(outerTx) : this.db.transaction(body);
+  }
+
+  /**
+   * Records an operator's approval or rejection decision atomically.
+   *
+   * Holding the `runs` row lock for update ensures checking pending requests,
+   * checking for prior settlement (already_approved / already_rejected), and
+   * allocating the event sequence are performed in a single serialised critical section.
+   */
+  async recordApprovalDecision(input: RecordApprovalDecisionInput) {
+    const eventTime = input.eventTime ?? new Date();
+
+    return this.db.transaction(async (tx) => {
+      const [locked] = await tx
+        .select({ id: schema.runs.id })
+        .from(schema.runs)
+        .where(eq(schema.runs.id, input.runId))
+        .for("update");
+
+      if (!locked) {
+        throw httpError(404, "run_not_found", `No Run ${input.runId}`);
+      }
+
+      const existing = await this.findEvent(tx, input.eventId);
+      if (existing) {
+        const expectedType = input.decision === "approve" ? "approval.granted" : "approval.rejected";
+        if (existing.type !== expectedType || existing.runId !== input.runId) {
+          throw httpError(
+            409,
+            "event_conflict",
+            `Event ${input.eventId} already exists with different content`,
+          );
+        }
+        return { event: existing, created: false };
+      }
+
+      const events = await tx
+        .select()
+        .from(schema.runEvents)
+        .where(eq(schema.runEvents.runId, input.runId))
+        .orderBy(asc(schema.runEvents.sequence));
+
+      const REQUESTED = "approval.requested";
+      const GRANTED = "approval.granted";
+      const REJECTED = "approval.rejected";
+
+      const lastRequested = events.filter((e) => e.type === REQUESTED).at(-1);
+      if (!lastRequested) {
+        throw httpError(
+          409,
+          "no_pending_approval",
+          input.decision === "approve"
+            ? "Nothing has asked for approval on this Mission, so there is nothing to approve."
+            : "Nothing has asked for approval on this Mission, so there is nothing to reject.",
+        );
+      }
+
+      const grantedAfter = events.some(
+        (e) => e.type === GRANTED && e.sequence > lastRequested.sequence,
+      );
+      if (grantedAfter) {
+        throw httpError(
+          409,
+          "already_approved",
+          input.decision === "approve"
+            ? "This request was already approved. A second grant would authorize a second action."
+            : "This request was already approved.",
+        );
+      }
+
+      const rejectedAfter = events.some(
+        (e) => e.type === REJECTED && e.sequence > lastRequested.sequence,
+      );
+      if (rejectedAfter) {
+        throw httpError(
+          409,
+          "already_rejected",
+          "This request was already rejected.",
+        );
+      }
+
+      const [head] = await tx
+        .select({ max: max(schema.runEvents.sequence) })
+        .from(schema.runEvents)
+        .where(eq(schema.runEvents.runId, input.runId));
+
+      const requested = (lastRequested.data ?? {}) as Record<string, unknown>;
+      let eventType: string;
+      let eventData: Record<string, unknown>;
+
+      if (input.decision === "approve") {
+        eventType = GRANTED;
+        eventData = {
+          summary: "Operator approved the requested action",
+          ceiling_usdc: input.ceilingUsdc!,
+          approves_event_id: lastRequested.eventId,
+          action: requested.action ?? null,
+          counterparty_key: requested.counterparty_key ?? null,
+          granted_via: "console_operator_click",
+        };
+      } else {
+        eventType = REJECTED;
+        const ceilingUsdc = (requested.ceiling_usdc ?? requested.amount_usdc ?? null) as string | null;
+        const reason = input.reason ?? "Operator rejected the requested action";
+        eventData = {
+          summary: reason,
+          reason,
+          ceiling_usdc: ceilingUsdc,
+          rejected_event_id: lastRequested.eventId,
+          action: requested.action ?? null,
+          counterparty_key: requested.counterparty_key ?? null,
+          granted_via: "console_operator_click",
+        };
+      }
+
+      const [row] = await tx
+        .insert(schema.runEvents)
+        .values({
+          eventId: input.eventId,
+          runId: input.runId,
+          sequence: (head?.max ?? -1) + 1,
+          type: eventType,
+          eventTime,
+          data: eventData,
+        })
+        .returning();
+
+      if (!row) throw new Error("insert into run_events returned no row");
+      return { event: row, created: true };
+    });
   }
 
   private async findEvent(tx: Tx, eventId: string) {

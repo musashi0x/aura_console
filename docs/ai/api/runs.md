@@ -19,6 +19,11 @@ oversight.
 | `GET` | `/api/runs/:runId` | `200`, or `404` when the Run does not exist |
 | `GET` | `/api/runs/:runId/events` | `200` with events in sequence order |
 | `POST` | `/api/runs/:runId/events` | `201` when appended, `200` when the append was a replay |
+| `GET` | `/api/runs/:runId/stream` | `200` SSE: a finite replay of stored events, then `replay.complete` |
+| `GET` | `/api/runs/:runId/chat` | `200` SSE agent answer, or `503 agent_unavailable` before the stream opens |
+
+The last two are served by `apps/api/src/routes/chat.ts`, mounted on the same
+`/api/runs` prefix: they are paths under a Run, not a second Run namespace.
 
 `GET /api/runs/:runId/events?after=<sequence>` returns only events after that
 sequence, which is what lets a reconnecting client resume without replaying
@@ -82,7 +87,7 @@ Set `TEST_DATABASE_URL` to override.
 
 ## What the Console does with these
 
-`RunTimeline` is mounted against them. `/runs` lists from `GET /api/runs`,
+`MissionWorkspace` is mounted against them. `/runs` lists from `GET /api/runs`,
 `/runs/[runId]` folds `GET /api/runs/{id}/events`, and `/runs/new` creates
 through `POST /api/runs`. `/runs/example` renders a labelled fixture through the
 same fold, so the example cannot drift from the product.
@@ -91,12 +96,29 @@ same fold, so the example cannot drift from the product.
 distinct, because who opened a Run is a fact about it and the API is the
 transport that carried it, not the actor that started it.
 
-## Not here yet
+## The stream is a replay, not a live tail
 
-- `GET /api/runs/:runId/stream` — SSE with `Last-Event-ID` replay.
+`GET /api/runs/:runId/stream` exists (`apps/api/src/routes/chat.ts`). Read what
+it actually does before building on it.
 
-Its absence is visible in the product, not hidden: a Run surface reads once and
-reports `LATEST SNAPSHOT` rather than `LIVE`, and there is no Play or Pause
-because nothing advances the playhead. `?after=<sequence>` already exists for
-the resume-without-duplicates path a stream will need, so adding one should not
-require changing how events are read.
+It reads the Run's stored events once, writes each as an SSE frame whose `event`
+is the event type, whose `id` is the sequence number, and whose `data` is the
+canonical envelope (`event_id`, `run_id`, `type`, `sequence`, `event_time`,
+`data`), then writes `replay.complete` and ends. It takes the same
+`?after=<sequence>` as the events endpoint, so a client can resume without
+replaying what it already folded — but note it does **not** validate that value
+the way `GET .../events` does, where a bad one is `400 invalid_after`; here it
+goes to `Number()` unchecked. `400 invalid_run_id` and `404 run_not_found` are
+raised before the stream opens, so a rejected request is a failed connection
+rather than an open socket that produces nothing.
+
+**Nothing pushes.** The handler holds no subscription and appends nothing to the
+loop, so an event written after the replay started is not delivered. That is why
+the product still reports `LATEST SNAPSHOT` and not `LIVE`, and why there is
+still no Play or Pause: nothing advances the playhead. The `id` on each frame is
+the sequence number, which is the value `Last-Event-ID` would carry — but
+reconnection-driven resume is a client behaviour nobody has written, and there
+is deliberately still no `stream` method in `apps/web/src/lib/api-client.ts`.
+
+Calling this live would be the same collapse the memory states exist to prevent:
+"we read everything up to now" is not "we are watching".

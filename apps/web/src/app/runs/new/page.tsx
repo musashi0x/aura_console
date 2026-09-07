@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { ConsoleShell } from "@/features/console/components/console-shell";
+import { readGrounding } from "@/features/console/grounding";
 import { NewRunForm } from "@/features/console/components/new-run-form";
 import { apiClient } from "@/lib/api-client";
 
@@ -16,10 +17,14 @@ export const metadata: Metadata = { title: "Start a Run — Aura Console" };
  * Run is only reported as created once the server has said so.
  */
 export default async function NewRunPage() {
-  const health = await apiClient.dbHealth();
+  const [health, grounding] = await Promise.all([apiClient.dbHealth(), readGrounding()]);
 
   return (
-    <ConsoleShell surface="Runs" readiness={health.ok ? "ready" : "degraded"}>
+    <ConsoleShell
+      surface="Missions"
+      readiness={health.ok ? "ready" : "degraded"}
+      grounding={grounding}
+    >
       <h1 className="cs__title">Start a Run</h1>
       <p className="cs__lede">
         A Run is one economic objective from start to finish. Creating it records the objective and

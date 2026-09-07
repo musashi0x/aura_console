@@ -49,19 +49,62 @@ const ev = (
 export const exampleEvents: RunEvent[] = [
   ev(1, 0, "run.created", 0, "Run opened with a 25 USDC ceiling", { budget_usdc: "25.000000" }),
   ev(2, 1, "run.started", 4, "Agent began work"),
-  ev(3, 2, "provider.discovered", 12, "Three counterparties offered the dataset"),
-  ev(4, 3, "memory.retrieved", 31, "Two prior settlements recalled for this counterparty"),
-  ev(5, 4, "candidate.scored", 44, "Counterparties ranked by settlement record and price"),
-  ev(6, 5, "policy.evaluated", 52, "Operator policy allows this counterparty class"),
-  ev(7, 6, "decision.made", 58, "Selected the counterparty with the better settlement record"),
+  ev(3, 2, "provider.discovered", 12, "Three counterparties offered the dataset", {
+    candidates: ["beta_labs", "alpha_research", "gamma_data"],
+  }),
+  ev(4, 3, "memory.retrieved", 31, "Two prior settlements recalled for this counterparty", {
+    counterparty_key: "beta_labs",
+    retrieval_status: "AVAILABLE",
+    episodes_used: 2,
+  }),
+  /* Scores carry their memory component so the no-memory comparison has
+     recorded evidence to subtract. Alpha leads on price and marketplace
+     reputation; the recalled failure is the only thing that puts Beta ahead,
+     which is exactly the claim the counterfactual exists to evidence. */
+  ev(5, 4, "candidate.scored", 44, "Counterparties ranked by settlement record and price", {
+    candidates: [
+      {
+        key: "alpha_research",
+        score: 72,
+        memory_adjustment: -24,
+        memory_note:
+          "A previous Alpha Research delivery failed acceptance, applying a 24 point risk penalty.",
+      },
+      { key: "beta_labs", score: 91, memory_adjustment: 6 },
+      { key: "gamma_data", score: 64, memory_adjustment: 0 },
+    ],
+  }),
+  ev(6, 5, "policy.evaluated", 52, "Operator policy allows this counterparty class", {
+    policy_version: "v4",
+    passed: true,
+  }),
+  ev(7, 6, "decision.made", 58, "Selected the counterparty with the better settlement record", {
+    counterparty_key: "beta_labs",
+    authorization_mode: "OPERATOR_APPROVAL",
+    reasons: [
+      "Two prior settlements, both accepted.",
+      "Quoted price is inside the operator ceiling.",
+    ],
+  }),
   ev(8, 7, "run.blocked", 62, "Paused: the quoted price exceeds the operator ceiling"),
-  ev(9, 8, "approval.granted", 140, "Operator approved the revised quote"),
+  ev(9, 8, "approval.granted", 140, "Operator approved the revised quote", {
+    ceiling_usdc: "25.000000",
+  }),
   ev(10, 9, "run.resumed", 146, "Work resumed under the approved ceiling"),
-  ev(11, 10, "acp.job.funded", 168, "Job funded within the approved ceiling"),
-  ev(12, 11, "evaluation.completed", 226, "Delivery verified against the objective"),
+  ev(11, 10, "acp.job.funded", 168, "Job funded within the approved ceiling", {
+    counterparty_key: "beta_labs",
+    amount_usdc: "18.500000",
+    job_state: "FUNDED",
+  }),
+  ev(12, 11, "evaluation.completed", 226, "Delivery verified against the objective", {
+    result: "ACCEPTED",
+    evaluated_by: "operator policy",
+  }),
   // Spend is reported BY the event. The Console never adds anything up.
   ev(13, 12, "outcome.recorded", 240, "Dataset delivered and verified", {
     spent_usdc: "18.500000",
+    result: "DELIVERED",
+    evaluated_by: "operator policy",
   }),
   ev(14, 13, "memory.episode.written", 248, "Settlement recorded against the counterparty"),
   ev(15, 14, "memory.diff.published", 250, "Relationship memory moved from v12 to v13"),

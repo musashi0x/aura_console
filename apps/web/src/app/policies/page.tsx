@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { ConsoleShell } from "@/features/console/components/console-shell";
+import { readGrounding } from "@/features/console/grounding";
 import { ConsoleErrorState } from "@/features/console/components/console-states";
 import { apiClient } from "@/lib/api-client";
 
@@ -9,11 +10,11 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Policies — Aura Console" };
 
 export default async function PoliciesPage() {
-  const health = await apiClient.dbHealth();
+  const [health, grounding] = await Promise.all([apiClient.dbHealth(), readGrounding()]);
   const readiness = health.ok ? "ready" : "degraded";
 
   return (
-    <ConsoleShell surface="Policies" readiness={readiness}>
+    <ConsoleShell surface="Guardrails" readiness={readiness} grounding={grounding}>
       <h1 className="cs__title">Policies</h1>
       {/* Policy is enforced on the server whether or not this surface can read
           it. Absence here is not absence of policy. */}

@@ -24,16 +24,17 @@ and should be kept in sync.
 | Onboarding at `/onboarding` | Implemented |
 | Console shell | Implemented ([PR #6](https://github.com/musashi0x/aura_console/pull/6)), task #44 |
 | `/runs`, `/runs/new`, `/runs/example` | Implemented against the real API |
-| Run timeline at `/runs/[runId]` | Implemented: folded events, scrubbable playhead, no stream |
-| Mission workspace (Operator, Board, Trace) | Not built |
-| Conversation cards and the composer | Not built |
+| Run timeline at `/runs/[runId]` | Replaced by the Mission workspace: same fold, same scrubbable playhead, no stream |
+| Mission workspace (Operator, Board, Trace) | Implemented |
+| Conversation cards and the composer | Composer implemented; the event-to-card renderer is not built |
 | Memory drawer and counterfactual | Not built; blocked on memory retrieval, task #32 |
-| Navigation rename (Missions, Agents, Network, Guardrails) | Not done |
+| Navigation rename (Missions, Agents, Network, Guardrails) | Implemented |
+| Model Context Protocol (MCP) & Universal Chat | Implemented (stdio & HTTP transports, universal chat routing, 8 MCP tools) |
 | Editorial layer on Operator and Board | Not done |
 | Browser E2E | Not implemented, task #60 |
 
-The redesign in [Mission workspace](mission-workspace.md) is the target, not a
-description of the current screen. Its
+The redesign in [Mission workspace](mission-workspace.md) is partly built: the
+shell, the three modes, the rail and the Board exist, and the cards do not. Its
 [What exists today](mission-workspace.md#what-exists-today) table is the
 per-piece split, and its
 [Implementation order](mission-workspace.md#implementation-order) is the

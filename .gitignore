@@ -25,6 +25,8 @@ pnpm-debug.log*
 
 openspec/
 .claude
+.agents/
+ORIGINAL_REQUEST.md
 
 # Next.js generated types
 apps/web/next-env.d.ts
@@ -32,3 +34,15 @@ apps/web/next-env.d.ts
 # Claude Code local config
 .claude/
 .openspec/
+
+# Python runtimes for Sibyl Memory and the ADK agent. Both are created by the
+# operator (see docs/ai/api/deployment.md) and neither belongs in the tree:
+# without this a single `git add -A` commits several thousand venv files.
+.venv-sibyl/
+.venv-adk/
+
+# ADK's own runtime state: a session database and bytecode it writes beside the
+# agent. Runtime artefacts, not source.
+__pycache__/
+*.pyc
+agents/**/.adk/

@@ -1,12 +1,12 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-
 import { describe, expect, it } from "vitest";
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const tokens = readFileSync(path.join(here, "../tokens.css"), "utf8");
-const globals = readFileSync(path.join(here, "../../app/globals.css"), "utf8");
+// Inlined by vitest.config.ts (`define`) — see cssRaw there. Reading the files
+// here would need node:fs, which is unresolvable in the jsdom module graph.
+declare const __TOKENS_CSS__: string;
+declare const __GLOBALS_CSS__: string;
+
+const tokens = __TOKENS_CSS__;
+const globals = __GLOBALS_CSS__;
 
 function value(name: string): string {
   const match = tokens.match(new RegExp(`--${name}:\\s*([^;]+);`));
@@ -94,10 +94,11 @@ describe("landing surface", () => {
     expect(globals).toMatch(/\.lp a\.lp-btn--primary\s*\{[^}]*color:\s*var\(--landing-surface\)/);
   });
 
-  it("keeps Console navigation out of the global anchor colour", () => {
+  it("keeps the Console brand out of the global anchor colour", () => {
     // Same specificity trap as the landing buttons: `a:not(.btn)` beats a bare
-    // class, so nav links would render accent cyan instead of muted.
-    expect(globals).toMatch(/\.cs a\.cs__nav-link[\s\S]{0,120}color:\s*var\(--color-text-muted\)/);
+    // class. The nav links that used to need this are SideNav's now and it
+    // styles them; the brand link in the context bar is still ours.
+    expect(globals).toMatch(/a\.cs__brand,[\s\S]{0,160}color:\s*var\(--color-cyan\)/);
   });
 
   it("paints the document itself on the landing route so overscroll is not dark", () => {
@@ -151,34 +152,37 @@ describe("the first-run banner belongs to the light layer", () => {
 
 describe("the Console fits a 390px viewport", () => {
   /**
-   * At 390x844 the Console measured scrollWidth 428 against clientWidth 390 and
-   * the whole document scrolled sideways. Two causes, both easy to reintroduce:
-   * the topbar carries brand, surface, Run reference, environment and readiness
-   * with nothing allowed to shrink, and a grid item defaults to
-   * `min-width: auto`, which lets its content set the track width so the nav's
-   * own `overflow-x` never engages.
+   * At 390x844 the Console once measured scrollWidth 428 against clientWidth
+   * 390 and the whole document scrolled sideways.
    *
-   * A browser measurement is the real proof and is recorded in the handback.
-   * This guards the rules that make it true, because deleting one of them is
-   * silent until someone opens a phone.
+   * Most of what fixed that is no longer written here: the frame is AppShell's,
+   * and asserting a dependency's stylesheet from this repo would be testing
+   * someone else's code. The browser measurement across every surface and width
+   * is the real proof and is recorded in the handback. What stays is the rule
+   * this repo still owns, plus a guard that the hand-built frame did not creep
+   * back in beside the one the design system provides.
    */
-  const mobile = globals.slice(globals.lastIndexOf("@media (max-width: 47.99rem)"));
-
-  it("lets the topbar wrap instead of overflowing", () => {
-    expect(mobile).toMatch(/\.cs__bar\s*{[^}]*flex-wrap:\s*wrap/);
-  });
-
-  it("allows every part of the topbar to shrink", () => {
-    // Without this a flex item refuses to go below its content width.
-    expect(mobile).toMatch(/\.cs__bar\s*>\s*\*,[\s\S]{0,80}min-width:\s*0/);
-  });
+  /** Every `max-width: 47.99rem` block, since there is more than one now.
+   *  Slicing from whichever was written last searched the wrong one, and
+   *  anchoring on the first mention of a selector found the unlayered rule
+   *  outside any query. */
+  const narrowBlocks = globals
+    .split("@media (max-width: 47.99rem)")
+    .slice(1)
+    .map((part) => part.slice(0, part.indexOf("\n}\n")));
 
   it("keeps a long Run reference from setting the page width", () => {
-    expect(mobile).toMatch(/\.cs__run-ref\s*{[^}]*text-overflow:\s*ellipsis/);
+    expect(
+      narrowBlocks.some((block) =>
+        /\.cs__run-ref\s*{[^}]*text-overflow:\s*ellipsis/.test(block),
+      ),
+    ).toBe(true);
   });
 
-  it("lets the body grid tracks be narrower than their content", () => {
-    // This is what makes the nav strip's own overflow-x engage.
-    expect(mobile).toMatch(/\.cs__body\s*>\s*\*\s*{[^}]*min-width:\s*0/);
+  it("no longer hand-builds a frame beside the design system's", () => {
+    // Two frames is how a rail ends up disagreeing with the shell that owns it.
+    for (const dead of [".cs__body", ".cs__rail", ".cs__bar", ".cs__nav-list", "main.cs__main"]) {
+      expect(globals).not.toContain(dead);
+    }
   });
 });

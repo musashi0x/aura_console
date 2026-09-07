@@ -1,0 +1,17 @@
+node_modules
+**/node_modules
+.git
+.next
+**/.next
+dist
+**/dist
+.turbo
+**/.turbo
+.venv-sibyl
+.venv-adk
+**/__pycache__
+.claude
+*.log
+.env
+.env.*
+!.env.example
