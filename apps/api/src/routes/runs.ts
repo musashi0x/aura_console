@@ -2,9 +2,11 @@ import { Hono } from "hono";
 import { z } from "zod";
 
 import { httpError } from "../errors.js";
+import { MissionAgent } from "../services/mission-agent.js";
 import { RunStore } from "../services/run-store.js";
 
 const store = new RunStore();
+const agent = new MissionAgent(store);
 
 const uuidSchema = z.uuid();
 
@@ -96,6 +98,22 @@ runs.post("/", async (c) => {
     source: input.source,
     budgetUsdc: input.budgetUsdc ?? null,
   });
+
+  /* The agent opens the Mission before this responds, rather than in the
+     background.
+
+     Awaiting it costs the operator about a second on create and buys two
+     things worth more than that second: the Mission is never briefly a Run
+     with no work in it, and there is no polling — the Console reads the events
+     once, on the page it navigates to, and they are already there.
+
+     `openMission` never throws. An opening that failed leaves the Run at
+     `run.created`, which is the truth about that Mission; failing this request
+     would instead report that no Run was created, and one was. */
+  if (input.source === "CONSOLE") {
+    await agent.openMission({ runId: run.id, budgetUsdc: run.budgetUsdc });
+  }
+
   return c.json({ run: runBody(run) }, 201);
 });
 

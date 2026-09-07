@@ -10,11 +10,19 @@ import { app } from "../app.js";
  * is one way the product's "money is never ambient" claim could be lost.
  */
 
+/**
+ * A Run whose log holds only the seed.
+ *
+ * `source: "AGENT"` keeps the agent's opening out of it. A CONSOLE Mission is
+ * opened on creation and may already carry a pending `approval.requested`,
+ * which would quietly satisfy the very precondition these tests exist to prove
+ * the endpoint checks for.
+ */
 async function createRun() {
   const res = await app.request("/api/runs", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ objective: "Buy one dataset" }),
+    body: JSON.stringify({ objective: "Buy one dataset", source: "AGENT" }),
   });
   const body = (await res.json()) as { run: { id: string } };
   return body.run.id;
