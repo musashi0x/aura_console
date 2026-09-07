@@ -42,7 +42,7 @@ export const console_ = {
     primary: [
       { href: "/runs", label: "Missions" },
       { href: "/runs/new", label: "New Mission" },
-      { href: "/chat", label: "Chat Console" },
+      { href: "/ai-chat", label: "Chat Console" },
       { href: "/counterparties", label: "Agents" },
       { href: "/policies", label: "Guardrails" },
       { href: "/system", label: "Network" },

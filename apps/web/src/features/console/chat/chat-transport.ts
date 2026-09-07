@@ -3,11 +3,16 @@ import type {
   EventStream,
   EventStreamFactory,
   MemoryCitation,
+  McpToolCall,
+  TokenUsage,
 } from "./chat-types";
 
 export interface ChatStreamHandlers {
   onToken: (text: string) => void;
   onCitation: (citation: MemoryCitation) => void;
+  onToolCall?: (toolCall: McpToolCall) => void;
+  onThought?: (thought: string) => void;
+  onUsage?: (usage: TokenUsage) => void;
   onState: (state: ChatConnection) => void;
   onDone: () => void;
 }
@@ -52,6 +57,9 @@ export function openChatStream(options: ChatStreamOptions): ChatStreamHandle {
     url,
     onToken,
     onCitation,
+    onToolCall,
+    onThought,
+    onUsage,
     onState,
     onDone,
     createStream = defaultFactory,
@@ -106,6 +114,40 @@ export function openChatStream(options: ChatStreamOptions): ChatStreamHandle {
         }
       } catch {
         // A malformed citation is dropped rather than shown as a real record.
+      }
+    });
+
+    created.addEventListener("tool_call", (event) => {
+      if (closed) return;
+      try {
+        const parsed: unknown = JSON.parse(String(event.data ?? "null"));
+        if (parsed && typeof parsed === "object" && "name" in parsed) {
+          const call = parsed as Record<string, unknown>;
+          onToolCall?.({
+            name: String(call.name),
+            args: (call.args as Record<string, unknown>) ?? {},
+            result: call.result,
+          });
+        }
+      } catch {
+        // Malformed tool call dropped
+      }
+    });
+
+    created.addEventListener("thought", (event) => {
+      if (closed) return;
+      onThought?.(String(event.data ?? ""));
+    });
+
+    created.addEventListener("usage", (event) => {
+      if (closed) return;
+      try {
+        const parsed: unknown = JSON.parse(String(event.data ?? "null"));
+        if (parsed && typeof parsed === "object" && "totalTokens" in parsed) {
+          onUsage?.(parsed as TokenUsage);
+        }
+      } catch {
+        // Malformed usage dropped
       }
     });
 

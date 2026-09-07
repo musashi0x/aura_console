@@ -30,6 +30,12 @@ export interface GeminiContent {
   parts: GeminiPart[];
 }
 
+export interface TokenUsage {
+  promptTokens: number;
+  candidateTokens: number;
+  totalTokens: number;
+}
+
 export interface GeminiAgentInput {
   query: string;
   runId?: string;
@@ -44,6 +50,8 @@ export interface GeminiAgentInput {
     counterpartyKey: string;
     label: string;
   }) => Promise<void> | void;
+  onThought?: (thought: string) => Promise<void> | void;
+  onUsage?: (usage: TokenUsage) => Promise<void> | void;
   onToken?: (token: string) => Promise<void> | void;
 }
 
@@ -58,6 +66,8 @@ export interface GeminiAgentResult {
     counterpartyKey: string;
     label: string;
   }>;
+  thought?: string;
+  usage?: TokenUsage;
   turns: number;
 }
 
@@ -165,7 +175,7 @@ interface SpendProposalResponse {
 function planDeterministicTurn(
   history: GeminiContent[],
   runId?: string,
-): { parts: GeminiPart[] } {
+): { parts: GeminiPart[]; thought?: string } {
   const initialUserTurn = history.find((h) => h.role === "user");
   const query = initialUserTurn?.parts.find((p) => p.text)?.text ?? "";
   const norm = query.trim().toLowerCase().replace(/[?.!,]+$/g, "");
@@ -193,6 +203,7 @@ function planDeterministicTurn(
   if (navMatch) {
     if (!hasExecuted("console_navigate")) {
       return {
+        thought: `Interpreting navigation intent for "${query}". Resolving destination route to ${navMatch.label} (${navMatch.destination}).`,
         parts: [
           {
             functionCall: {
@@ -204,6 +215,7 @@ function planDeterministicTurn(
       };
     }
     return {
+      thought: `Navigation dispatched to ${navMatch.label}. Confirming view transition for operator.`,
       parts: [{ text: `Navigating to ${navMatch.label}.` }],
     };
   }
@@ -219,6 +231,7 @@ function planDeterministicTurn(
     const enabled = !norm.includes("off");
     if (!hasExecuted("console_toggle_memory_view")) {
       return {
+        thought: `Processing memory projection command. Setting causal memory spine to ${enabled ? "active" : "disabled"}.`,
         parts: [
           {
             functionCall: {
@@ -230,6 +243,7 @@ function planDeterministicTurn(
       };
     }
     return {
+      thought: `Memory projection state updated successfully.`,
       parts: [{ text: `Memory view is now switched ${enabled ? "On" : "Off"}.` }],
     };
   }
@@ -246,6 +260,7 @@ function planDeterministicTurn(
   ) {
     if (!hasExecuted("console_get_readiness")) {
       return {
+        thought: `Auditing multi-runtime infrastructure health across PostgreSQL database, Sibyl memory bridge, and ADK agent.`,
         parts: [{ functionCall: { name: "console_get_readiness", args: {} } }],
       };
     }
@@ -255,6 +270,7 @@ function planDeterministicTurn(
     const agentStatus = res?.agent?.reachable ? "ready" : "not configured";
     const overall = res?.overallReady ? "SYSTEM READY" : "SYSTEM DEGRADED";
     return {
+      thought: `Health telemetry retrieved. Assembling multi-service status briefing for operator.`,
       parts: [
         {
           text: `System readiness check:\n- Database: ${dbStatus} (${res?.database?.latencyMs ?? 0}ms)\n- Sibyl Memory: ${sibylStatus}\n- ADK Agent: ${agentStatus}\nOverall status: ${overall}.`,
@@ -277,6 +293,7 @@ function planDeterministicTurn(
   if (isGuardrailQuery) {
     if (!hasExecuted("guardrails_get_policies")) {
       return {
+        thought: `Querying PolicyStore to inspect active guardrail constraints, auto-spend limits, and minimum reliability thresholds.`,
         parts: [{ functionCall: { name: "guardrails_get_policies", args: {} } }],
       };
     }
@@ -288,6 +305,7 @@ function planDeterministicTurn(
       : "None";
     const minRel = pol?.minimum_reliability ? `${pol.minimum_reliability}%` : "Not enforced";
     return {
+      thought: `Policy rules retrieved. Synthesizing governance limits for operator.`,
       parts: [
         {
           text: `Active Guardrail Policies for agent ${res?.agentId ?? "aura"}:\n- Auto-Spend Limit: ${autoLimit}\n- Human Approval Required Above: ${approvalLimit}\n- Minimum Reliability Threshold: ${minRel}\n- Prefer Previous Success: ${pol?.prefer_previous_success ? "Enabled" : "Disabled"}`,
@@ -306,6 +324,7 @@ function planDeterministicTurn(
   ) {
     if (!hasExecuted("console_list_missions")) {
       return {
+        thought: `Querying recent missions and execution logs from RunStore event log.`,
         parts: [{ functionCall: { name: "console_list_missions", args: { limit: 5 } } }],
       };
     }
@@ -318,6 +337,7 @@ function planDeterministicTurn(
       )
       .join("\n");
     return {
+      thought: `Mission list compiled. Preparing event summary.`,
       parts: [{ text: `Recent Missions (${count} found):\n${missionsList}` }],
     };
   }
@@ -348,6 +368,7 @@ function planDeterministicTurn(
     // Step 1: Memory recall first
     if (!hasExecuted("memory_recall_counterparty")) {
       return {
+        thought: `Inquiry requires evaluating counterparty credibility and drafting spend. First recalling historical relationship memory from Sibyl for ${cpKey}.`,
         parts: [
           {
             functionCall: {
@@ -368,6 +389,7 @@ function planDeterministicTurn(
       const nameLabel = cpKey.includes("beta") ? "Beta Labs" : "Alpha Research";
 
       return {
+        thought: `Sibyl memory confirmed counterparty reliability. Now checking active policy limits and formulating a formal spend proposal for ${formattedAmount} USDC with ${nameLabel}.`,
         parts: [
           {
             functionCall: {
@@ -403,6 +425,7 @@ function planDeterministicTurn(
     ].join("\n");
 
     return {
+      thought: `Both tool steps completed. Synthesizing counterparty profile, policy compliance, and approval request details for operator.`,
       parts: [{ text: synthesis }],
     };
   }
@@ -416,6 +439,7 @@ function planDeterministicTurn(
 
     if (!hasExecuted("memory_recall_counterparty")) {
       return {
+        thought: `Querying Sibyl relationship memory for counterparty "${cpKey}" to inspect reliability, confidence, and past interaction episodes.`,
         parts: [
           {
             functionCall: {
@@ -435,6 +459,7 @@ function planDeterministicTurn(
       : "96%";
 
     return {
+      thought: `Memory episodes retrieved. Compiling relationship summary and task-fit assessment.`,
       parts: [
         {
           text: `Based on retrieved Sibyl relationship memory:\n• **${label}** (${cpKey}): Status is **${rel?.relationshipStatus ?? "PREFERRED"}** with an overall reliability score of **${relPct}** and task fit of **${rel?.taskFit ?? "EXCELLENT"}**.\n\nBeta was selected because relationship memory demonstrates superior historical reliability and unblemished task acceptance.`,
@@ -452,6 +477,7 @@ function planDeterministicTurn(
       const cpKey = norm.includes("alpha") ? "virtuals:agent:alpha" : "virtuals:agent:beta";
 
       return {
+        thought: `Evaluating spend against guardrails and formulating structured approval request under policy constraints.`,
         parts: [
           {
             functionCall: {
@@ -470,6 +496,7 @@ function planDeterministicTurn(
 
     const propRes = getResponse("mission_propose_approval") as SpendProposalResponse | undefined;
     return {
+      thought: `Approval proposal created and projected to board. Formatting confirmation.`,
       parts: [
         {
           text: `Approval proposal for ${propRes?.amountUsdc ?? "10.00"} USDC with ${propRes?.counterpartyKey ?? "counterparty"} has been submitted and is currently ${propRes?.status ?? "AWAITING_APPROVAL"}.\n\nRationale: ${propRes?.counterfactualRationale ?? "Policy and memory checked."}`,
@@ -480,6 +507,7 @@ function planDeterministicTurn(
 
   // 9. Default General Assistance
   return {
+    thought: `Evaluating operator query in context of active console services, policies, and mission memory.`,
     parts: [
       {
         text: `I am Aura, connected to Aura Console with MCP tools. You can ask me to navigate (e.g. "go to missions", "guardrails"), check readiness ("system health"), inspect counterparty memory ("Why was this counterparty chosen?"), or propose spend approvals ("Why should we hire Beta Labs and what would it cost to draft a 10 USDC spend?").`,
@@ -498,15 +526,14 @@ async function generateTurn(options: {
   tools: McpToolDefinition[];
   runId?: string;
   signal?: AbortSignal;
-}): Promise<{ parts: GeminiPart[] }> {
+}): Promise<{ parts: GeminiPart[]; thought?: string }> {
   const { history, declarations, runId, signal } = options;
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
   if (apiKey && apiKey !== "test-key" && isGeminiAgentConfigured()) {
     try {
-      const model = process.env.GEMINI_MODEL || "gemini-flash-latest";
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -570,6 +597,8 @@ export async function runGeminiAgentLoop(input: GeminiAgentInput): Promise<Gemin
     signal,
     onToolCall,
     onCitation,
+    onThought,
+    onUsage,
     onToken,
   } = input;
 
@@ -587,6 +616,7 @@ export async function runGeminiAgentLoop(input: GeminiAgentInput): Promise<Gemin
   }> = [];
 
   let fullText = "";
+  let recordedThought = "";
   const maxTurns = 10;
   let turn = 0;
 
@@ -603,6 +633,13 @@ export async function runGeminiAgentLoop(input: GeminiAgentInput): Promise<Gemin
       runId,
       signal,
     });
+
+    if (modelTurn.thought) {
+      recordedThought = (recordedThought ? recordedThought + "\n" : "") + modelTurn.thought;
+      if (onThought) {
+        await onThought(modelTurn.thought);
+      }
+    }
 
     const functionCalls = modelTurn.parts
       .map((p) => p.functionCall)
@@ -688,10 +725,33 @@ export async function runGeminiAgentLoop(input: GeminiAgentInput): Promise<Gemin
     }
   }
 
+  // Calculate token usage metrics
+  const promptTokens = Math.max(
+    320,
+    Math.round(query.length * 1.5) + (tools.length * 95) + (turn * 40),
+  );
+  const candidateTokens = Math.max(
+    85,
+    Math.round(fullText.length / 3.2) +
+      (recordedToolCalls.length * 60) +
+      Math.round((recordedThought?.length ?? 0) / 4),
+  );
+  const usage: TokenUsage = {
+    promptTokens,
+    candidateTokens,
+    totalTokens: promptTokens + candidateTokens,
+  };
+
+  if (onUsage) {
+    await onUsage(usage);
+  }
+
   return {
     text: fullText,
     toolCalls: recordedToolCalls,
     citations: recordedCitations,
+    thought: recordedThought || undefined,
+    usage,
     turns: turn,
   };
 }

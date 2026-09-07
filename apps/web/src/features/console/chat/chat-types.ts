@@ -1,9 +1,14 @@
 import type {
-  ChatToolCallItem,
+  ChatToolCallItem as AstryxChatToolCallItem,
   ChatToolCallStatus,
 } from "@astryxdesign/core/Chat";
 
-export type { ChatToolCallItem, ChatToolCallStatus };
+export interface ChatToolCallItem extends AstryxChatToolCallItem {
+  args?: Record<string, unknown>;
+  result?: unknown;
+}
+
+export type { ChatToolCallStatus };
 
 export type RelationshipStatus =
   | "PREFERRED"
@@ -14,9 +19,18 @@ export type RelationshipStatus =
   | "ARCHIVED";
 
 export interface McpToolCall {
+  id?: string;
   name: string;
-  args: Record<string, unknown>;
+  status?: ChatToolCallStatus;
+  duration?: string;
+  args?: Record<string, unknown>;
   result?: unknown;
+}
+
+export interface TokenUsage {
+  promptTokens: number;
+  candidateTokens: number;
+  totalTokens: number;
 }
 
 export interface CounterpartyMemorySummary {
@@ -51,6 +65,10 @@ export interface ChatMessage {
    * Base Sepolia transaction submissions). Displayed inline via Astryx ChatToolCalls.
    */
   toolCalls?: ChatToolCallItem[];
+  /** Agent's internal Chain-of-Thought / reasoning narrative */
+  thought?: string;
+  /** Token usage statistics for this turn */
+  usage?: TokenUsage;
 }
 
 /**

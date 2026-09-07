@@ -78,7 +78,7 @@ describe("Gemini Agent Autonomous Function-Calling Loop", () => {
       amount_usdc: "10.000000",
       ceiling_usdc: "10.000000",
     });
-  }, 30000);
+  });
 
   it("handles navigation queries via console_navigate", async () => {
     const toolCalls: RecordedToolCall[] = [];

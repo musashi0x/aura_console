@@ -133,3 +133,106 @@ approvals.post("/:runId/approve", async (c) => {
 
    return c.json({ event: { event_id: event.eventId, type: event.type, sequence: event.sequence } }, 201);
  });
+
+const rejectSchema = z.object({
+  reason: z.string().optional(),
+});
+
+/**
+ * Operator rejection of an economic authorization request.
+ */
+approvals.post("/:runId/reject", async (c) => {
+  const runId = uuidSchema.safeParse(c.req.param("runId"));
+  if (!runId.success) {
+    throw httpError(400, "invalid_run_id", `${c.req.param("runId")} is not a valid Run id`);
+  }
+
+  let body: unknown = {};
+  const rawBody = await c.req.text();
+  if (rawBody.trim().length > 0) {
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
+      throw httpError(400, "invalid_body", "The rejection needs a valid JSON body.");
+    }
+  }
+  const parsed = rejectSchema.safeParse(body);
+  if (!parsed.success) {
+    throw httpError(
+      422,
+      "invalid_reason",
+      parsed.error.issues[0]?.message ?? "reason must be a string",
+    );
+  }
+
+  const { event } = await store.recordApprovalDecision({
+    runId: runId.data,
+    eventId: randomUUID(),
+    decision: "reject",
+    reason: parsed.data.reason,
+  });
+
+  return c.json({ event: { event_id: event.eventId, type: event.type, sequence: event.sequence } }, 201);
+});
+
+const approvalsSchema = z.object({
+  approved: z.boolean().optional(),
+  decision: z.enum(["approve", "reject"]).optional(),
+  ceiling_usdc: money.optional(),
+  reason: z.string().optional(),
+});
+
+/**
+ * Universal approval decision endpoint: supports both approvals and rejections.
+ * Wired directly to ApprovalCard and agent harness as POST /api/runs/:runId/approvals.
+ */
+approvals.post("/:runId/approvals", async (c) => {
+  const runId = uuidSchema.safeParse(c.req.param("runId"));
+  if (!runId.success) {
+    throw httpError(400, "invalid_run_id", `${c.req.param("runId")} is not a valid Run id`);
+  }
+
+  let body: unknown = {};
+  const rawBody = await c.req.text();
+  if (rawBody.trim().length > 0) {
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
+      throw httpError(400, "invalid_body", "Invalid JSON body.");
+    }
+  }
+
+  const parsed = approvalsSchema.safeParse(body);
+  if (!parsed.success) {
+    throw httpError(
+      422,
+      "invalid_approval_payload",
+      parsed.error.issues[0]?.message ?? "Invalid approval payload",
+    );
+  }
+
+  const isReject = parsed.data.decision === "reject" || parsed.data.approved === false;
+
+  if (isReject) {
+    const { event } = await store.recordApprovalDecision({
+      runId: runId.data,
+      eventId: randomUUID(),
+      decision: "reject",
+      reason: parsed.data.reason,
+    });
+    return c.json({ event: { event_id: event.eventId, type: event.type, sequence: event.sequence } }, 201);
+  }
+
+  if (!parsed.data.ceiling_usdc) {
+    throw httpError(422, "invalid_ceiling", "ceiling_usdc must be a decimal amount");
+  }
+
+  const { event } = await store.recordApprovalDecision({
+    runId: runId.data,
+    eventId: randomUUID(),
+    decision: "approve",
+    ceilingUsdc: parsed.data.ceiling_usdc,
+  });
+
+  return c.json({ event: { event_id: event.eventId, type: event.type, sequence: event.sequence } }, 201);
+});

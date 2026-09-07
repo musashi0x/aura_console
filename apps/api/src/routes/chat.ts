@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { streamSSE } from "hono/streaming";
 import { z } from "zod";
 
@@ -22,8 +22,8 @@ export const globalChat = new Hono();
  * Global chat route: answers queries from any console surface
  * via the native Gemini function-calling loop with Model Context Protocol (MCP) tools.
  */
-globalChat.get("/", async (c) => {
-  const question = questionSchema.safeParse(c.req.query("q"));
+async function handleGlobalChatStream(c: Context, rawQuestion: unknown) {
+  const question = questionSchema.safeParse(rawQuestion);
   if (!question.success) {
     throw httpError(400, "invalid_question", "q must be a question between 1 and 2000 characters");
   }
@@ -48,6 +48,18 @@ globalChat.get("/", async (c) => {
             data: JSON.stringify(citation),
           });
         },
+        onThought: async (thought) => {
+          await stream.writeSSE({
+            event: "thought",
+            data: thought,
+          });
+        },
+        onUsage: async (usage) => {
+          await stream.writeSSE({
+            event: "usage",
+            data: JSON.stringify(usage),
+          });
+        },
         onToken: async (token) => {
           await stream.writeSSE({
             event: "token",
@@ -63,6 +75,19 @@ globalChat.get("/", async (c) => {
       await stream.writeSSE({ event: "error", data: "agent_stream_failed" });
     }
   });
+}
+
+globalChat.get("/", async (c) => {
+  return handleGlobalChatStream(c, c.req.query("q"));
+});
+
+globalChat.post("/", async (c) => {
+  let q = c.req.query("q");
+  if (!q) {
+    const body = (await c.req.json().catch(() => null)) as Record<string, unknown> | null;
+    q = (body?.q ?? body?.question ?? body?.message ?? "") as string;
+  }
+  return handleGlobalChatStream(c, q);
 });
 
 /**
@@ -130,6 +155,8 @@ chat.get("/:runId/chat", async (c) => {
                 type: "memory.retrieved",
                 eventTime: new Date(),
                 data: {
+                  source: "SIBYL",
+                  verdict: "ok",
                   counterparty_key: key,
                   memory_version: ret.memoryVersion,
                   episodes_used: ret.episodesUsed,
@@ -147,6 +174,18 @@ chat.get("/:runId/chat", async (c) => {
           await stream.writeSSE({
             event: "citation",
             data: JSON.stringify(citation),
+          });
+        },
+        onThought: async (thought) => {
+          await stream.writeSSE({
+            event: "thought",
+            data: thought,
+          });
+        },
+        onUsage: async (usage) => {
+          await stream.writeSSE({
+            event: "usage",
+            data: JSON.stringify(usage),
           });
         },
         onToken: async (token) => {
