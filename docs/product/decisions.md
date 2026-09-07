@@ -207,8 +207,15 @@ dark monospace scale.
 
 Dark now signals raw system information rather than setting the temperature of
 the whole product. Both token scales already exist; what changes is which
-surfaces claim which one. This reverses the "dark-first operational canvas"
-direction in the canonical UX spec, which needs the same change.
+## Decision 32 — Model Context Protocol (MCP) tool design pattern for agent chat
+
+The agent chat dock previously relied on rigid manual string-matching commands (e.g. `matchCommand` checking 6 hardcoded aliases like `"go to missions"`), rejected queries on non-run surfaces (e.g. `/runs/new`, `/system`) with "That is a question, not a console command", and prompt-stuffed memory with zero agent tools.
+
+We adopt the open Model Context Protocol (MCP) design pattern:
+1. Standard tool definitions (`console_navigate`, `console_toggle_memory_view`, `console_get_readiness`, `memory_recall_counterparty`, `memory_list_counterparties`, `console_list_missions`, `console_get_mission`, `guardrails_get_policies`).
+2. Dual transports: Stdio transport (`apps/api/src/mcp/stdio.ts` registered in `.mcp.json`) for external agents (Cursor, Claude Code, Antigravity) and HTTP/SSE transport (`GET /api/mcp/tools`, `POST /api/mcp/tools/:toolName`).
+3. Universal agent chat: `GET /api/chat?q=...` available across all console surfaces, emitting `event: tool_call` alongside tokens and citations.
+4. Read-only security boundary: Tools may inspect state, retrieve evidence, and guide navigation, but can never authorize or dispatch financial transactions without explicit human operator confirmation.
 
 ## Deferred work
 

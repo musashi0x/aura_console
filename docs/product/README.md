@@ -29,6 +29,7 @@ and should be kept in sync.
 | Conversation cards and the composer | Composer implemented; the event-to-card renderer is not built |
 | Memory drawer and counterfactual | Not built; blocked on memory retrieval, task #32 |
 | Navigation rename (Missions, Agents, Network, Guardrails) | Implemented |
+| Model Context Protocol (MCP) & Universal Chat | Implemented (stdio & HTTP transports, universal chat routing, 8 MCP tools) |
 | Editorial layer on Operator and Board | Not done |
 | Browser E2E | Not implemented, task #60 |
 

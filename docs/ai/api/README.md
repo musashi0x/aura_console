@@ -8,6 +8,7 @@ The API is a Hono server running on Node. It exposes liveness and dependency rea
 - [Health contract](health.md) — `/health`, `/health/db` and `/health/sibyl` semantics.
 - [Runs and events](runs.md) — the Run skeleton, the event store, append semantics, and the finite replay stream.
 - [Counterparty memory](memory.md) — the Sibyl bridge, the verdict mapping, and the composed retrieval endpoints.
+- [Model Context Protocol & Universal Chat](mcp.md) — standard MCP tool definitions, stdio/HTTP transports, and universal chat routing.
 
 ## What the Console still cannot call
 
