@@ -88,11 +88,15 @@ export const console_ = {
     demoBadge: "DEMO",
   },
   empty: {
-    // Nothing was queried, so this must not claim a verified empty list.
-    title: "Runs cannot be listed yet",
-    body: "A Run is one economic objective from start to finish: the evidence gathered, the decision made, any economic action, the outcome, and the memory it changed.",
-    example: "Open example Run",
-    create: "Start a new Run",
+    /* This state is reached ONLY after the API answered with an empty list, so
+       it may say there are none. The old wording — "Runs cannot be listed yet"
+       — was written when nothing was queried, and kept claiming we could not
+       look long after we could. "We could not look" now belongs to the error
+       state, which is the branch that actually knows it. */
+    title: "No Missions yet",
+    body: "A Mission is one economic objective from start to finish: the evidence gathered, the decision made, any economic action, the outcome, and the memory it changed.",
+    example: "Open the demo Mission",
+    create: "Start a Mission",
     unavailableNote: "Not yet available.",
   },
   loading: {

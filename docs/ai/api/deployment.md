@@ -102,7 +102,19 @@ railway run --service aura-api -- pnpm db:migrate
 
 ## Verified
 
-The API image was built and run against a real Postgres and a mounted Sibyl
-store. Inside the container: `/health/db` 200, `/health/sibyl` reachable with
-its real readings, and a counterparty recall returning `AVAILABLE` from the
-Python bridge. The web production build succeeds with `NEXT_PUBLIC_API_URL` set.
+Built from this tree and run with the Sibyl store mounted at `/data/memory.db`.
+Inside the container:
+
+```
+/health                     200
+/health/sibyl               reachable, free tier, schema v4, 2 entities
+/api/memory/counterparties  real profiles, through the Python bridge
+```
+
+`AVAILABLE` recall and a grounded agent answer were verified against the same
+bridge and store outside the image.
+
+Not verified here: `/health/db` inside the container. This run stubbed
+`DATABASE_URL`, because the Sibyl path is what the image adds and Postgres
+reachability is a Railway networking question rather than an image one. Check
+it on the first deploy.

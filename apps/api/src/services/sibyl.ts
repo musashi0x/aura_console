@@ -75,15 +75,7 @@ async function runBridge(args: string[]): Promise<BridgeOutcome> {
   try {
     const { stdout } = await run(python, [env.SIBYL_BRIDGE, ...args], {
       timeout: env.SIBYL_TIMEOUT_MS,
-      // Tenant is Sibyl's isolation boundary, so it is named on every read
-      // rather than left to Sibyl's default. Two deployments sharing one
-      // database file would otherwise both read as the default tenant, and a
-      // recall of somebody else's memory is indistinguishable from our own.
-      env: {
-        ...process.env,
-        SIBYL_DB_PATH: env.SIBYL_DB_PATH,
-        SIBYL_TENANT_ID: env.AGENT_ID,
-      },
+      env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH, SIBYL_TENANT_ID: env.AGENT_ID },
       maxBuffer: 1024 * 1024,
     });
     const parsed = JSON.parse(stdout) as Record<string, unknown>;
@@ -474,14 +466,7 @@ export async function retrieveFromSibyl(counterpartyKey: string): Promise<SibylR
   try {
     const { stdout } = await run(python, [env.SIBYL_BRIDGE, "retrieve", "counterparty", counterpartyKey], {
       timeout: env.SIBYL_TIMEOUT_MS,
-      // Tenant travels with every read. Without it the bridge refuses
-      // (`tenant_missing`), and before it refused it would have read as Sibyl's
-      // default tenant — somebody else's memory, indistinguishable from ours.
-      env: {
-        ...process.env,
-        SIBYL_DB_PATH: env.SIBYL_DB_PATH,
-        SIBYL_TENANT_ID: env.AGENT_ID,
-      },
+      env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH, SIBYL_TENANT_ID: env.AGENT_ID },
       maxBuffer: 1024 * 1024,
     });
     const parsed = JSON.parse(stdout) as Record<string, unknown>;
@@ -582,14 +567,7 @@ export async function listCounterpartiesFromSibyl(): Promise<SibylCounterparties
   try {
     const { stdout } = await run(python, [env.SIBYL_BRIDGE, "entities", "counterparty"], {
       timeout: env.SIBYL_TIMEOUT_MS,
-      // Tenant travels with every read. Without it the bridge refuses
-      // (`tenant_missing`), and before it refused it would have read as Sibyl's
-      // default tenant — somebody else's memory, indistinguishable from ours.
-      env: {
-        ...process.env,
-        SIBYL_DB_PATH: env.SIBYL_DB_PATH,
-        SIBYL_TENANT_ID: env.AGENT_ID,
-      },
+      env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH, SIBYL_TENANT_ID: env.AGENT_ID },
       maxBuffer: 4 * 1024 * 1024,
     });
     const parsed = JSON.parse(stdout) as Record<string, unknown>;

@@ -11,6 +11,10 @@ surfaces that would need it (Correct memory, Archive relationship) do not
 exist yet. Adding `recall`, `entity` and `events` did not change that: they are
 four more ways to look, and none of them is a way to edit.
 
+Every command reads as the tenant named in `SIBYL_TENANT_ID`, which the API
+sets from its own `AGENT_ID`. Sibyl isolates by tenant, so reading as the wrong
+one answers "not found" for records that exist.
+
 It never invents a value. If the client is missing, the database is absent, or
 a call raises, it says so with a code the API turns into an explicit
 unavailable state — the product's distinction between "we could not look" and
@@ -173,6 +177,17 @@ def main() -> None:
     except ImportError as error:
         fail("client_missing", f"sibyl-memory-client is not importable: {error}")
 
+    # Sibyl isolates by tenant, and reading as the wrong one is the quietest
+    # failure available here: the records exist, the recall is clean, and it
+    # answers "not found" forever. Nothing is defaulted — a guessed tenant
+    # would report an honest-looking empty store for a store nobody asked
+    # about. The API sends its own AGENT_ID.
+    tenant = os.environ.get("SIBYL_TENANT_ID", "").strip()
+    if not tenant:
+        fail(
+            "tenant_missing",
+            "SIBYL_TENANT_ID is unset, so there is no tenant to read as.",
+        )
     # `entity` has to tell "there is no such record" apart from "the lookup
     # broke", and Sibyl signals the first by raising NotFoundError. If a client
     # version stops exporting it, this tuple is empty and absence degrades to a
