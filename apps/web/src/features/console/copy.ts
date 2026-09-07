@@ -180,20 +180,20 @@ export const console_ = {
        who is reading it. */
     zero: {
       title: "What do you want to know?",
-      lede: "The chat runs console commands, and answers about a Run once the agent's memory retrieval is connected.",
+      lede: "The chat uses Model Context Protocol (MCP) tools for console actions, and answers with Sibyl relationship memory.",
       worksLabel: "These run now",
       needsAgentLabel: "This needs the agent",
       needsAgentNote:
-        "It will be answered from the Run's own evidence once retrieval is wired. Until then the console says so rather than inventing a reply.",
+        "Answers are grounded in Sibyl relationship memory and canonical mission events through MCP tools.",
     },
     /* The dock. Chat is reachable from every console surface, not only a Run. */
     dock: {
       open: "Ask the agent",
       close: "Close chat",
       label: "Agent chat",
-      commandsTitle: "What the chat can do here",
+      commandsTitle: "What the chat can do here (MCP Tools)",
       commandsNote:
-        "Navigation and views only, the same set the command palette runs. Nothing here starts, approves, or pays for anything.",
+        "Console actions, system readiness, and Sibyl memory retrieval via Model Context Protocol (MCP). Nothing here starts, approves, or pays for anything.",
     },
   },
   cards: {

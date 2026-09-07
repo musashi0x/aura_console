@@ -5,9 +5,10 @@ import { HTTPException } from "hono/http-exception";
 import { env } from "./env.js";
 import { errorBody } from "./errors.js";
 import { requestLogger } from "./middleware/request-logger.js";
-import { chat } from "./routes/chat.js";
+import { chat, globalChat } from "./routes/chat.js";
 import { counterparties } from "./routes/counterparties.js";
 import { memory } from "./routes/memory.js";
+import { mcpRoute } from "./routes/mcp.js";
 import { health } from "./routes/health.js";
 import { policies } from "./routes/policies.js";
 import { runs } from "./routes/runs.js";
@@ -31,6 +32,8 @@ app.route("/api/runs", runs);
 // Mounted on the same prefix: the Run resource owns its own event log, and its
 // live surfaces are paths under a Run rather than a second Run namespace.
 app.route("/api/runs", chat);
+app.route("/api/chat", globalChat);
+app.route("/api/mcp", mcpRoute);
 app.route("/api/counterparties", counterparties);
 app.route("/api/memory", memory);
 app.route("/api/policies", policies);

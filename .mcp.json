@@ -1,0 +1,10 @@
+{
+  "$schema": "http://json.schemastore.org/mcp-config.json",
+  "mcpServers": {
+    "aura-console": {
+      "command": "pnpm",
+      "args": ["--filter", "@aura/api", "mcp:stdio"],
+      "description": "Model Context Protocol tools for Aura Console (navigation, memory inspection, missions, readiness, guardrails)"
+    }
+  }
+}

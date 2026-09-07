@@ -218,3 +218,21 @@ describe("the conversation is the design system's, not this repo's", () => {
   });
 });
 
+describe("MCP tool calling and universal answering", () => {
+  it("asks the agent on surfaces without a Run when grounding is ready", async () => {
+    const user = userEvent.setup();
+    render(
+      <ConsoleChat
+        grounding={{ agentReachable: true, memoryReachable: true }}
+      />,
+    );
+
+    await user.type(screen.getByLabelText("Message input"), "why Alpha?");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+
+    // Does NOT say cannotAnswer; instead creates an operator turn
+    expect(screen.queryByText(console_.chat.did.cannotAnswer)).toBeNull();
+    expect(screen.getByText("why Alpha?")).toBeInTheDocument();
+  });
+});
+

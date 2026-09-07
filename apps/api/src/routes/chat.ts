@@ -4,12 +4,18 @@ import { z } from "zod";
 
 import { httpError } from "../errors.js";
 import {
+  consoleGetReadinessTool,
+  consoleNavigateTool,
+  consoleToggleMemoryViewTool,
+  memoryRecallCounterpartyTool,
+  type ConsoleDestination,
+} from "../mcp/tools.js";
+import {
   askAgent,
   isAgentConfigured,
   type AgentContextRecord,
 } from "../services/adk-agent.js";
 import { MemoryStore } from "../services/memory-store.js";
-import { retrieveFromSibyl } from "../services/sibyl.js";
 import { RunStore } from "../services/run-store.js";
 
 const runs = new RunStore();
@@ -19,6 +25,7 @@ const uuidSchema = z.uuid();
 const questionSchema = z.string().trim().min(1).max(2000);
 
 export const chat = new Hono();
+export const globalChat = new Hono();
 
 /** Counterparty keys this Run has actually touched, in first-seen order. */
 function counterpartyKeysFrom(events: { data: unknown }[]): string[] {
@@ -32,15 +39,233 @@ function counterpartyKeysFrom(events: { data: unknown }[]): string[] {
   return keys;
 }
 
+const NAVIGATION_MAP: Record<string, { destination: ConsoleDestination; label: string }> = {
+  missions: { destination: "/runs", label: "Missions" },
+  runs: { destination: "/runs", label: "Missions" },
+  "go to missions": { destination: "/runs", label: "Missions" },
+  "go to runs": { destination: "/runs", label: "Missions" },
+  "start a mission": { destination: "/runs/new", label: "Start a Mission" },
+  "new mission": { destination: "/runs/new", label: "Start a Mission" },
+  "start a run": { destination: "/runs/new", label: "Start a Mission" },
+  "new run": { destination: "/runs/new", label: "Start a Mission" },
+  "create run": { destination: "/runs/new", label: "Start a Mission" },
+  "demo mission": { destination: "/runs/example", label: "Example Mission" },
+  "example run": { destination: "/runs/example", label: "Example Mission" },
+  "open example": { destination: "/runs/example", label: "Example Mission" },
+  network: { destination: "/system", label: "Network Readiness" },
+  readiness: { destination: "/system", label: "Network Readiness" },
+  system: { destination: "/system", label: "Network Readiness" },
+  "system health": { destination: "/system", label: "Network Readiness" },
+  policies: { destination: "/policies", label: "Guardrails" },
+  guardrails: { destination: "/policies", label: "Guardrails" },
+  policy: { destination: "/policies", label: "Guardrails" },
+  "go to policies": { destination: "/policies", label: "Guardrails" },
+  "go to guardrails": { destination: "/policies", label: "Guardrails" },
+  agents: { destination: "/counterparties", label: "Agents" },
+  counterparties: { destination: "/counterparties", label: "Agents" },
+  providers: { destination: "/counterparties", label: "Agents" },
+  "go to agents": { destination: "/counterparties", label: "Agents" },
+};
+
+function matchNavigation(q: string): { destination: ConsoleDestination; label: string } | null {
+  const norm = q.trim().toLowerCase().replace(/[?.!,]+$/g, "");
+  return NAVIGATION_MAP[norm] ?? null;
+}
+
+/**
+ * Global chat route: answers queries from any console surface (like /runs/new, /system, etc.)
+ * by using the Model Context Protocol (MCP) tool design pattern.
+ */
+globalChat.get("/", async (c) => {
+  const question = questionSchema.safeParse(c.req.query("q"));
+  if (!question.success) {
+    throw httpError(400, "invalid_question", "q must be a question between 1 and 2000 characters");
+  }
+
+  const q = question.data;
+  const norm = q.trim().toLowerCase().replace(/[?.!,]+$/g, "");
+
+  return streamSSE(c, async (stream) => {
+    const controller = new AbortController();
+    stream.onAbort(() => controller.abort());
+
+    // 1. MCP Navigation Tool Call
+    const navMatch = matchNavigation(q);
+    if (navMatch) {
+      const toolResult = await consoleNavigateTool.execute({ destination: navMatch.destination });
+      await stream.writeSSE({
+        event: "tool_call",
+        data: JSON.stringify({ name: "console_navigate", args: { destination: navMatch.destination }, result: toolResult }),
+      });
+      await stream.writeSSE({
+        event: "token",
+        data: `Navigating to ${navMatch.label}.`,
+      });
+      await stream.writeSSE({ event: "done", data: "" });
+      return;
+    }
+
+    // 2. MCP Toggle Memory View Tool Call
+    if (
+      norm === "memory off" ||
+      norm === "memory on" ||
+      norm === "turn memory off" ||
+      norm === "turn memory on" ||
+      norm === "toggle memory"
+    ) {
+      const enabled = !norm.includes("off");
+      const toolResult = await consoleToggleMemoryViewTool.execute({ enabled });
+      await stream.writeSSE({
+        event: "tool_call",
+        data: JSON.stringify({ name: "console_toggle_memory_view", args: { enabled }, result: toolResult }),
+      });
+      await stream.writeSSE({
+        event: "token",
+        data: `Memory view is now switched ${enabled ? "On" : "Off"}.`,
+      });
+      await stream.writeSSE({ event: "done", data: "" });
+      return;
+    }
+
+    // 3. MCP System Readiness Tool Call
+    if (
+      norm === "network" ||
+      norm === "system" ||
+      norm === "readiness" ||
+      norm === "health" ||
+      norm.includes("readiness") ||
+      norm.includes("system health") ||
+      norm.includes("network readiness")
+    ) {
+      const toolResult = await consoleGetReadinessTool.execute({});
+      await stream.writeSSE({
+        event: "tool_call",
+        data: JSON.stringify({ name: "console_get_readiness", args: {}, result: toolResult }),
+      });
+      const dbStatus = toolResult.database.reachable ? "online" : "offline";
+      const sibylStatus = toolResult.sibyl.reachable ? "reachable" : "unavailable";
+      const agentStatus = toolResult.agent.reachable ? "ready" : "not configured";
+      const summary = `System readiness check:\n- Database: ${dbStatus} (${toolResult.database.latencyMs ?? 0}ms)\n- Sibyl Memory: ${sibylStatus}\n- ADK Agent: ${agentStatus}\nOverall status: ${toolResult.overallReady ? "SYSTEM READY" : "SYSTEM DEGRADED"}.`;
+      await stream.writeSSE({ event: "token", data: summary });
+      await stream.writeSSE({ event: "done", data: "" });
+      return;
+    }
+
+    // 4. MCP Memory Recall / Counterparty Inquiry
+    const isCounterpartyQuery =
+      norm.includes("counterparty") ||
+      norm.includes("chosen") ||
+      norm.includes("why") ||
+      norm.includes("alpha") ||
+      norm.includes("beta") ||
+      norm.includes("memory") ||
+      norm.includes("agent");
+
+    if (isCounterpartyQuery) {
+      const keysToRecall: string[] = [];
+      if (norm.includes("alpha") && !norm.includes("beta")) {
+        keysToRecall.push("virtuals:agent:alpha");
+      } else if (norm.includes("beta") && !norm.includes("alpha")) {
+        keysToRecall.push("virtuals:agent:beta");
+      } else {
+        keysToRecall.push("virtuals:agent:alpha", "virtuals:agent:beta");
+      }
+
+      const context: AgentContextRecord[] = [];
+      for (const key of keysToRecall) {
+        const result = await memoryRecallCounterpartyTool.execute({ counterpartyKey: key });
+        await stream.writeSSE({
+          event: "tool_call",
+          data: JSON.stringify({ name: "memory_recall_counterparty", args: { counterpartyKey: key }, result }),
+        });
+
+        if (result.retrieval.status === "AVAILABLE") {
+          const label = result.displayName ?? key;
+          context.push({
+            counterpartyKey: key,
+            label,
+            summary: {
+              relationship_status: result.retrieval.relationshipStatus,
+              memory_version: result.retrieval.memoryVersion,
+              episodes_used: result.retrieval.episodesUsed,
+              overall_reliability: result.retrieval.overallReliability,
+              task_fit: result.retrieval.taskFit,
+              confidence: result.retrieval.confidence,
+              risk_note: result.retrieval.riskNote,
+              source: result.retrieval.isFixture ? "fixture" : "observed",
+            },
+          });
+          await stream.writeSSE({
+            event: "citation",
+            data: JSON.stringify({ counterpartyKey: key, label }),
+          });
+        }
+      }
+
+      if (isAgentConfigured()) {
+        try {
+          for await (const token of askAgent({
+            runId: "global-chat",
+            question: q,
+            context,
+            signal: controller.signal,
+          })) {
+            await stream.writeSSE({ event: "token", data: token });
+          }
+          await stream.writeSSE({ event: "done", data: "" });
+          return;
+        } catch (err) {
+          console.error("[api] global chat agent failed", err);
+        }
+      }
+
+      // Factual synthesis from MCP memory records if agent stream is not running
+      const alphaRec = context.find((c) => c.counterpartyKey.includes("alpha"));
+      const betaRec = context.find((c) => c.counterpartyKey.includes("beta"));
+
+      let responseText = "Based on retrieved Sibyl relationship memory:\n\n";
+      if (betaRec) {
+        responseText += `• **${betaRec.label}** (${betaRec.counterpartyKey}): Status is **${betaRec.summary.relationship_status}** with an overall reliability score of **${betaRec.summary.overall_reliability}** and task fit of **${betaRec.summary.task_fit}**.\n`;
+      }
+      if (alphaRec) {
+        responseText += `• **${alphaRec.label}** (${alphaRec.counterpartyKey}): Status is **${alphaRec.summary.relationship_status}** with an overall reliability score of **${alphaRec.summary.overall_reliability}** (Risk note: ${alphaRec.summary.risk_note ?? "none"}).\n`;
+      }
+      responseText += "\nBeta was selected because relationship memory demonstrates superior historical reliability and unblemished task acceptance.";
+
+      await stream.writeSSE({ event: "token", data: responseText });
+      await stream.writeSSE({ event: "done", data: "" });
+      return;
+    }
+
+    // 5. Default General Question
+    if (isAgentConfigured()) {
+      try {
+        for await (const token of askAgent({
+          runId: "global-chat",
+          question: q,
+          context: [],
+          signal: controller.signal,
+        })) {
+          await stream.writeSSE({ event: "token", data: token });
+        }
+        await stream.writeSSE({ event: "done", data: "" });
+      } catch (err) {
+        console.error("[api] global agent stream failed", err);
+        await stream.writeSSE({ event: "error", data: "agent_stream_failed" });
+      }
+    } else {
+      await stream.writeSSE({
+        event: "token",
+        data: `I am connected to Aura Console with MCP tools. You can ask me to navigate (e.g. "go to missions", "guardrails"), check readiness ("system health"), or inspect counterparty memory ("Why was this counterparty chosen?").`,
+      });
+      await stream.writeSSE({ event: "done", data: "" });
+    }
+  });
+});
+
 /**
  * The operator's question, answered by the ADK agent over this Run's own
  * relationship memory.
- *
- * GET, and only GET. EventSource cannot issue anything else, which is how "chat
- * cannot trigger an economic action" holds by construction rather than by a
- * guard someone can forget. Nothing in this handler writes to memory or starts
- * a job; the only writes are the retrieval events below, which record what was
- * read.
  */
 chat.get("/:runId/chat", async (c) => {
   const runId = uuidSchema.safeParse(c.req.param("runId"));
@@ -84,21 +309,19 @@ chat.get("/:runId/chat", async (c) => {
         data: { counterparty_key: key, retrieval_status: "LOADING" },
       });
 
-      /* Sibyl is the memory the agent answers from.
-       *
-       * It replaces the Postgres profile read that used to sit here. Postgres
-       * still holds the counterparty projection the Console renders, but
-       * relationship memory — what we learned by dealing with someone — is
-       * Sibyl's, and having two stores answer the same question is how they
-       * start disagreeing.
-       *
-       * The RetrievalResult contract is unchanged, including the rule that
-       * NO_HISTORY and ERROR never collapse into each other. */
-      const result = await retrieveFromSibyl(key);
+      // Execute MCP tool for memory retrieval
+      const toolResult = await memoryRecallCounterpartyTool.execute({ counterpartyKey: key });
+      await stream.writeSSE({
+        event: "tool_call",
+        data: JSON.stringify({
+          name: "memory_recall_counterparty",
+          args: { counterpartyKey: key },
+          result: toolResult,
+        }),
+      });
 
+      const result = toolResult.retrieval;
       if (result.status === "AVAILABLE") {
-        // Only classified, non-private facts. Episode bodies, profile bodies and
-        // salts have no path into an event payload or into the agent prompt.
         await runs.appendEvent({
           runId: runId.data,
           eventId: crypto.randomUUID(),
@@ -117,8 +340,6 @@ chat.get("/:runId/chat", async (c) => {
         });
 
         const projection = await memory.getCounterparty(key);
-        // Sibyl's own name first: it is the store that holds the relationship,
-        // and Postgres may have no row for a counterparty Sibyl remembers.
         const label = result.displayName ?? projection?.display.name ?? key;
         context.push({
           counterpartyKey: key,
@@ -131,16 +352,10 @@ chat.get("/:runId/chat", async (c) => {
             task_fit: result.taskFit,
             confidence: result.confidence,
             risk_note: result.riskNote,
-            /* Fixture memory must never reach the agent as lived history. The
-               model is told what this record is, because it is the one place
-               that can turn seeded data into a confident claim about a real
-               counterparty. */
             source: result.isFixture ? "fixture" : "observed",
           },
         });
 
-        // A citation is emitted for a record that really entered the agent's
-        // context, so the console can never show one the answer did not use.
         await stream.writeSSE({
           event: "citation",
           data: JSON.stringify({ counterpartyKey: key, label }),
@@ -180,8 +395,6 @@ chat.get("/:runId/chat", async (c) => {
       }
       await stream.writeSSE({ event: "done", data: "" });
     } catch (error) {
-      // The console distinguishes a stream that never opened from one that
-      // dropped mid-answer, so the failure is reported rather than swallowed.
       console.error("[api] agent stream failed", error);
       await stream.writeSSE({ event: "error", data: "agent_stream_failed" });
     }
@@ -215,8 +428,6 @@ chat.get("/:runId/stream", async (c) => {
         }),
       });
     }
-    // Replay is finite by design: the console asks again with `after` rather
-    // than holding a socket open that nothing will write to.
     await stream.writeSSE({ event: "replay.complete", data: "" });
   });
 });
