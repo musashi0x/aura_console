@@ -18,11 +18,29 @@ A pnpm + Turborepo monorepo: a Next.js web app, a Hono API, and Postgres through
 
 ```bash
 pnpm install
-docker compose up -d          # Postgres on host port 5433
+docker compose up -d          # Postgres on host port 5436
 cp .env.example .env
 pnpm db:migrate               # apply committed migrations
 pnpm dev                      # web on :3000, API on :3001
+pnpm agent                    # ADK agent on :8000, in a second terminal
 ```
+
+`pnpm agent` is not optional if you want to use the Console. The API keeps the
+chat honest by refusing to answer without a reachable agent, so with nothing on
+:8000 every question returns `503 agent_unavailable` and every surface renders
+the grounding warning. That is the app working as designed, but it looks
+identical to an app that does nothing. Check what is actually up before
+debugging anything else:
+
+```bash
+curl -s localhost:3001/health/db localhost:3001/health/sibyl localhost:3001/health/agent
+```
+
+Relationship memory is separate and also optional-but-load-bearing: without
+`SIBYL_PYTHON` pointing at an interpreter that has `sibyl-memory-client`, the
+Console reports memory as NOT CONNECTED rather than serving an empty one. Keep
+that interpreter inside the repository (`.venv-sibyl`), never in a temp
+directory — when a scratchpad venv is cleaned up, memory silently goes dark.
 
 Open http://localhost:3000. A fresh browser is routed to `/onboarding`; once you
 acknowledge or skip, `/` shows the landing page. The header readiness badge comes
