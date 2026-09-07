@@ -26,11 +26,13 @@ export function ConsoleTopbar({
   surface,
   readiness,
   runRef,
+  actions,
 }: {
   surface: string;
   readiness: ReadinessState;
   /** Shown only when a Run is actually selected. */
   runRef?: string;
+  actions?: React.ReactNode;
 }) {
   const [utcTime, setUtcTime] = useState<string>("");
   const [telemetry, setTelemetry] = useState<{ commit?: string; startedAt?: string }>({});
@@ -79,6 +81,7 @@ export function ConsoleTopbar({
       }
       endContent={
         <>
+          {actions}
           {/* The palette lives in the bar so its keyboard hint is discoverable
               without hunting: a shortcut nobody can see is a shortcut nobody
               uses. */}

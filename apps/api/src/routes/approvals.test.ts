@@ -225,3 +225,41 @@ describe("what the rejection endpoint refuses", () => {
     expect((await reject("not-a-uuid")).status).toBe(400);
   });
 });
+
+describe("POST /api/runs/:runId/approvals (Universal HITL endpoint)", () => {
+  it("approves spend when approved is true with ceiling_usdc", async () => {
+    const runId = await createRun();
+    await append(runId, "approval.requested", {
+      action: "Procure data from Beta Labs",
+      counterparty_key: "virtuals:agent:beta",
+    });
+
+    const res = await app.request(`/api/runs/${runId}/approvals`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ approved: true, ceiling_usdc: "10.00" }),
+    });
+
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { event: { type: string } };
+    expect(body.event.type).toBe("approval.granted");
+  });
+
+  it("rejects spend when approved is false with reason", async () => {
+    const runId = await createRun();
+    await append(runId, "approval.requested", {
+      action: "Fund the job at 50 USDC",
+      counterparty_key: "virtuals:agent:beta",
+    });
+
+    const res = await app.request(`/api/runs/${runId}/approvals`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ approved: false, reason: "Exceeds single operator discretion" }),
+    });
+
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { event: { type: string } };
+    expect(body.event.type).toBe("approval.rejected");
+  });
+});

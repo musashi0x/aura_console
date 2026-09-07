@@ -14,8 +14,6 @@ import {
 } from '@astryxdesign/core/Layout';
 import { Text, Heading } from '@astryxdesign/core/Text';
 import {
-  ChatComposer,
-  ChatComposerInput,
   ChatLayout,
   ChatMessage as ChatMessageRow,
   ChatMessageBubble,
@@ -23,7 +21,6 @@ import {
   ChatMessageMetadata,
   ChatSystemMessage,
   ChatTokenizedText,
-  ChatToolCalls,
 } from '@astryxdesign/core/Chat';
 import { Avatar } from '@astryxdesign/core/Avatar';
 import { Card } from '@astryxdesign/core/Card';
@@ -48,16 +45,24 @@ import { openChatStream, type ChatStreamHandle } from '@/features/console/chat/c
 import type { ChatConnection, ChatMessage, TokenUsage } from '@/features/console/chat/chat-types';
 import { env } from '@/lib/env';
 import { matchCommand } from '@/features/console/console-commands';
+import {
+  ThinkingState,
+  StreamingText,
+  ToolChips,
+  ApprovalCard,
+  PromptBar,
+  DiffTable,
+  RecordsTable,
+  InteractionSounds,
+  SoundToggle,
+} from '@/components/primitives';
 
 import {
   FileText,
   Copy,
   Share2,
-  AtSign,
-  Paperclip,
   X,
   ChevronRight,
-  Sparkles,
   Cpu,
 } from 'lucide-react';
 import type { IconType } from '@astryxdesign/core/Icon';
@@ -65,8 +70,6 @@ import type { IconType } from '@astryxdesign/core/Icon';
 const DocumentTextIcon = FileText as unknown as IconType;
 const ClipboardDocumentIcon = Copy as unknown as IconType;
 const ShareIcon = Share2 as unknown as IconType;
-const AtSymbolIcon = AtSign as unknown as IconType;
-const PaperClipIcon = Paperclip as unknown as IconType;
 const XMarkIcon = X as unknown as IconType;
 const ChevronRightIcon = ChevronRight as unknown as IconType;
 
@@ -521,43 +524,69 @@ function ArtifactCard({ onOpen }: { onOpen: () => void }) {
   );
 }
 
-function ThinkingProcessCard({
-  thought,
-  isStreaming,
+function ChatSidebarContext({
+  scope,
+  onScopeChange,
+  onSelectMission,
 }: {
-  thought: string;
-  isStreaming?: boolean;
+  scope: 'global' | 'mission';
+  onScopeChange: (scope: 'global' | 'mission') => void;
+  onSelectMission?: (missionId: string) => void;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
-
   return (
-    <div className="ai-chat-thought-card">
-      <button
-        type="button"
-        className="ai-chat-thought-header"
-        onClick={() => setIsOpen((prev) => !prev)}
-        aria-expanded={isOpen}
-      >
-        <span className="ai-chat-thought-badge">
-          {isStreaming ? (
-            <span className="ai-chat-thought-pulse" />
-          ) : (
-            <Sparkles size={13} className="ai-chat-thought-spark" />
-          )}
-          <span className="ai-chat-thought-label">
-            {isStreaming ? 'Reasoning in progress...' : 'Thought process'}
-          </span>
+    <div className="p-3 border-b border-[rgba(216,216,219,0.12)] flex flex-col gap-2.5">
+      <div className="flex items-center p-0.5 rounded-[8px] bg-[#111015] border border-[rgba(216,216,219,0.16)] text-[11.5px]">
+        <button
+          type="button"
+          onClick={() => onScopeChange('global')}
+          data-sound="press"
+          className={`flex-1 py-1 px-2 rounded-[6px] text-center font-medium transition-colors ${
+            scope === 'global'
+              ? 'bg-[#25252a] text-[#f4f7fb] shadow-sm'
+              : 'text-[var(--color-text-muted,#8d9aaf)] hover:text-[#f4f7fb]'
+          }`}
+        >
+          Global Assistant
+        </button>
+        <button
+          type="button"
+          onClick={() => onScopeChange('mission')}
+          data-sound="press"
+          className={`flex-1 py-1 px-2 rounded-[6px] text-center font-medium transition-colors ${
+            scope === 'mission'
+              ? 'bg-[#25252a] text-[#f4f7fb] shadow-sm'
+              : 'text-[var(--color-text-muted,#8d9aaf)] hover:text-[#f4f7fb]'
+          }`}
+        >
+          Mission Scoped
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--color-text-muted,#8d9aaf)] px-1">
+          Recent Missions
         </span>
-        <ChevronRight
-          size={14}
-          className={`ai-chat-thought-arrow ${isOpen ? 'is-expanded' : ''}`}
-        />
-      </button>
-      {isOpen && (
-        <div className="ai-chat-thought-body">
-          <Markdown density="compact">{thought}</Markdown>
-        </div>
-      )}
+        {[
+          { id: 'm-01', title: 'Beta Labs Onboarding', active: true },
+          { id: 'm-02', title: 'Base Sepolia Registry', active: false },
+          { id: 'm-03', title: 'Treasury Spend Limit', active: false },
+        ].map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            data-sound="press"
+            onClick={() => onSelectMission?.(m.id)}
+            className={`flex items-center justify-between px-2 py-1 rounded-[6px] text-left text-[11px] transition-colors ${
+              m.active
+                ? 'bg-[#1b1b1f] text-[#f4f7fb] font-medium'
+                : 'text-[var(--color-text-muted,#8d9aaf)] hover:bg-[#1b1b1f] hover:text-[#f4f7fb]'
+            }`}
+          >
+            <span className="truncate">{m.title}</span>
+            <span className="text-[9px] font-mono opacity-60 ml-1">{m.id}</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -585,6 +614,9 @@ function TokenMeter({ usage }: { usage: TokenUsage }) {
         <div className="ai-chat-token-divider" />
         <div className="ai-chat-token-item">
           <span className="ai-chat-token-pct">{percent.toFixed(2)}% of 1M context</span>
+        </div>
+        <div style={{ marginLeft: 'auto' }}>
+          <SoundToggle variant="pill" />
         </div>
       </div>
       <div className="ai-chat-token-bar-track">
@@ -638,7 +670,8 @@ export default function AIChatConversationTemplate() {
   });
   const [draft, setDraft] = useState('');
   const [connection, setConnection] = useState<ChatConnection>({ kind: 'idle' });
-  const [composerMode, setComposerMode] = useState('ask');
+  const [chatScope, setChatScope] = useState<'global' | 'mission'>('global');
+  const [artifactTab, setArtifactTab] = useState<'document' | 'diffs' | 'records'>('document');
   const [isArtifactDialogOpen, setIsArtifactDialogOpen] = useState(false);
   const [isArtifactOpen, setIsArtifactOpen] = useState(true);
 
@@ -656,6 +689,7 @@ export default function AIChatConversationTemplate() {
   });
 
   const openArtifact = () => {
+    setArtifactTab('document');
     const width = rootRef.current?.offsetWidth ?? Infinity;
     if (width <= MOBILE_MAX_WIDTH) {
       setIsArtifactDialogOpen(true);
@@ -735,6 +769,7 @@ export default function AIChatConversationTemplate() {
           }
           if (toolCall.name === 'mission_propose_approval') {
             setIsArtifactOpen(true);
+            setArtifactTab('diffs');
           }
         },
         onState: setConnection,
@@ -747,8 +782,8 @@ export default function AIChatConversationTemplate() {
     [router],
   );
 
-  const submit = () => {
-    const text = draft.trim();
+  const submit = (overrideText?: string) => {
+    const text = (overrideText ?? draft).trim();
     if (!text || busy) return;
     setDraft('');
 
@@ -780,11 +815,28 @@ export default function AIChatConversationTemplate() {
 
   return (
     <Theme theme={stoneTheme} mode="dark">
+      <InteractionSounds />
       <AppShell
         height="fill"
         contentPadding={0}
-        topNav={<ConsoleTopbar surface="Chat Console" readiness="ready" />}
-        sideNav={<ConsoleNavigation surface="Chat Console" />}
+        topNav={
+          <ConsoleTopbar
+            surface="Chat Console"
+            readiness="ready"
+            actions={<SoundToggle variant="icon" />}
+          />
+        }
+        sideNav={
+          <ConsoleNavigation
+            surface="Chat Console"
+            contextSelector={
+              <ChatSidebarContext
+                scope={chatScope}
+                onScopeChange={setChatScope}
+              />
+            }
+          />
+        }
       >
         <div ref={rootRef} style={root} className="ai-chat-root">
           <style>{AI_CHAT_CSS}</style>
@@ -796,58 +848,15 @@ export default function AIChatConversationTemplate() {
                 density="spacious"
                 style={chatLayout}
                 composer={
-                  <ChatComposer
-                    value={draft}
-                    onChange={setDraft}
-                    onSubmit={submit}
-                    onStop={stop}
-                    isStopShown={busy}
-                    placeholder={
-                      composerMode === 'ask'
-                        ? 'Ask ADK Gemini agent anything, execute MCP tools, or navigate...'
-                        : 'Describe your edit...'
-                    }
-                    input={<ChatComposerInput hasHistory={false} />}
-                    headerActions={
-                      <>
-                        <Button
-                          label="Mention"
-                          variant="ghost"
-                          size="sm"
-                          icon={<Icon icon={AtSymbolIcon} size="sm" />}
-                          isIconOnly
-                          onClick={() => setDraft((d) => (d ? `${d} @agent ` : '@agent '))}
-                        />
-                        <Button
-                          label="Attach"
-                          variant="ghost"
-                          size="sm"
-                          icon={<Icon icon={PaperClipIcon} size="sm" />}
-                          isIconOnly
-                          onClick={() => setDraft((d) => `${d} auth-service.ts `)}
-                        />
-                      </>
-                    }
-                    footerActions={
-                      <DropdownMenu
-                        button={{
-                          label: composerMode === 'ask' ? 'Ask' : 'Edit',
-                          variant: 'ghost',
-                          size: 'sm',
-                        }}
-                        items={[
-                          {
-                            label: 'Ask',
-                            onClick: () => setComposerMode('ask'),
-                          },
-                          {
-                            label: 'Edit',
-                            onClick: () => setComposerMode('edit'),
-                          },
-                        ]}
-                      />
-                    }
-                  />
+                  <div className="w-full px-4 pb-4">
+                    <PromptBar
+                      value={draft}
+                      onChange={setDraft}
+                      onSubmit={(query) => submit(query)}
+                      onStop={stop}
+                      isStreaming={busy}
+                    />
+                  </div>
                 }
               >
                 <ChatMessageList
@@ -902,7 +911,7 @@ export default function AIChatConversationTemplate() {
                       >
                         {message.thought && (
                           <ChatMessageBubble variant="ghost" width="100%">
-                            <ThinkingProcessCard
+                            <ThinkingState
                               thought={message.thought}
                               isStreaming={busy && !message.complete}
                             />
@@ -910,27 +919,42 @@ export default function AIChatConversationTemplate() {
                         )}
 
                         {message.toolCalls && message.toolCalls.length > 0 && (
-                          <ChatToolCalls
-                            defaultIsExpanded
-                            calls={message.toolCalls.map((tc) => ({
-                              name: tc.name,
-                              target: String(
-                                (tc.args?.target as string) ||
-                                  (tc.args?.command as string) ||
-                                  (tc.args?.destination as string) ||
-                                  (tc.args?.counterpartyKey as string) ||
-                                  tc.name,
-                              ),
-                              status: message.complete ? 'complete' : 'running',
-                              duration: 'active',
-                            }))}
-                          />
+                          <div className="w-full flex flex-col gap-2">
+                            <ToolChips
+                              calls={message.toolCalls}
+                              isComplete={message.complete}
+                              defaultExpanded={true}
+                            />
+                            {message.toolCalls.some((tc) => tc.name === 'mission_propose_approval') && (
+                              <ApprovalCard
+                                runId="demo-run-1"
+                                counterpartyKey={
+                                  (message.toolCalls.find((tc) => tc.name === 'mission_propose_approval')?.args?.counterpartyKey as string) ||
+                                  'virtuals:agent:beta'
+                                }
+                                amountUsdc={
+                                  (message.toolCalls.find((tc) => tc.name === 'mission_propose_approval')?.args?.amountUsdc as string) ||
+                                  '10.00'
+                                }
+                                reason={
+                                  (message.toolCalls.find((tc) => tc.name === 'mission_propose_approval')?.args?.reason as string) ||
+                                  'Draft exploratory research engagement under active guardrail limits'
+                                }
+                              />
+                            )}
+                          </div>
                         )}
 
-                        <ChatMessageBubble variant="ghost">
-                          <Markdown density="compact">
-                            {message.text || (busy && !message.complete ? 'Thinking...' : '')}
-                          </Markdown>
+                        <ChatMessageBubble variant="ghost" width="100%">
+                          <StreamingText
+                            text={message.text || (busy && !message.complete ? 'Thinking...' : '')}
+                            isStreaming={busy && !message.complete}
+                            sources={message.citations?.map((c) => ({
+                              name: c.label,
+                              domain: c.counterpartyKey,
+                            }))}
+                            onFollowUp={(prompt) => ask(prompt)}
+                          />
                         </ChatMessageBubble>
 
                         {message.id === 'demo-agent-1' && (
@@ -997,10 +1021,18 @@ export default function AIChatConversationTemplate() {
                         />
                         <VStack gap={0}>
                           <Text type="label" weight="semibold">
-                            {ARTIFACT_TITLE}
+                            {artifactTab === 'document'
+                              ? ARTIFACT_TITLE
+                              : artifactTab === 'diffs'
+                              ? 'Memory State & Ledger Diffs'
+                              : 'Sibyl Counterparty Ledger'}
                           </Text>
                           <Text type="supporting" color="secondary">
-                            {ARTIFACT_SUBTITLE}
+                            {artifactTab === 'document'
+                              ? ARTIFACT_SUBTITLE
+                              : artifactTab === 'diffs'
+                              ? 'Proposed state changes vs commit log'
+                              : 'Historical relationship memory & reliability'}
                           </Text>
                         </VStack>
                       </HStack>
@@ -1012,7 +1044,57 @@ export default function AIChatConversationTemplate() {
                     }
                   />
 
-                  <ArtifactBody />
+                  {/* Tab Navigation */}
+                  <div className="flex items-center gap-1 px-3 py-1.5 border-b border-[rgba(216,216,219,0.12)] bg-[#111015] text-[12px]">
+                    <button
+                      type="button"
+                      onClick={() => setArtifactTab('document')}
+                      data-sound="press"
+                      className={`px-2.5 py-1 rounded-[6px] font-medium transition-colors ${
+                        artifactTab === 'document'
+                          ? 'bg-[#25252a] text-[#f4f7fb] shadow-sm'
+                          : 'text-[var(--color-text-muted,#8d9aaf)] hover:text-[#f4f7fb]'
+                      }`}
+                    >
+                      Document
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setArtifactTab('diffs')}
+                      data-sound="press"
+                      className={`px-2.5 py-1 rounded-[6px] font-medium transition-colors ${
+                        artifactTab === 'diffs'
+                          ? 'bg-[#25252a] text-[#f4f7fb] shadow-sm'
+                          : 'text-[var(--color-text-muted,#8d9aaf)] hover:text-[#f4f7fb]'
+                      }`}
+                    >
+                      Memory Diffs
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setArtifactTab('records')}
+                      data-sound="press"
+                      className={`px-2.5 py-1 rounded-[6px] font-medium transition-colors ${
+                        artifactTab === 'records'
+                          ? 'bg-[#25252a] text-[#f4f7fb] shadow-sm'
+                          : 'text-[var(--color-text-muted,#8d9aaf)] hover:text-[#f4f7fb]'
+                      }`}
+                    >
+                      Sibyl Records
+                    </button>
+                  </div>
+
+                  {artifactTab === 'document' && <ArtifactBody />}
+                  {artifactTab === 'diffs' && (
+                    <div style={artifactScroll} className="p-4">
+                      <DiffTable />
+                    </div>
+                  )}
+                  {artifactTab === 'records' && (
+                    <div style={artifactScroll} className="p-4">
+                      <RecordsTable />
+                    </div>
+                  )}
                 </Card>
               </>
             )}
@@ -1030,8 +1112,20 @@ export default function AIChatConversationTemplate() {
         <Layout
           header={
             <DialogHeader
-              title={ARTIFACT_TITLE}
-              subtitle={ARTIFACT_SUBTITLE}
+              title={
+                artifactTab === 'document'
+                  ? ARTIFACT_TITLE
+                  : artifactTab === 'diffs'
+                  ? 'Memory State & Ledger Diffs'
+                  : 'Sibyl Counterparty Ledger'
+              }
+              subtitle={
+                artifactTab === 'document'
+                  ? ARTIFACT_SUBTITLE
+                  : artifactTab === 'diffs'
+                  ? 'Proposed state changes vs commit log'
+                  : 'Historical relationship memory & reliability'
+              }
               hasDivider
               onOpenChange={setIsArtifactDialogOpen}
               endContent={<MobileArtifactActions />}
@@ -1039,7 +1133,55 @@ export default function AIChatConversationTemplate() {
           }
           content={
             <LayoutContent padding={0}>
-              <ArtifactBody />
+              <div className="flex items-center gap-1 px-3 py-1.5 border-b border-[rgba(216,216,219,0.12)] bg-[#111015] text-[12px]">
+                <button
+                  type="button"
+                  onClick={() => setArtifactTab('document')}
+                  data-sound="press"
+                  className={`px-2.5 py-1 rounded-[6px] font-medium transition-colors ${
+                    artifactTab === 'document'
+                      ? 'bg-[#25252a] text-[#f4f7fb]'
+                      : 'text-[var(--color-text-muted,#8d9aaf)]'
+                  }`}
+                >
+                  Document
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setArtifactTab('diffs')}
+                  data-sound="press"
+                  className={`px-2.5 py-1 rounded-[6px] font-medium transition-colors ${
+                    artifactTab === 'diffs'
+                      ? 'bg-[#25252a] text-[#f4f7fb]'
+                      : 'text-[var(--color-text-muted,#8d9aaf)]'
+                  }`}
+                >
+                  Memory Diffs
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setArtifactTab('records')}
+                  data-sound="press"
+                  className={`px-2.5 py-1 rounded-[6px] font-medium transition-colors ${
+                    artifactTab === 'records'
+                      ? 'bg-[#25252a] text-[#f4f7fb]'
+                      : 'text-[var(--color-text-muted,#8d9aaf)]'
+                  }`}
+                >
+                  Sibyl Records
+                </button>
+              </div>
+              {artifactTab === 'document' && <ArtifactBody />}
+              {artifactTab === 'diffs' && (
+                <div style={artifactScroll} className="p-4">
+                  <DiffTable />
+                </div>
+              )}
+              {artifactTab === 'records' && (
+                <div style={artifactScroll} className="p-4">
+                  <RecordsTable />
+                </div>
+              )}
             </LayoutContent>
           }
         />
