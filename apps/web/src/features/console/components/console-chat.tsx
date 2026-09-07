@@ -90,7 +90,7 @@ export const SLASH_COMMANDS_BLOCKED_ON_ARIA: ChatComposerTrigger = {
   onSelect: (item) => ({
     value: item.label,
     label: item.label,
-    variant: "cyan",
+    variant: "neutral",
   }),
 };
 
@@ -253,6 +253,15 @@ export function ConsoleChat({
       },
       onCitation: (citation) =>
         update((m) => ({ ...m, citations: [...m.citations, citation] })),
+      onThought: (thought) => {
+        update((m) => ({
+          ...m,
+          thought: (m.thought ? m.thought + "\n" : "") + thought,
+        }));
+      },
+      onUsage: (usage) => {
+        update((m) => ({ ...m, usage }));
+      },
       onToolCall: (toolCall) => {
         hadToolCalls = true;
         update((m) => ({
@@ -427,7 +436,7 @@ export function ConsoleChat({
                   key={source.counterpartyKey}
                   label={`${index + 1}. ${source.label}`}
                   size="sm"
-                  color="cyan"
+                  color="default"
                 />
               ))}
             </HStack>
@@ -467,7 +476,7 @@ export function ConsoleChat({
                             key={`tool-${idx}-${tool.name}`}
                             label={`MCP: ${tool.name}`}
                             size="sm"
-                            color="cyan"
+                            color="default"
                           />
                         ))}
                         {message.citations.map((citation) => {
@@ -480,7 +489,7 @@ export function ConsoleChat({
                               key={citation.counterpartyKey}
                               label={String(index + 1)}
                               size="sm"
-                              color="cyan"
+                              color="default"
                             />
                           );
                         })}

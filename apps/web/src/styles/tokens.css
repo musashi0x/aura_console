@@ -12,11 +12,11 @@
 
 :root {
   /* Canvas and surfaces */
-  --color-canvas: #05070d;
-  --color-surface: #0d1420;
-  --color-surface-raised: #111b2a;
-  --color-border: rgba(148, 163, 184, 0.18);
-  --color-border-strong: rgba(148, 163, 184, 0.34);
+  --color-canvas: #111015;
+  --color-surface: #1b1b1f;
+  --color-surface-raised: #25252a;
+  --color-border: rgba(216, 216, 219, 0.16);
+  --color-border-strong: rgba(216, 216, 219, 0.32);
 
   /* Glass. Translucent fills for the floating surfaces — the topbar, the nav
      rail — that sit over the canvas and blur what scrolls beneath them. */
@@ -28,13 +28,14 @@
   --color-text: #f4f7fb;
   --color-text-muted: #8d9aaf;
 
-  /* Accents. Violet is a glow and edge accent, never a text colour: it does
-     not reach AA against the canvas at body sizes. */
-  --color-cyan: #48d7ff;
-  --color-violet: #9b6cff;
+  /* Accents — warm stone accents */
+  --color-accent: #f3f3f5;
+  --color-accent-stone: #d8d8db;
+  --color-cyan: #d8d8db;
+  --color-violet: #d8d8db;
 
-  /* Ink on an accent fill. Dark enough to clear AA on the cyan primary. */
-  --color-accent-ink: #04131c;
+  /* Ink on an accent fill. Dark enough to clear AA on the stone primary. */
+  --color-accent-ink: #111015;
 
   /* Status */
   --color-success: #51e6a6;
@@ -78,8 +79,7 @@
      and in dark they resolve to the Console's own tokens: the dark docs are
      the Console palette, not a lookalike.
 
-     The light values are the docs default. The accent is the Console cyan
-     re-mixed for a light ground, because #48d7ff on white is unreadable.
+     The light values are the docs default.
   ------------------------------------------------------------------------- */
   --docs-canvas: #f3f5f8;
   --docs-surface: #ffffff;
@@ -120,14 +120,14 @@
     0 12px 32px rgba(0, 0, 0, 0.45);
   --shadow-float: 0 1px 0 rgba(255, 255, 255, 0.06) inset,
     0 8px 24px rgba(0, 0, 0, 0.5);
-  --glow-cyan: 0 0 40px rgba(72, 215, 255, 0.14);
-  --glow-cyan-strong: 0 0 0 1px rgba(72, 215, 255, 0.35),
-    0 0 32px rgba(72, 215, 255, 0.22);
-  --glow-violet: 0 0 60px rgba(155, 108, 255, 0.12);
+  --glow-cyan: 0 0 40px rgba(243, 243, 245, 0.08);
+  --glow-cyan-strong: 0 0 0 1px rgba(243, 243, 245, 0.25),
+    0 0 32px rgba(243, 243, 245, 0.12);
+  --glow-violet: 0 0 60px rgba(216, 216, 219, 0.08);
 
-  /* Backdrop wash. Decorative only. */
-  --backdrop-cyan: rgba(72, 215, 255, 0.1);
-  --backdrop-violet: rgba(155, 108, 255, 0.1);
+  /* Backdrop wash. Decorative only — subtle warm stone ambient tones. */
+  --backdrop-cyan: rgba(243, 243, 245, 0.04);
+  --backdrop-violet: rgba(216, 216, 219, 0.03);
 
   /* Opaque stop for mask gradients. Colour is irrelevant, only the alpha. */
   --mask-opaque: rgb(0 0 0);

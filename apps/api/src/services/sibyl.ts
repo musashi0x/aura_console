@@ -1,4 +1,6 @@
 import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
+import path from "node:path";
 import { promisify } from "node:util";
 
 import { env } from "../env.js";
@@ -61,8 +63,34 @@ type BridgeOutcome =
  * and deliberately: with no parsed answer we hold nothing Sibyl said, which is
  * the same position as never having asked.
  */
+function getSibylPython(): string | undefined {
+  if (process.env.SIBYL_PYTHON !== undefined) {
+    return process.env.SIBYL_PYTHON || undefined;
+  }
+  return env.SIBYL_PYTHON;
+}
+
+function getSibylBridgePath(): string {
+  const defaultPath = env.SIBYL_BRIDGE || "tools/sibyl_bridge.py";
+  if (process.env.SIBYL_BRIDGE && existsSync(process.env.SIBYL_BRIDGE)) {
+    return process.env.SIBYL_BRIDGE;
+  }
+  if (existsSync(defaultPath)) {
+    return path.resolve(defaultPath);
+  }
+  const fromOneUp = path.resolve(process.cwd(), "..", defaultPath);
+  if (existsSync(fromOneUp)) {
+    return fromOneUp;
+  }
+  const fromTwoUp = path.resolve(process.cwd(), "..", "..", defaultPath);
+  if (existsSync(fromTwoUp)) {
+    return fromTwoUp;
+  }
+  return defaultPath;
+}
+
 async function runBridge(args: string[]): Promise<BridgeOutcome> {
-  const python = env.SIBYL_PYTHON;
+  const python = getSibylPython();
   if (!python) {
     return {
       ok: false,
@@ -73,7 +101,7 @@ async function runBridge(args: string[]): Promise<BridgeOutcome> {
   }
 
   try {
-    const { stdout } = await run(python, [env.SIBYL_BRIDGE, ...args], {
+    const { stdout } = await run(python, [getSibylBridgePath(), ...args], {
       timeout: env.SIBYL_TIMEOUT_MS,
       env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH, SIBYL_TENANT_ID: env.AGENT_ID },
       maxBuffer: 1024 * 1024,
@@ -460,11 +488,11 @@ function episodeCount(body: Record<string, unknown>): number {
 }
 
 export async function retrieveFromSibyl(counterpartyKey: string): Promise<SibylRetrieval> {
-  const python = env.SIBYL_PYTHON;
+  const python = getSibylPython();
   if (!python) return { status: "ERROR", counterpartyKey, retryable: true };
 
   try {
-    const { stdout } = await run(python, [env.SIBYL_BRIDGE, "retrieve", "counterparty", counterpartyKey], {
+    const { stdout } = await run(python, [getSibylBridgePath(), "retrieve", "counterparty", counterpartyKey], {
       timeout: env.SIBYL_TIMEOUT_MS,
       env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH, SIBYL_TENANT_ID: env.AGENT_ID },
       maxBuffer: 1024 * 1024,
@@ -555,7 +583,7 @@ function episodesFrom(body: Record<string, unknown>): SibylEpisode[] {
 }
 
 export async function listCounterpartiesFromSibyl(): Promise<SibylCounterparties> {
-  const python = env.SIBYL_PYTHON;
+  const python = getSibylPython();
   if (!python) {
     return {
       ok: false,
@@ -565,7 +593,7 @@ export async function listCounterpartiesFromSibyl(): Promise<SibylCounterparties
   }
 
   try {
-    const { stdout } = await run(python, [env.SIBYL_BRIDGE, "entities", "counterparty"], {
+    const { stdout } = await run(python, [getSibylBridgePath(), "entities", "counterparty"], {
       timeout: env.SIBYL_TIMEOUT_MS,
       env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH, SIBYL_TENANT_ID: env.AGENT_ID },
       maxBuffer: 4 * 1024 * 1024,
@@ -605,3 +633,283 @@ export async function listCounterpartiesFromSibyl(): Promise<SibylCounterparties
     return { ok: false, code: "bridge_unreachable", detail: "Sibyl could not be read." };
   }
 }
+
+export interface RecordEpisodeOutcome {
+  ok: boolean;
+  eventId?: string;
+  episodesCount?: number;
+  code?: string;
+  detail?: string;
+}
+
+export async function recordEpisodeToSibyl(
+  counterpartyKey: string,
+  episode: {
+    run: string;
+    taskType?: string;
+    outcome: "accepted" | "rejected";
+    note?: string;
+    occurredAt?: string;
+  },
+  actor = "buyer_agent",
+): Promise<RecordEpisodeOutcome> {
+  const python = getSibylPython();
+  if (!python) return { ok: false, code: "not_configured", detail: "SIBYL_PYTHON not configured" };
+
+  try {
+    const payload = {
+      run: episode.run,
+      task_type: episode.taskType ?? "mission",
+      outcome: episode.outcome,
+      note: episode.note ?? "",
+      occurred_at: episode.occurredAt ?? new Date().toISOString(),
+      actor,
+    };
+    const { stdout } = await run(
+      python,
+      [getSibylBridgePath(), "record_episode", counterpartyKey, JSON.stringify(payload), `--actor=${actor}`],
+      {
+        timeout: env.SIBYL_TIMEOUT_MS,
+        env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH, SIBYL_TENANT_ID: env.AGENT_ID },
+        maxBuffer: 1024 * 1024,
+      },
+    );
+    const parsed = JSON.parse(stdout) as Record<string, unknown>;
+    if (parsed.ok !== true) {
+      return {
+        ok: false,
+        code: String(parsed.code ?? "bridge_error"),
+        detail: String(parsed.detail ?? "Failed to record episode"),
+      };
+    }
+    return {
+      ok: true,
+      eventId: str(parsed, "event_id") ?? undefined,
+      episodesCount: num(parsed, "episodes_count") ?? undefined,
+    };
+  } catch (error) {
+    console.error("[sibyl] record episode failed", error);
+    return { ok: false, code: "bridge_unreachable", detail: "Sibyl bridge failed to record episode" };
+  }
+}
+
+export async function updateCounterpartyInSibyl(
+  counterpartyKey: string,
+  update: {
+    relationshipStatus?: string;
+    overallReliability?: number;
+    confidence?: number;
+    riskNote?: string;
+  },
+): Promise<{ ok: boolean; code?: string; detail?: string }> {
+  const python = getSibylPython();
+  if (!python) return { ok: false, code: "not_configured", detail: "SIBYL_PYTHON not configured" };
+
+  try {
+    const payload: Record<string, unknown> = {};
+    if (update.relationshipStatus !== undefined) payload.relationship_status = update.relationshipStatus;
+    if (update.overallReliability !== undefined) payload.overall_reliability = update.overallReliability;
+    if (update.confidence !== undefined) payload.confidence = update.confidence;
+    if (update.riskNote !== undefined) payload.risk_note = update.riskNote;
+
+    const { stdout } = await run(
+      python,
+      [getSibylBridgePath(), "update_counterparty", counterpartyKey, JSON.stringify(payload)],
+      {
+        timeout: env.SIBYL_TIMEOUT_MS,
+        env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH, SIBYL_TENANT_ID: env.AGENT_ID },
+        maxBuffer: 1024 * 1024,
+      },
+    );
+    const parsed = JSON.parse(stdout) as Record<string, unknown>;
+    return { ok: parsed.ok === true };
+  } catch (error) {
+    console.error("[sibyl] update counterparty failed", error);
+    return { ok: false, code: "bridge_unreachable", detail: "Sibyl bridge failed to update counterparty" };
+  }
+}
+
+export async function setMissionState(
+  key: string,
+  state: Record<string, unknown>,
+): Promise<{ ok: boolean; code?: string; detail?: string }> {
+  const python = getSibylPython();
+  if (!python) return { ok: false, code: "not_configured", detail: "SIBYL_PYTHON not configured" };
+
+  try {
+    const { stdout } = await run(
+      python,
+      [getSibylBridgePath(), "set_state", key, JSON.stringify(state)],
+      {
+        timeout: env.SIBYL_TIMEOUT_MS,
+        env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH, SIBYL_TENANT_ID: env.AGENT_ID },
+        maxBuffer: 1024 * 1024,
+      },
+    );
+    const parsed = JSON.parse(stdout) as Record<string, unknown>;
+    return { ok: parsed.ok === true };
+  } catch (error) {
+    console.error("[sibyl] set state failed", error);
+    return { ok: false, code: "bridge_unreachable", detail: "Failed to set state" };
+  }
+}
+
+export async function getMissionState(
+  key: string,
+): Promise<{ ok: boolean; state?: Record<string, unknown>; code?: string; detail?: string }> {
+  const python = getSibylPython();
+  if (!python) return { ok: false, code: "not_configured", detail: "SIBYL_PYTHON not configured" };
+
+  try {
+    const { stdout } = await run(
+      python,
+      [getSibylBridgePath(), "get_state", key],
+      {
+        timeout: env.SIBYL_TIMEOUT_MS,
+        env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH, SIBYL_TENANT_ID: env.AGENT_ID },
+        maxBuffer: 1024 * 1024,
+      },
+    );
+    const parsed = JSON.parse(stdout) as Record<string, unknown>;
+    return { ok: parsed.ok === true, state: parsed.state as Record<string, unknown> | undefined };
+  } catch (error) {
+    console.error("[sibyl] get state failed", error);
+    return { ok: false, code: "bridge_unreachable", detail: "Failed to get state" };
+  }
+}
+
+export async function setPolicyReference(
+  key: string,
+  reference: Record<string, unknown>,
+): Promise<{ ok: boolean; code?: string; detail?: string }> {
+  const python = getSibylPython();
+  if (!python) return { ok: false, code: "not_configured", detail: "SIBYL_PYTHON not configured" };
+
+  try {
+    const { stdout } = await run(
+      python,
+      [getSibylBridgePath(), "set_reference", key, JSON.stringify(reference)],
+      {
+        timeout: env.SIBYL_TIMEOUT_MS,
+        env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH, SIBYL_TENANT_ID: env.AGENT_ID },
+        maxBuffer: 1024 * 1024,
+      },
+    );
+    const parsed = JSON.parse(stdout) as Record<string, unknown>;
+    return { ok: parsed.ok === true };
+  } catch (error) {
+    console.error("[sibyl] set reference failed", error);
+    return { ok: false, code: "bridge_unreachable", detail: "Failed to set reference" };
+  }
+}
+
+export async function getPolicyReference(
+  key: string,
+): Promise<{ ok: boolean; reference?: unknown; code?: string; detail?: string }> {
+  const python = getSibylPython();
+  if (!python) return { ok: false, code: "not_configured", detail: "SIBYL_PYTHON not configured" };
+
+  try {
+    const { stdout } = await run(
+      python,
+      [getSibylBridgePath(), "get_reference", key],
+      {
+        timeout: env.SIBYL_TIMEOUT_MS,
+        env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH, SIBYL_TENANT_ID: env.AGENT_ID },
+        maxBuffer: 1024 * 1024,
+      },
+    );
+    const parsed = JSON.parse(stdout) as Record<string, unknown>;
+    return { ok: parsed.ok === true, reference: parsed.reference };
+  } catch (error) {
+    console.error("[sibyl] get reference failed", error);
+    return { ok: false, code: "bridge_unreachable", detail: "Failed to get reference" };
+  }
+}
+
+export async function archiveCounterpartyInSibyl(
+  counterpartyKey: string,
+  reason = "operator_archived",
+): Promise<{ ok: boolean; code?: string; detail?: string }> {
+  const python = getSibylPython();
+  if (!python) return { ok: false, code: "not_configured", detail: "SIBYL_PYTHON not configured" };
+
+  try {
+    const { stdout } = await run(
+      python,
+      [getSibylBridgePath(), "archive_entity", "counterparty", counterpartyKey, reason],
+      {
+        timeout: env.SIBYL_TIMEOUT_MS,
+        env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH, SIBYL_TENANT_ID: env.AGENT_ID },
+        maxBuffer: 1024 * 1024,
+      },
+    );
+    const parsed = JSON.parse(stdout) as Record<string, unknown>;
+    return { ok: parsed.ok === true };
+  } catch (error) {
+    console.error("[sibyl] archive entity failed", error);
+    return { ok: false, code: "bridge_unreachable", detail: "Failed to archive entity" };
+  }
+}
+
+export interface ReadMemoryJournalOptions {
+  limit?: number;
+  counterpartyKey?: string;
+}
+
+export async function readMemoryJournal(
+  limitOrOptions: number | ReadMemoryJournalOptions = 50,
+): Promise<{
+  ok: boolean;
+  count?: number;
+  events?: unknown[];
+  episodes?: unknown[];
+  code?: string;
+  detail?: string;
+}> {
+  const options: ReadMemoryJournalOptions =
+    typeof limitOrOptions === "number" ? { limit: limitOrOptions } : (limitOrOptions ?? {});
+  const limit = options.limit ?? 50;
+  const counterpartyKey = options.counterpartyKey;
+
+  const python = getSibylPython();
+  if (!python) return { ok: false, code: "not_configured", detail: "SIBYL_PYTHON not configured" };
+
+  try {
+    const fetchLimit = counterpartyKey ? Math.max(limit, 100) : limit;
+    const { stdout } = await run(
+      python,
+      [getSibylBridgePath(), "events", `--limit=${fetchLimit}`],
+      {
+        timeout: env.SIBYL_TIMEOUT_MS,
+        env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH, SIBYL_TENANT_ID: env.AGENT_ID },
+        maxBuffer: 2 * 1024 * 1024,
+      },
+    );
+    const parsed = JSON.parse(stdout) as Record<string, unknown>;
+    let events = Array.isArray(parsed.events) ? (parsed.events as Record<string, unknown>[]) : [];
+    if (counterpartyKey) {
+      events = events.filter((e) => {
+        const evaluated = e.evaluated as Record<string, unknown> | undefined;
+        const episode = evaluated?.episode as Record<string, unknown> | undefined;
+        return (
+          evaluated?.counterparty === counterpartyKey ||
+          episode?.counterparty === counterpartyKey
+        );
+      });
+      if (events.length > limit) {
+        events = events.slice(0, limit);
+      }
+    }
+    return {
+      ok: parsed.ok === true,
+      count: events.length,
+      events,
+      episodes: events,
+    };
+  } catch (error) {
+    console.error("[sibyl] read journal failed", error);
+    return { ok: false, code: "bridge_unreachable", detail: error instanceof Error ? error.message : String(error) };
+  }
+}
+

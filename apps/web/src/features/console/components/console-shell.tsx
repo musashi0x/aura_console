@@ -7,7 +7,7 @@ import { Layout, LayoutContent, LayoutPanel } from "@astryxdesign/core/Layout";
 import { Theme } from "@astryxdesign/core/theme";
 import { useMediaQuery } from "@astryxdesign/core/hooks";
 
-import { neutralTheme } from "@/themes/neutral/neutral.js";
+import { stoneTheme } from "@/themes/stone/stone.js";
 
 import { console_ } from "../copy";
 import type { ChatGrounding } from "./console-chat";
@@ -132,7 +132,7 @@ export function ConsoleShell({
        it has no light variant to follow a toggle into. Declaring the mode here
        rather than globally lets the docs keep their own light/dark switch
        without the two disagreeing about one shared value. */
-    <Theme theme={neutralTheme} mode="dark">
+    <Theme theme={stoneTheme} mode="dark">
       <AppShell
         height="fill"
         contentPadding={0}

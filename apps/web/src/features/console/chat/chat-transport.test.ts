@@ -104,6 +104,27 @@ describe("chat stream transport", () => {
     expect(h.citations).toEqual([{ counterpartyKey: "cp_1", label: "Alpha" }]);
   });
 
+  it("handles thought and token usage events properly", () => {
+    const thoughts: string[] = [];
+    const usages: unknown[] = [];
+    const h = harness({
+      onThought: (t) => thoughts.push(t),
+      onUsage: (u) => usages.push(u),
+    });
+
+    h.created[0]!.emit("thought", "Evaluating counterparty memory...");
+    h.created[0]!.emit("usage", "{invalid-json");
+    h.created[0]!.emit(
+      "usage",
+      JSON.stringify({ promptTokens: 400, candidateTokens: 100, totalTokens: 500 }),
+    );
+
+    expect(thoughts).toEqual(["Evaluating counterparty memory..."]);
+    expect(usages).toEqual([
+      { promptTokens: 400, candidateTokens: 100, totalTokens: 500 },
+    ]);
+  });
+
   it("has no write path anywhere in the module", async () => {
     // The read-only guarantee is structural: EventSource can only GET, and no
     // mutating verb appears in the source. A future edit that adds one should

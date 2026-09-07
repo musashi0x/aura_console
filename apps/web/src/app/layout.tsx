@@ -18,7 +18,7 @@ import "@/styles/layers.css";
 
 import "@astryxdesign/core/reset.css";
 import "@astryxdesign/core/astryx.css";
-import "@/themes/neutral/neutral.css";
+import "@/themes/stone/stone.css";
 
 import "./globals.css";
 

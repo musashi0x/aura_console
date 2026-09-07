@@ -70,6 +70,21 @@ describe("Chat Routes (SSE Streaming & Gemini Function Calling)", () => {
       expect(body).toContain("event: token");
       expect(body).toContain("event: done");
     });
+
+    it("supports POST /api/chat with JSON body", async () => {
+      const res = await app.request("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: "go to missions" }),
+      });
+      expect(res.status).toBe(200);
+      expect(res.headers.get("content-type")).toContain("text/event-stream");
+
+      const body = await res.text();
+      expect(body).toContain("event: tool_call");
+      expect(body).toContain('"name":"console_navigate"');
+      expect(body).toContain("event: done");
+    });
   });
 
   describe("GET /api/runs/:runId/chat (Run Context Chat)", () => {

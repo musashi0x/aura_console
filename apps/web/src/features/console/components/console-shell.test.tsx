@@ -60,6 +60,16 @@ describe("navigation", () => {
   });
 });
 
+describe("theme", () => {
+  it("renders with Stone theme active in dark mode", () => {
+    const { container } = shell();
+    const themedRoot = container.querySelector("[data-astryx-theme]");
+    expect(themedRoot).toBeInTheDocument();
+    expect(themedRoot?.getAttribute("data-astryx-theme")).toBe("stone");
+    expect(themedRoot?.getAttribute("data-theme")).toBe("dark");
+  });
+});
+
 describe("product boundaries", () => {
   it("offers no account, workspace, or billing surface", () => {
     const { container } = shell();

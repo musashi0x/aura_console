@@ -21,7 +21,17 @@ app.use("*", requestLogger);
 app.use(
   "*",
   cors({
-    origin: (origin) => (env.CORS_ORIGINS.includes(origin) ? origin : null),
+    origin: (origin) => {
+      if (!origin) return "*";
+      if (env.CORS_ORIGINS.includes(origin)) return origin;
+      if (
+        env.NODE_ENV !== "production" &&
+        /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
+      ) {
+        return origin;
+      }
+      return null;
+    },
     allowMethods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
     maxAge: 600,

@@ -14,7 +14,11 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "db:generate": "turbo run db:generate",
-    "db:migrate": "turbo run db:migrate"
+    "db:migrate": "turbo run db:migrate",
+    "demo:deletion-test": "pnpm --filter @aura/api exec tsx ../../scripts/demo-deletion-test.ts",
+    "demo:restart": "bash scripts/demo-restart.sh",
+    "demo:reset": "bash scripts/demo-reset.sh",
+    "memory:verify": "pnpm --filter @aura/api exec tsx ../../scripts/verify-memory-commitment.ts"
   },
   "devDependencies": {
     "@aura/eslint-config": "workspace:*",

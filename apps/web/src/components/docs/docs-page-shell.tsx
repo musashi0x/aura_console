@@ -15,7 +15,7 @@ import {
   getDocsThemeSnapshot,
   subscribeDocsTheme,
 } from "@/lib/docs-theme";
-import { neutralTheme } from "@/themes/neutral/neutral.js";
+import { stoneTheme } from "@/themes/stone/stone.js";
 
 /** The detail panel's budget, the same reading width the console's chat uses. */
 const DETAIL_PANEL_WIDTH = 420;
@@ -54,7 +54,7 @@ export function DocsPageShell({
   );
 
   return (
-    <Theme theme={neutralTheme} mode={mode}>
+    <Theme theme={stoneTheme} mode={mode}>
       <AppShell
         height="fill"
         contentPadding={0}

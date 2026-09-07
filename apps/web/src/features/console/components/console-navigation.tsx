@@ -17,7 +17,13 @@ import { console_ } from "../copy";
  * topbar button and a hand-written `inert` rail. Deleting that in favour of the
  * component's version is the point of adopting the frame.
  */
-export function ConsoleNavigation({ surface }: { surface: string }) {
+export function ConsoleNavigation({
+  surface,
+  contextSelector,
+}: {
+  surface: string;
+  contextSelector?: React.ReactNode;
+}) {
   const item = (href: string, label: string) => (
     <SideNavItem
       key={href}
@@ -34,6 +40,7 @@ export function ConsoleNavigation({ surface }: { surface: string }) {
        a screen reader lists both, so an unnamed one reads as a bare
        "navigation". aria-label forwards to the rendered <nav>. */
     <SideNav collapsible aria-label={console_.nav.label}>
+      {contextSelector}
       {/* One group. The rail was two — a primary list and a "Reference" group
           holding Example Run, Readiness and Back to landing — and all three
           left it: the example Mission belongs in Missions, readiness belongs to

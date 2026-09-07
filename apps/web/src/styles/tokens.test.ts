@@ -36,7 +36,18 @@ describe("token layer is the single source of colour", () => {
   });
 
   it("keeps the token file as the only place raw colours are declared", () => {
-    expect(tokens).toMatch(/--color-canvas:\s*#05070d/i);
+    expect(tokens).toMatch(/--color-canvas:\s*#111015/i);
+    expect(tokens).toMatch(/--color-surface:\s*#1b1b1f/i);
+    expect(tokens).toMatch(/--color-border:\s*rgba\(216,\s*216,\s*219,\s*0\.16\)/i);
+    expect(tokens).toMatch(/--color-accent:\s*#f3f3f5/i);
+    expect(tokens).toMatch(/--color-accent-stone:\s*#d8d8db/i);
+  });
+
+  it("contains no electric blue or legacy cyan (#48d7ff) in tokens or globals", () => {
+    expect(tokens).not.toContain("#48d7ff");
+    expect(tokens).not.toContain("rgba(72, 215, 255");
+    expect(globals).not.toContain("#48d7ff");
+    expect(globals).not.toContain("rgba(72, 215, 255");
   });
 });
 
@@ -46,7 +57,16 @@ describe("contrast", () => {
 
   // Colours that carry text. Violet is deliberately absent: it is a glow and
   // edge accent only, because it does not reach AA at body sizes on this canvas.
-  const textTones = ["color-text", "color-text-muted", "color-success", "color-warning", "color-error", "color-cyan"];
+  const textTones = [
+    "color-text",
+    "color-text-muted",
+    "color-success",
+    "color-warning",
+    "color-error",
+    "color-cyan",
+    "color-accent",
+    "color-accent-stone",
+  ];
 
   for (const tone of textTones) {
     it(`${tone} meets WCAG AA on the canvas`, () => {

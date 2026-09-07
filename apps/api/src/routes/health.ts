@@ -2,10 +2,13 @@ import { getDb, sql } from "@aura/db";
 import { Hono } from "hono";
 
 import { errorBody } from "../errors.js";
+import { isGeminiAgentConfigured } from "../services/gemini-agent.js";
 import { getAgentStatus } from "../services/adk-agent.js";
 import { getSibylStatus } from "../services/sibyl.js";
 
 export const health = new Hono();
+
+const serverStartTime = new Date().toISOString();
 
 /** Liveness only. Must answer even when Postgres is down. */
 health.get("/", (c) =>
@@ -13,6 +16,8 @@ health.get("/", (c) =>
     status: "ok",
     uptime: Math.round(process.uptime() * 1000) / 1000,
     timestamp: new Date().toISOString(),
+    commit: process.env.GIT_SHA || process.env.VERCEL_GIT_COMMIT_SHA || "local-dev",
+    startedAt: serverStartTime,
   }),
 );
 
@@ -47,4 +52,11 @@ health.get("/sibyl", async (c) => c.json(await getSibylStatus()));
  * `reachable: false` and a reason, because the API is up and one dependency is
  * not.
  */
-health.get("/agent", async (c) => c.json(await getAgentStatus()));
+health.get("/agent", async (c) => {
+  const adkStatus = await getAgentStatus();
+  if (adkStatus.reachable) return c.json(adkStatus);
+  if (isGeminiAgentConfigured()) {
+    return c.json({ configured: true, reachable: true, apps: ["gemini-agent"] });
+  }
+  return c.json(adkStatus);
+});

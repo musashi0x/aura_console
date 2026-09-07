@@ -307,10 +307,132 @@ def main() -> None:
             except absent_errors as error:
                 fail("entity_absent", f"Sibyl holds no {positional[0]}/{positional[1]}: {error}")
             payload = {"ok": True, "record": as_record(found)}
+        elif command == "record_episode":
+            if len(positional) < 2:
+                fail("bad_argument", "record_episode needs a counterparty key and a JSON episode payload")
+            key = positional[0]
+            try:
+                episode_data = json.loads(positional[1])
+            except json.JSONDecodeError as err:
+                fail("bad_json", f"Invalid episode JSON payload: {err}")
+
+            actor = flags.get("actor") or episode_data.get("actor") or "buyer_agent"
+
+            try:
+                found = client.get_entity("counterparty", key)
+                body = dict((found or {}).get("body") or {})
+            except absent_errors:
+                body = {"display_name": key, "source": "real"}
+
+            episodes = list(body.get("episodes") or [])
+            episodes.append(episode_data)
+            body["episodes"] = episodes
+
+            client.set_entity("counterparty", key, body)
+            event_id = client.write_event(
+                evaluated={"counterparty": key, "episode": episode_data},
+                acted={"action": "record_episode", "actor": actor, "outcome": episode_data.get("outcome")},
+            )
+            payload = {"ok": True, "event_id": event_id, "episodes_count": len(episodes)}
+        elif command == "update_counterparty":
+            if len(positional) < 2:
+                fail("bad_argument", "update_counterparty needs a counterparty key and a JSON update payload")
+            key = positional[0]
+            try:
+                update_data = json.loads(positional[1])
+            except json.JSONDecodeError as err:
+                fail("bad_json", f"Invalid update JSON payload: {err}")
+
+            try:
+                found = client.get_entity("counterparty", key)
+                body = dict((found or {}).get("body") or {})
+            except absent_errors:
+                body = {"display_name": key, "source": "real"}
+
+            for k, v in update_data.items():
+                body[k] = v
+
+            client.set_entity("counterparty", key, body)
+            payload = {"ok": True, "key": key, "body": body}
+        elif command == "set_state":
+            if len(positional) < 2:
+                fail("bad_argument", "set_state needs a key and a JSON state payload")
+            key = positional[0]
+            try:
+                state_data = json.loads(positional[1])
+            except json.JSONDecodeError as err:
+                fail("bad_json", f"Invalid state JSON payload: {err}")
+            if hasattr(client, "set_state"):
+                client.set_state(key, state_data)
+            else:
+                client.set_entity("hot_state", key, state_data)
+            payload = {"ok": True, "key": key}
+        elif command == "get_state":
+            if len(positional) < 1:
+                fail("bad_argument", "get_state needs a key")
+            key = positional[0]
+            try:
+                if hasattr(client, "get_state"):
+                    state_data = client.get_state(key)
+                else:
+                    found = client.get_entity("hot_state", key)
+                    state_data = (found or {}).get("body")
+                payload = {"ok": True, "key": key, "state": state_data}
+            except absent_errors:
+                payload = {"ok": True, "key": key, "state": None}
+        elif command == "set_reference":
+            if len(positional) < 2:
+                fail("bad_argument", "set_reference needs a key and a JSON reference payload")
+            key = positional[0]
+            try:
+                ref_data = json.loads(positional[1])
+            except json.JSONDecodeError as err:
+                fail("bad_json", f"Invalid reference JSON payload: {err}")
+            if hasattr(client, "set_reference"):
+                client.set_reference(key, ref_data)
+            else:
+                client.set_entity("reference", key, ref_data)
+            payload = {"ok": True, "key": key}
+        elif command == "get_reference":
+            if len(positional) < 1:
+                fail("bad_argument", "get_reference needs a key")
+            key = positional[0]
+            try:
+                if hasattr(client, "get_reference"):
+                    ref_data = client.get_reference(key)
+                else:
+                    ref_data = client.get_entity("reference", key)
+                if isinstance(ref_data, dict) and "body" in ref_data:
+                    body = ref_data["body"]
+                    if isinstance(body, str):
+                        try:
+                            ref_data = json.loads(body)
+                        except Exception:
+                            pass
+                    elif isinstance(body, dict):
+                        ref_data = body
+                payload = {"ok": True, "key": key, "reference": ref_data}
+            except absent_errors:
+                payload = {"ok": True, "key": key, "reference": None}
+        elif command == "archive_entity":
+            if len(positional) < 2:
+                fail("bad_argument", "archive_entity needs category and name")
+            cat = positional[0]
+            name = positional[1]
+            reason = flags.get("reason") or (positional[2] if len(positional) > 2 else "operator_archived")
+            if hasattr(client, "archive_entity"):
+                client.archive_entity(cat, name, reason=reason)
+            else:
+                try:
+                    found = client.get_entity(cat, name)
+                    body = dict((found or {}).get("body") or {})
+                    body["archive_reason"] = reason
+                    body["status"] = "ARCHIVED"
+                    client.set_entity(f"archive_{cat}", name, body)
+                except absent_errors:
+                    pass
+            payload = {"ok": True, "category": cat, "name": name, "reason": reason}
         elif command == "events":
-            # Event fields are already flat single words (id, ts, evaluated,
-            # acted, forward, extra), so there is no snake_case to translate and
-            # nothing is lost by handing them over exactly as Sibyl returned them.
             payload = {"ok": True, "events": client.read_events(limit=int_flag(flags, "limit", 50))}
         else:
             fail("unknown_command", f"{command} is not a bridge command")

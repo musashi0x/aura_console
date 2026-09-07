@@ -13,6 +13,7 @@ import { RunStore } from "../services/run-store.js";
 import {
   getSibylStatus,
   listCounterpartiesFromSibyl,
+  readMemoryJournal,
   retrieveFromSibyl,
 } from "../services/sibyl.js";
 
@@ -137,6 +138,35 @@ export const memoryListCounterpartiesTool: McpToolDefinition<Record<string, neve
     return {
       fromSibyl: sibylListing,
       storedCounterparties: stored,
+    };
+  },
+};
+
+export const memoryJournalTool: McpToolDefinition<{ counterpartyKey?: string; limit?: number }> = {
+  name: "memory_journal",
+  description:
+    "Read the immutable Sibyl memory journal / episode log with provenance actors, optionally filtered by counterparty.",
+  parameters: z.object({
+    counterpartyKey: z
+      .string()
+      .optional()
+      .describe("Optional counterparty key to filter journal episodes (e.g. virtuals:agent:alpha)"),
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .optional()
+      .describe("Maximum number of journal entries to return (default 50)"),
+  }),
+  execute: async ({ counterpartyKey, limit }) => {
+    const journal = await readMemoryJournal({ counterpartyKey, limit });
+    return {
+      ok: journal.ok,
+      count: journal.count ?? journal.events?.length ?? 0,
+      episodes: journal.episodes ?? journal.events ?? [],
+      ...(journal.code ? { code: journal.code } : {}),
+      ...(journal.detail ? { detail: journal.detail } : {}),
     };
   },
 };
@@ -420,6 +450,7 @@ export const MCP_TOOLS: McpToolDefinition[] = [
   consoleGetReadinessTool,
   memoryRecallCounterpartyTool,
   memoryListCounterpartiesTool,
+  memoryJournalTool,
   consoleListMissionsTool,
   consoleGetMissionTool,
   guardrailsGetPoliciesTool,

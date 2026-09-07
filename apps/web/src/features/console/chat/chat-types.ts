@@ -4,6 +4,12 @@ export interface McpToolCall {
   result?: unknown;
 }
 
+export interface TokenUsage {
+  promptTokens: number;
+  candidateTokens: number;
+  totalTokens: number;
+}
+
 /** One turn in the thread. The agent never speaks unless a stream produced it. */
 export interface ChatMessage {
   id: string;
@@ -22,6 +28,10 @@ export interface ChatMessage {
   citations: MemoryCitation[];
   /** MCP tool calls executed during this turn */
   toolCalls?: McpToolCall[];
+  /** Agent's internal Chain-of-Thought / reasoning narrative */
+  thought?: string;
+  /** Token usage statistics for this turn */
+  usage?: TokenUsage;
 }
 
 /**

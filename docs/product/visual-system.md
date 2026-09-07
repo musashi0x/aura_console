@@ -31,13 +31,13 @@ scale, and the Run preview's on the landing page.
 
 | Role | Value |
 |---|---|
-| Canvas | `#05070D` |
-| Elevated surface | `#0D1420` |
-| Raised surface | `#111B2A` |
+| Canvas | `#111015` |
+| Elevated surface | `#1B1B1F` |
+| Raised surface | `#25252A` |
 | Primary text | `#F4F7FB` |
 | Muted text | `#8D9AAF` |
-| Cyan accent | `#48D7FF` |
-| Violet accent | `#9B6CFF` |
+| Stone primary accent | `#F3F3F5` |
+| Stone secondary accent | `#D8D8DB` |
 | Success | `#51E6A6` |
 | Warning | `#FFBE63` |
 | Error | `#FF6B7A` |

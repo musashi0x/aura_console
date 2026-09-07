@@ -29,14 +29,14 @@ landing's `--landing-*` tokens are unaffected by that class.
 
 | sona-ui token | Tailwind classes used here | Aura `--color-*` equivalent (reference only) |
 |---|---|---|
-| Canvas `neutral-950` | `dark:bg-neutral-950`, `dark:from-neutral-950` | `--color-canvas` `#05070d` |
-| Surface `neutral-900` | `dark:bg-neutral-900`, `dark:bg-neutral-900/90` | `--color-surface` `#0d1420` |
-| Raised `neutral-800` | `dark:bg-neutral-800`, `dark:border-neutral-800` | `--color-surface-raised` `#111b2a` |
+| Canvas `neutral-950` | `dark:bg-neutral-950`, `dark:from-neutral-950` | `--color-canvas` `#111015` |
+| Surface `neutral-900` | `dark:bg-neutral-900`, `dark:bg-neutral-900/90` | `--color-surface` `#1b1b1f` |
+| Raised `neutral-800` | `dark:bg-neutral-800`, `dark:border-neutral-800` | `--color-surface-raised` `#25252a` |
 | Border `neutral-200/800` | `border-neutral-200 dark:border-neutral-800` | `--color-border` |
 | Ink `neutral-900/100` | `text-neutral-900 dark:text-neutral-100` | `--color-text` `#f4f7fb` |
 | Muted `neutral-500/400` | `text-neutral-500 dark:text-neutral-400` | `--color-text-muted` `#8d9aaf` |
 | Glass white/90 | `bg-white/90 backdrop-blur-xl` | `--color-glass` family |
-| Accent cyan-500 | `ring-cyan-500`, `text-cyan-600`, `before:bg-cyan-500` | `--color-cyan` `#48d7ff` |
+| Accent stone | `ring-stone-500`, `text-stone-300`, `before:bg-stone-500` | `--color-accent` `#f3f3f5` / `#d8d8db` |
 | Tag new emerald-500 | `bg-emerald-500` | `--color-success` `#51e6a6` |
 | Tag updated blue-500 | `bg-blue-500` | (none) |
 
