@@ -11,6 +11,8 @@ import { StatusBadge } from "@/components/primitives";
 import { console_ } from "@/features/console/copy";
 import { exampleRun } from "@/features/console/fixtures/example-run";
 import { apiClient } from "@/lib/api-client";
+import { StatusDot } from "@astryxdesign/core/StatusDot";
+import { getRunStatusInfo } from "@/features/console/components/chat-console-view";
 
 export const dynamic = "force-dynamic";
 
@@ -70,7 +72,18 @@ export default async function RunsPage() {
             <li>
               <Link className="cs__row" href="/runs/example">
                 <span className="cs__row-objective">
-                  {exampleRun.objective}
+                  <span
+                    className="cs__row-title-wrap"
+                    style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-2)" }}
+                  >
+                    <StatusDot
+                      variant="success"
+                      label="Completed"
+                      isPulsing={false}
+                      tooltip="Completed"
+                    />
+                    <span>{exampleRun.objective}</span>
+                  </span>
                 </span>
                 <span className="cs__row-meta">
                   <StatusBadge tone="warning">
@@ -80,19 +93,35 @@ export default async function RunsPage() {
                 </span>
               </Link>
             </li>
-            {runs.data.runs.map((run) => (
-              <li key={run.id}>
-                <Link className="cs__row" href={`/runs/${run.id}`}>
-                  <span className="cs__row-objective">{run.objective}</span>
-                  <span className="cs__row-meta">
-                    <span className="cs__row-env">{run.environment}</span>
-                    <time dateTime={run.createdAt}>
-                      {run.createdAt.slice(0, 19).replace("T", " ")}
-                    </time>
-                  </span>
-                </Link>
-              </li>
-            ))}
+            {runs.data.runs.map((run) => {
+              const statusInfo = getRunStatusInfo(run.status);
+              return (
+                <li key={run.id}>
+                  <Link className="cs__row" href={`/runs/${run.id}`}>
+                    <span className="cs__row-objective">
+                      <span
+                        className="cs__row-title-wrap"
+                        style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-2)" }}
+                      >
+                        <StatusDot
+                          variant={statusInfo.variant}
+                          label={statusInfo.label}
+                          isPulsing={statusInfo.isPulsing}
+                          tooltip={statusInfo.tooltip}
+                        />
+                        <span>{run.objective}</span>
+                      </span>
+                    </span>
+                    <span className="cs__row-meta">
+                      <span className="cs__row-env">{run.environment}</span>
+                      <time dateTime={run.createdAt}>
+                        {run.createdAt.slice(0, 19).replace("T", " ")}
+                      </time>
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </>
       )}

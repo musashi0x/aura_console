@@ -17,8 +17,12 @@ import {
   ChatMessage as ChatMessageRow,
   ChatMessageBubble,
   ChatMessageList,
+  ChatToolCalls,
   type ChatComposerTrigger,
 } from "@astryxdesign/core/Chat";
+import { Citation } from "@astryxdesign/core/Citation";
+import { CodeBlock } from "@astryxdesign/core/CodeBlock";
+import { HoverCard } from "@astryxdesign/core/HoverCard";
 import {
   createStaticSource,
   TypeaheadItem,
@@ -41,8 +45,10 @@ import { openChatStream, type ChatStreamHandle } from "../chat/chat-transport";
 import type {
   ChatConnection,
   ChatMessage,
+  ChatToolCallItem,
   MemoryCitation,
 } from "../chat/chat-types";
+import { CounterpartyMemoryHoverCard } from "./counterparty-memory-hover-card";
 import { useSmoothedText } from "../chat/use-smoothed-text";
 import { CONSOLE_COMMANDS, matchCommand } from "../console-commands";
 import { console_ } from "../copy";
@@ -119,6 +125,50 @@ export interface ConsoleChatProps {
    * state"; it is an override for tests, not a second source of truth.
    */
   memoryEnabled?: boolean;
+}
+
+/**
+ * Ensures that tool call items with output data have a properly configured
+ * `<CodeBlock container="section" />` in their `resultDetail`.
+ */
+function normalizeToolCallItem(call: ChatToolCallItem): ChatToolCallItem {
+  if (call.resultDetail != null && typeof call.resultDetail !== "string") {
+    return call;
+  }
+
+  const raw = typeof call.resultDetail === "string" ? call.resultDetail : call.data;
+  if (raw == null) {
+    return call;
+  }
+
+  let code: string;
+  let language: string = "bash";
+
+  if (typeof raw === "string") {
+    code = raw;
+    if (code.startsWith("---") || code.startsWith("diff ") || code.includes("\n+++ ")) {
+      language = "diff";
+    } else if (code.trim().startsWith("{") || code.trim().startsWith("[")) {
+      language = "json";
+    } else {
+      language = "bash";
+    }
+  } else {
+    code = JSON.stringify(raw, null, 2);
+    language = "json";
+  }
+
+  return {
+    ...call,
+    resultDetail: (
+      <CodeBlock
+        container="section"
+        code={code}
+        language={language}
+        isWrapped
+      />
+    ),
+  };
 }
 
 /**
@@ -410,6 +460,14 @@ export function ConsoleChat({ runId, grounding, memoryEnabled }: ConsoleChatProp
                   : console_.chat.connecting
                 : null;
 
+            const hasToolCalls =
+              message.role === "agent" &&
+              Boolean(message.toolCalls && message.toolCalls.length > 0);
+
+            const normalizedToolCalls = hasToolCalls
+              ? message.toolCalls!.map(normalizeToolCallItem)
+              : undefined;
+
             return (
               <ChatMessageRow key={message.id} sender={senderFor(message.role)}>
                 <ChatMessageBubble
@@ -428,20 +486,44 @@ export function ConsoleChat({ runId, grounding, memoryEnabled }: ConsoleChatProp
                             (s) =>
                               s.counterpartyKey === citation.counterpartyKey,
                           );
+                          const citationNumber = index >= 0 ? index + 1 : 1;
+                          const profileUrl = `/counterparties?key=${encodeURIComponent(citation.counterpartyKey)}`;
                           return (
-                            <Token
+                            <HoverCard
                               key={citation.counterpartyKey}
-                              label={String(index + 1)}
-                              size="sm"
-                              color="cyan"
-                            />
+                              placement="above"
+                              label="Memory Citation Preview"
+                              content={
+                                <CounterpartyMemoryHoverCard
+                                  counterpartyKey={citation.counterpartyKey}
+                                  displayName={citation.label}
+                                  summary={citation.summary}
+                                />
+                              }
+                            >
+                              <Citation
+                                variant="number"
+                                number={citationNumber}
+                                source={{
+                                  title: citation.label,
+                                  url: profileUrl,
+                                }}
+                              />
+                            </HoverCard>
                           );
                         })}
                       </HStack>
                     ) : undefined
                   }
                 >
-                  {pending ?? body}
+                  {hasToolCalls && normalizedToolCalls ? (
+                    <VStack gap={2} align="stretch">
+                      <ChatToolCalls calls={normalizedToolCalls} />
+                      {body ? <div>{body}</div> : pending ? <div>{pending}</div> : null}
+                    </VStack>
+                  ) : (
+                    pending ?? body
+                  )}
                 </ChatMessageBubble>
               </ChatMessageRow>
             );

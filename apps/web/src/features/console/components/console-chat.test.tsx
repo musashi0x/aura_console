@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { beforeEach, describe, expect, it } from "vitest";
@@ -9,11 +9,20 @@ import { expectNoAxeViolations } from "@/test/axe";
 declare const __GLOBALS_CSS__: string;
 
 import { console_ } from "../copy";
+import { __resetChatSession, setChatMessages } from "../chat/chat-session";
 import { __resetMemoryView, getMemoryViewEnabled } from "../memory-view-state";
+import {
+  MOCK_CITATION_ALPHA,
+  MOCK_CITATION_BETA,
+  MOCK_TOOL_CLI_RUNNER,
+  MOCK_TOOL_ERROR,
+  MOCK_TOOL_TX_SUBMIT,
+} from "../fixtures/e2e-contracts";
 import { ConsoleChat } from "./console-chat";
 
 beforeEach(() => {
   __resetMemoryView();
+  __resetChatSession();
 });
 
 describe("console chat", () => {
@@ -217,4 +226,200 @@ describe("the conversation is the design system's, not this repo's", () => {
     }
   });
 });
+
+describe("inline agent execution visualizer (ChatToolCalls & CodeBlock)", () => {
+  it("renders inline tool calls with tool name, node tag, and execution duration", () => {
+    setChatMessages([
+      {
+        id: "msg-tool-1",
+        role: "agent",
+        text: "Analyzing market data in sandbox.",
+        complete: true,
+        citations: [],
+        toolCalls: [MOCK_TOOL_CLI_RUNNER],
+      },
+    ]);
+    render(<ConsoleChat runId="run_42" />);
+
+    expect(screen.getByText("cli_sandbox")).toBeInTheDocument();
+    expect(screen.getByText("docker-sandbox")).toBeInTheDocument();
+    expect(screen.getByText("1.4s")).toBeInTheDocument();
+    expect(screen.getByText("Analyzing market data in sandbox.")).toBeInTheDocument();
+  });
+
+  it("renders expandable CodeBlock resultDetail with syntax highlighting", async () => {
+    const user = userEvent.setup();
+    setChatMessages([
+      {
+        id: "msg-tool-2",
+        role: "agent",
+        text: "Applied worktree patch.",
+        complete: true,
+        citations: [],
+        toolCalls: [
+          {
+            name: "git_diff",
+            status: "complete",
+            node: "sandbox-node",
+            data: "--- a/reputation.ts\n+++ b/reputation.ts\n@@ -1 +1,2 @@\n+export const VETO = true;",
+          },
+        ],
+      },
+    ]);
+    render(<ConsoleChat runId="run_42" />);
+
+    expect(screen.getByText("git_diff")).toBeInTheDocument();
+    await user.click(screen.getByText("git_diff"));
+    expect(screen.getByText(/export const VETO = true;/)).toBeInTheDocument();
+  });
+
+  it("groups multiple tool calls into a collapsible summary", () => {
+    setChatMessages([
+      {
+        id: "msg-tool-multi",
+        role: "agent",
+        text: "Completed multi-stage execution.",
+        complete: true,
+        citations: [],
+        toolCalls: [MOCK_TOOL_CLI_RUNNER, MOCK_TOOL_TX_SUBMIT],
+      },
+    ]);
+    render(<ConsoleChat runId="run_42" />);
+
+    // In Astryx ChatToolCalls, multiple calls render group with count
+    expect(screen.getByText("2")).toBeInTheDocument();
+  });
+
+  it("renders tool call error states and error messages", () => {
+    setChatMessages([
+      {
+        id: "msg-tool-err",
+        role: "agent",
+        text: "Execution failed during verification.",
+        complete: true,
+        citations: [],
+        toolCalls: [MOCK_TOOL_ERROR],
+      },
+    ]);
+    render(<ConsoleChat runId="run_42" />);
+
+    expect(screen.getByText("cli_verifier")).toBeInTheDocument();
+    expect(screen.getByText(/Process exited with code 1/)).toBeInTheDocument();
+  });
+
+  it("preserves clean text rendering without tool call container when no tool calls exist", () => {
+    setChatMessages([
+      {
+        id: "msg-clean",
+        role: "agent",
+        text: "Plain answer without tools or memory.",
+        complete: true,
+        citations: [],
+      },
+    ]);
+    render(<ConsoleChat runId="run_42" />);
+
+    expect(screen.getByText("Plain answer without tools or memory.")).toBeInTheDocument();
+    expect(screen.queryByText(/cli_/)).not.toBeInTheDocument();
+  });
+
+  it("has no axe violations when rendering messages with tool calls", async () => {
+    setChatMessages([
+      {
+        id: "msg-tool-axe",
+        role: "agent",
+        text: "Tool execution result.",
+        complete: true,
+        citations: [],
+        toolCalls: [MOCK_TOOL_CLI_RUNNER],
+      },
+    ]);
+    const { container } = render(<ConsoleChat runId="run_42" />);
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe("native citations and memory hovercard", () => {
+  it("renders Astryx numbered Citation linking to counterparty profile", () => {
+    setChatMessages([
+      {
+        id: "msg-cite-1",
+        role: "agent",
+        text: "Referenced Beta Labs reputation data.",
+        complete: true,
+        citations: [MOCK_CITATION_BETA],
+      },
+    ]);
+    render(<ConsoleChat runId="run_42" />);
+
+    const citationLink = screen.getByRole("doc-noteref");
+    expect(citationLink).toBeInTheDocument();
+    expect(citationLink).toHaveTextContent("1");
+    expect(citationLink).toHaveAttribute("href", "/counterparties?key=beta_labs");
+    expect(citationLink).toHaveAttribute("target", "_blank");
+    expect(citationLink).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
+  it("displays multiple citations with sequential numbers matching sources rail", () => {
+    setChatMessages([
+      {
+        id: "msg-cite-multi",
+        role: "agent",
+        text: "Compared Beta Labs and Alpha Research.",
+        complete: true,
+        citations: [MOCK_CITATION_BETA, MOCK_CITATION_ALPHA],
+      },
+    ]);
+    render(<ConsoleChat runId="run_42" />);
+
+    const links = screen.getAllByRole("doc-noteref");
+    expect(links).toHaveLength(2);
+    expect(links[0]).toHaveTextContent("1");
+    expect(links[1]).toHaveTextContent("2");
+    expect(links[0]).toHaveAttribute("href", "/counterparties?key=beta_labs");
+    expect(links[1]).toHaveAttribute("href", "/counterparties?key=alpha_research");
+  });
+
+  it("reveals rich CounterpartyMemoryHoverCard on hover", async () => {
+    const user = userEvent.setup();
+    setChatMessages([
+      {
+        id: "msg-cite-hover",
+        role: "agent",
+        text: "Inspected counterparty memory.",
+        complete: true,
+        citations: [MOCK_CITATION_BETA],
+      },
+    ]);
+    render(<ConsoleChat runId="run_42" />);
+
+    const citation = screen.getByRole("doc-noteref");
+    await user.hover(citation);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("hovercard-memory-preview")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Beta Labs")).toBeInTheDocument();
+    expect(screen.getByText("PREFERRED")).toBeInTheDocument();
+    expect(screen.getByText("94.2%")).toBeInTheDocument();
+    expect(screen.getByText("88.5%")).toBeInTheDocument();
+    expect(screen.getByText("14")).toBeInTheDocument();
+  });
+
+  it("has no axe violations when rendering messages with citations", async () => {
+    setChatMessages([
+      {
+        id: "msg-cite-axe",
+        role: "agent",
+        text: "Checking reputation memory.",
+        complete: true,
+        citations: [MOCK_CITATION_BETA],
+      },
+    ]);
+    const { container } = render(<ConsoleChat runId="run_42" />);
+    await expectNoAxeViolations(container);
+  });
+});
+
 

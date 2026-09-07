@@ -3055,3 +3055,79 @@ input[type="range"].fluid-slider::-moz-range-thumb {
   box-shadow: var(--glow-cyan) !important;
 }
 
+/* ---------------------------------------------------------------------------
+   Mission Inspector & Technical Parameters (Astryx MetadataList)
+--------------------------------------------------------------------------- */
+
+.cs__mission-inspector {
+  margin: var(--space-3) 0;
+}
+
+.cs__inspector-disclosure-trigger {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: var(--space-2);
+}
+
+.cs__inspector-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+.cs__mission-inspector-panel {
+  margin-top: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-glass);
+}
+
+.cs__tx-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-cyan) !important;
+  text-decoration: none;
+  transition: opacity 150ms ease;
+}
+
+.cs__tx-link:hover {
+  text-decoration: underline;
+  opacity: 0.85;
+}
+
+.cs__tx-link:focus-visible {
+  outline: 2px solid var(--color-cyan);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.cs__chat-console-inspector-slot {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+/* ---------------------------------------------------------------------------
+   Memory Citation HoverCard & Tool Calls
+--------------------------------------------------------------------------- */
+
+.cs__memory-hover-content {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-panel);
+}
+
+.cs__tool-calls-container {
+  width: 100%;
+}
+
+

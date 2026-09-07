@@ -153,6 +153,7 @@ export interface RunSummary {
   budgetUsdc: string | null;
   createdAt: string;
   updatedAt: string;
+  status?: string;
 }
 
 /** Mirrors one row of `GET /api/runs/{id}/events`. */

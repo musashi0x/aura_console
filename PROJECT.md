@@ -1,123 +1,113 @@
-# Project: Bayesian Reputation & AI CLI Runner Harness
+# Project: Aura Memory Console & Mission Chat UI/UX Phased Roadmap
 
 ## Architecture
-Modular TypeScript services under `apps/api/src/services/`:
-1. **Bayesian Reputation & Status FSM (`reputation-fsm.ts`)**:
-   - Beta-Binomial conjugate Bayesian updater with configurable decay parameter $\lambda \in [0.90, 0.98]$.
-   - FSM state machine managing `RelationshipStatus = "NEW" | "KNOWN" | "PREFERRED" | "WATCH" | "ARCHIVED" | "BLOCKED"`.
-   - Hard Veto Invariant: `BLOCKED` candidates excluded from ranking, requires manual unblock.
-2. **AI CLI Runner (`cli-runner.ts`)**:
-   - Spawns local headless AI CLIs (Claude Code `--dangerously-skip-permissions`, Gemini CLI) with fallback chain.
-   - Isolated Git worktree lifecycle management under `.worktrees/mission-<runId>` with guaranteed `--force` cleanup.
-   - Process streaming, stdout/stderr aggregation, and configurable timeouts.
-3. **Verifier Agent (`verifier-agent.ts`)**:
-   - Inspects git diffs in worktrees, runs deterministic test commands (`pnpm test`), and produces structured evaluation reports.
-4. **Simulation Test Suite (`reputation-simulation.test.ts`)**:
-   - Multi-turn candidate simulation validating FSM transitions, decay, convergence, and Sibyl write-back formatting.
+- **Monorepo Structure**:
+  - `apps/web`: Next.js 16.3.3 operator console application using Astryx Design System (`@astryxdesign/core` v0.5.2) and StyleX/Tailwind tokens.
+  - `apps/api`: Fastify API serving mission runs, SSE chat streaming (`/api/runs/:runId/chat`, `/api/chat`), Sibyl memory retrieval, and AI CLI runners (`claude`, `gemini`).
+  - `packages/`: Shared packages (`@aura/db`, UI primitives).
+- **Data Flow**:
+  1. Operator selects a mission in `ChatConsoleView` or views table in `RunsPage`.
+  2. Missions display live status via `<StatusDot>` (`accent`/`info` pulsing for active, `success` for completed, `error` for failed).
+  3. Filter bar (`<SegmentedControl>`) filters runs dynamically (`All`, `Active`, `Settled`).
+  4. In `ConsoleChat`, assistant messages display inline `<ChatToolCalls>` showing CLI executions, Sibyl queries, and Base Sepolia tx submissions with duration, node tag, and status.
+  5. Expanding tool calls opens `<CodeBlock container="section">` with syntax-highlighted stdout/stderr or JSON.
+  6. Memory citations render as Astryx `<Citation variant="number">` wrapped in `<HoverCard>` previewing counterparty Bayesian reliability, confidence, and recent episodes.
+  7. Technical mission parameters (UUID, Base Sepolia tx hash, budget ceiling/spent, sandbox type) are presented in `<MissionInspector>` via `<MetadataList>`.
+  8. Strict CSS token conformance (`tokens.test.ts`, zero raw hex, WCAG AA contrast) and axe accessibility compliance across all components.
 
 ## Feature Inventory
 | # | Feature | Description | Milestone | Source |
 |---|---------|-------------|-----------|--------|
-| 1 | Beta-Binomial Prior & Update | $\alpha_0=1, \beta_0=1$, neutral reliability 0.5, confidence 0.0 < 0.1; update on success/failure | M1 | ORIGINAL_REQUEST §R1 |
-| 2 | Time Decay ($\lambda$) | Configurable $\lambda \in [0.9, 0.98]$ discounting past excess observations toward neutral baseline | M1 | ORIGINAL_REQUEST §R1 |
-| 3 | FSM State Transitions | Validated transitions for `NEW`, `KNOWN`, `PREFERRED`, `WATCH`, `ARCHIVED`, `BLOCKED` | M1 | ORIGINAL_REQUEST §R1 |
-| 4 | WATCH to BLOCKED Trigger | 2 consecutive failures in `WATCH` state immediately transition candidate to `BLOCKED` | M1 | ORIGINAL_REQUEST §R1 |
-| 5 | Hard Veto Invariant | Candidate in `BLOCKED` status produces veto exclusion reason; no auto-promotion; manual unblock only | M1 | ORIGINAL_REQUEST §R1 |
-| 6 | Headless AI CLI Spawning | Spawns Claude Code (`claude -p <prompt> --dangerously-skip-permissions`) with fallback to Gemini CLI (`gemini -p <prompt>`) | M2 | ORIGINAL_REQUEST §R2 |
-| 7 | Git Worktree Lifecycle | Creates detached temporary worktrees at `.worktrees/mission-<runId>`, cleans up with `git worktree remove --force` in `finally` | M2 | ORIGINAL_REQUEST §R2 |
-| 8 | Timeout & Log Streaming | Enforces execution timeout; captures and streams stdout/stderr logs cleanly | M2 | ORIGINAL_REQUEST §R2 |
-| 9 | Verifier Agent Inspection | Runs deterministic test commands, inspects `git diff`, parses structured evaluation `{ score, tests_passed, summary, failure_reason? }` | M2 | ORIGINAL_REQUEST §R2 |
-| 10 | Reputation Simulation Loop | Simulates multi-turn success/failure cycles across candidates (e.g. KNOWN -> WATCH -> BLOCKED) | M3 | ORIGINAL_REQUEST §R3 |
-| 11 | Convergence & Monotonicity | Validates successful runs increase reliability and drive confidence toward 1.0 | M3 | ORIGINAL_REQUEST §R3 |
-| 12 | Sibyl Episode Write-back | Formats episodes for Sibyl write-back (`run`, `taskType`, `outcome`, `note`, `occurredAt`) | M3 | ORIGINAL_REQUEST §R3 |
-| 13 | Monorepo Coherence & Clean Tests | All files pass `pnpm --filter api typecheck` and `pnpm --filter api test` with zero regressions | M4 | ORIGINAL_REQUEST Acceptance Criteria |
+| 1 | `StatusDot` Sidebar Indicator | Status indicator with pulsing on active runs in mission selector | M1 | ORIGINAL_REQUEST §R1 |
+| 2 | `StatusDot` Table Indicator | Status indicator in main runs table (`runs/page.tsx`) | M1 | Survey |
+| 3 | `SegmentedControl` Mission Filter | Top filter for `All`, `Active`, `Settled` runs in sidebar and runs table | M1 | ORIGINAL_REQUEST §R1 |
+| 4 | Run Status Derivation | Map run state to `active` vs `settled` and variant (`accent`/`success`/`error`) | M1 | Survey |
+| 5 | Chat Tool Calls Data Model | Extend `ChatMessage` with `toolCalls?: ChatToolCallItem[]` | M2 | ORIGINAL_REQUEST §R2 |
+| 6 | `ChatToolCalls` in Chat Bubbles | Inline tool call visualizer inside assistant bubbles with node tags and duration | M2 | ORIGINAL_REQUEST §R2 |
+| 7 | `CodeBlock` Expandable Section | Expandable stdout/stderr and JSON viewer via `<CodeBlock container="section">` | M2 | ORIGINAL_REQUEST §R2 |
+| 8 | Multi-Tool Grouping & Status | Support single inline call vs collapsible group summary with status spinners/icons | M2 | Survey |
+| 9 | Astryx Native Numbered Citations | Upgrade bare token citations to Astryx `<Citation variant="number">` | M2 | ORIGINAL_REQUEST §R1 |
+| 10 | Rich Memory `HoverCard` | Wrap citations with `<HoverCard>` displaying counterparty Bayesian score & episodes | M2 | ORIGINAL_REQUEST §R3 |
+| 11 | Counterparty Profile Navigation | Citation anchor links directly to `/counterparties?key=...` | M2 | Survey |
+| 12 | `MetadataList` Mission Inspector | Technical parameters list (UUID, Base Sepolia TX, budget, sandbox) | M2 | ORIGINAL_REQUEST §R3 |
+| 13 | Header Inspector Disclosure | Collapsible inspector trigger in `ChatConsoleView` header and `MissionWorkspace` | M2 | ORIGINAL_REQUEST §R3 |
+| 14 | Zero Raw Hex Enforcement | Ensure 100% token usage (`var(--color-*)`, `var(--glow-*)`) with 0 hex in `globals.css` | M2 | ORIGINAL_REQUEST §R4 |
+| 15 | WCAG AA Contrast & Violet Ban | Ensure text contrast >= 4.5:1 against canvas/surface and no violet text ink | M2 | ORIGINAL_REQUEST §R4 |
+| 16 | Axe Accessibility Compliance | `expectNoAxeViolations` on all updated views and interactive elements | M2 | ORIGINAL_REQUEST §R4 |
+| 17 | Lint & Typecheck Cleanliness | Resolve `chat-console-view.tsx` unescaped quote and pass `typecheck` | M2 | Survey |
+| 18 | E2E Test Suite Pass | 100% pass of requirement-driven 4-tier test suite | M3 | ORIGINAL_REQUEST Acceptance Criteria |
+| 19 | Adversarial Coverage Hardening | White-box stress testing and edge-case validation | M3 | Project Pattern |
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| M1 | Bayesian Reputation & Status FSM | `reputation-fsm.ts`, `reputation-fsm.test.ts` | none | DONE (47/47 tests) |
-| M2 | Configurable AI CLI Runner & Verifier | `cli-runner.ts`, `cli-runner.test.ts`, `verifier-agent.ts`, `verifier-agent.test.ts` | none | DONE (23/23 tests) |
-| M3 | Simulation Test Suite & Pipeline Integration | `reputation-simulation.test.ts` | M1, M2 | DONE (23/23 tests) |
-| M4 | Final Acceptance & E2E Test Suite | 100% E2E test pass, typecheck clean, adversarial hardening | M1, M2, M3 | DONE (24/24 E2E tests, 205 api tests, CLEAN audit) |
+| M1 | Live Status Indicators & Mission Filter | `<StatusDot>` with pulsing on active runs, `<SegmentedControl>` filter (`All`, `Active`, `Settled`) in `ChatConsoleView` and `runs/page.tsx` | none | DONE |
+| M2 | Mission Chat & Inspector Interactive UI | `<ChatToolCalls />` & `<CodeBlock container="section" />`, Astryx `<Citation variant="number" />` wrapped in `<HoverCard />`, `<MissionInspector />` with `<MetadataList>`, design token & axe compliance | M1 | DONE |
+| M3 | E2E Verification & Adversarial Hardening | Verify 100% pass of E2E test suite from E2E Track, adversarial coverage audit, typecheck & monorepo tests | M2, TEST_READY | DONE |
 
 ## Interface Contracts
 
-### `reputation-fsm.ts`
-```typescript
-export type RelationshipStatus = "NEW" | "KNOWN" | "PREFERRED" | "WATCH" | "ARCHIVED" | "BLOCKED";
+### Status & Filter Types
+```ts
+export type MissionFilterStatus = "all" | "active" | "settled";
 
-export interface CandidateReputation {
-  candidateId: string;
-  alpha: number; // >= 1.0
-  beta: number;  // >= 1.0
-  overallReliability: number; // alpha / (alpha + beta) in [0, 1]
-  confidence: number; // in [0, 1]
-  status: RelationshipStatus;
-  consecutiveFailures: number;
-  totalMissions: number;
-  lastUpdatedAt: string; // ISO string
-  blockedReason?: string;
-  unblockedAt?: string;
-  unblockedBy?: string;
+export interface RunStatusInfo {
+  variant: "accent" | "success" | "error" | "warning" | "neutral";
+  label: string;
+  isPulsing: boolean;
+  filterCategory: "active" | "settled";
 }
-
-export interface ReputationConfig {
-  decayLambda: number; // in [0.90, 0.98]
-  confidenceK: number; // saturation constant, default 5.0
-  preferredReliabilityThreshold: number; // default 0.80
-  preferredConfidenceThreshold: number;  // default 0.50
-}
-
-export interface VetoCheckResult {
-  allowed: boolean;
-  reason?: string;
-}
-
-export function createInitialReputation(candidateId: string): CandidateReputation;
-export function updateReputation(current: CandidateReputation, outcome: "success" | "failure", options?: { decayTimeSteps?: number; config?: Partial<ReputationConfig> }): CandidateReputation;
-export function applyTimeDecay(current: CandidateReputation, timeSteps: number, lambda?: number): CandidateReputation;
-export function checkVeto(candidate: CandidateReputation): VetoCheckResult;
-export function manualUnblock(candidate: CandidateReputation, operatorId: string, reason: string): CandidateReputation;
 ```
 
-### `cli-runner.ts` & `verifier-agent.ts`
-```typescript
-export interface CliRunnerOptions {
-  prompt: string;
-  worktreePath: string;
-  timeoutMs?: number;
-  preferGemini?: boolean;
-}
+### Chat Tool Calls
+```ts
+import type { ChatToolCallItem } from "@astryxdesign/core/Chat";
 
-export interface CliRunResult {
-  success: boolean;
-  cliUsed: "claude" | "gemini";
-  stdout: string;
-  stderr: string;
-  exitCode: number | null;
-  timedOut: boolean;
-  error?: string;
+export interface ChatMessage {
+  id: string;
+  role: "operator" | "agent" | "console";
+  text: string;
+  complete: boolean;
+  citations: MemoryCitation[];
+  toolCalls?: ChatToolCallItem[];
 }
+```
 
-export interface WorktreeSession {
+### Memory HoverCard Payload
+```ts
+export interface CounterpartyMemorySummary {
+  counterpartyKey: string;
+  displayName: string;
+  status: "PREFERRED" | "KNOWN" | "WATCH" | "BLOCKED" | "NEW";
+  overallReliability: number;
+  confidence: number;
+  episodesUsed: number;
+  latestOutcome?: string;
+  timestamp?: string;
+}
+```
+
+### Mission Inspector Props
+```ts
+export interface MissionInspectorProps {
   runId: string;
-  worktreePath: string;
-  execute: (fn: (worktreePath: string) => Promise<unknown>) => Promise<unknown>;
-}
-
-export interface VerifierEvaluation {
-  score: number;
-  tests_passed: boolean;
-  summary: string;
-  failure_reason?: string;
+  environment: string;
+  budgetUsdc?: string;
+  spentUsdc?: string;
+  txHash?: string;
+  txHashes?: string[];
+  isCollapsible?: boolean;
 }
 ```
 
 ## Code Layout
-- `apps/api/src/services/reputation-fsm.ts`: Core Bayesian & FSM implementation
-- `apps/api/src/services/reputation-fsm.test.ts`: Comprehensive unit tests for R1
-- `apps/api/src/services/cli-runner.ts`: Headless AI CLI spawner and worktree manager
-- `apps/api/src/services/cli-runner.test.ts`: Unit tests for CLI runner & worktree lifecycle
-- `apps/api/src/services/verifier-agent.ts`: Diff & test execution verifier
-- `apps/api/src/services/verifier-agent.test.ts`: Unit tests for Verifier Agent
-- `apps/api/src/services/reputation-simulation.test.ts`: R3 Simulation test suite
+- `apps/web/src/features/console/components/chat-console-view.tsx`: Mission selector sidebar, filter, header inspector
+- `apps/web/src/features/console/components/console-chat.tsx`: Assistant bubbles with `ChatToolCalls`, `CodeBlock`, `Citation`, `HoverCard`
+- `apps/web/src/features/console/components/mission-inspector.tsx`: New component with `MetadataList`
+- `apps/web/src/features/console/components/mission-workspace.tsx`: Integration of `MissionInspector`
+- `apps/web/src/features/console/chat/chat-types.ts`: Extended `ChatMessage` definition
+- `apps/web/src/app/runs/page.tsx`: StatusDot and SegmentedControl in main missions list
+- `apps/web/src/app/globals.css`: Dark operator token styling without raw hex
+- `apps/web/src/features/console/components/chat-console-view.test.tsx`: Unit & axe tests for sidebar & filter
+- `apps/web/src/features/console/components/console-chat.test.tsx`: Unit & axe tests for chat, citations, tool calls
+- `apps/web/src/features/console/components/mission-inspector.test.tsx`: Unit & axe tests for mission inspector

@@ -27,6 +27,7 @@ import { buildMissionProgress } from "../projection/mission-rail";
 import { buildSpine } from "../projection/spine";
 import type { ChatGrounding } from "./console-chat";
 import { MissionBoard } from "./mission-board";
+import { MissionInspector } from "./mission-inspector";
 import { MissionOperator } from "./mission-operator";
 import { MissionRail } from "./mission-rail";
 import { MissionTrace } from "./mission-trace";
@@ -120,6 +121,14 @@ export function MissionWorkspace({
     });
   };
 
+  // Extract Base Sepolia transaction references recorded in the event stream
+  const txHashes = view.entries
+    .map((e) => {
+      const val = e.data?.tx_hash ?? e.data?.reference ?? e.data?.txHash;
+      return typeof val === "string" ? val : null;
+    })
+    .filter((h): h is string => Boolean(h && h.startsWith("0x")));
+
   return (
     <section className="mw" aria-labelledby="mission-heading">
       <header className="run__head">
@@ -145,22 +154,14 @@ export function MissionWorkspace({
 
       {fixtureLabel ? <p className="run__fixture">{fixtureLabel}</p> : null}
 
-      <dl className="run__facts">
-        <div>
-          <dt>Budget</dt>
-          <dd>{view.budgetUsdc ?? "Not set"}</dd>
-        </div>
-        <div>
-          <dt>Spent</dt>
-          {/* null means not yet projected. Rendering it as 0.00 would assert a
-              fact no event has reported. */}
-          <dd>{view.spentUsdc ?? "Not yet reported"}</dd>
-        </div>
-        <div>
-          <dt>Memory</dt>
-          <dd>{console_.mission.memory[view.retrievalStatus]}</dd>
-        </div>
-      </dl>
+      <MissionInspector
+        runId={view.runId}
+        environment={view.environment}
+        budgetUsdc={view.budgetUsdc ?? undefined}
+        spentUsdc={view.spentUsdc ?? undefined}
+        memoryStatus={console_.mission.memory[view.retrievalStatus]}
+        txHashes={txHashes}
+      />
 
       <MissionRail progress={progress} onJump={jumpTo} />
 

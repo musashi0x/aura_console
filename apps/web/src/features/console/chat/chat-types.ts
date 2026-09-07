@@ -1,3 +1,29 @@
+import type {
+  ChatToolCallItem,
+  ChatToolCallStatus,
+} from "@astryxdesign/core/Chat";
+
+export type { ChatToolCallItem, ChatToolCallStatus };
+
+export type RelationshipStatus =
+  | "PREFERRED"
+  | "KNOWN"
+  | "WATCH"
+  | "BLOCKED"
+  | "NEW"
+  | "ARCHIVED";
+
+export interface CounterpartyMemorySummary {
+  counterpartyKey: string;
+  displayName: string;
+  status: RelationshipStatus;
+  overallReliability: number;
+  confidence: number;
+  episodesUsed: number;
+  latestOutcome?: string;
+  timestamp?: string;
+}
+
 /** One turn in the thread. The agent never speaks unless a stream produced it. */
 export interface ChatMessage {
   id: string;
@@ -14,6 +40,11 @@ export interface ChatMessage {
   complete: boolean;
   /** Sibyl memory records the answer cited, from #32. Empty until that lands. */
   citations: MemoryCitation[];
+  /**
+   * Agent execution invocations (sandboxed CLI execution, Sibyl queries,
+   * Base Sepolia transaction submissions). Displayed inline via Astryx ChatToolCalls.
+   */
+  toolCalls?: ChatToolCallItem[];
 }
 
 /**
@@ -23,6 +54,7 @@ export interface ChatMessage {
 export interface MemoryCitation {
   counterpartyKey: string;
   label: string;
+  summary?: CounterpartyMemorySummary;
 }
 
 export type ChatConnection =

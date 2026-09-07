@@ -103,6 +103,43 @@ describe("honest facts", () => {
   });
 });
 
+describe("mission inspector integration", () => {
+  it("renders technical parameters in MissionInspector", () => {
+    workspace();
+    expect(screen.getByText("Mission Technical Parameters")).toBeInTheDocument();
+    expect(screen.getByTestId("meta-run-id")).toHaveTextContent("run_42");
+    expect(screen.getByTestId("meta-environment")).toHaveTextContent("base-sepolia-demo");
+    expect(screen.getByTestId("meta-budget")).toHaveTextContent("1.00 USDC");
+    expect(screen.getByTestId("meta-spent")).toHaveTextContent("Not yet reported");
+    expect(screen.getByTestId("meta-memory")).toHaveTextContent(
+      console_.mission.memory.NOT_REQUESTED,
+    );
+  });
+
+  it("extracts and displays transaction links from event stream", () => {
+    const eventsWithTx = [
+      ...events,
+      {
+        event_id: "evt_6",
+        run_id: "run_42",
+        sequence: 6,
+        type: "base.sepolia.tx.confirmed",
+        event_time: "2026-08-29T10:00:06Z",
+        data: {
+          tx_hash: "0x8f3c7a6e129b014d3c9071fe25a6b8c9d01234567890abcdef1234567890abcd",
+        },
+      },
+    ];
+    render(<MissionWorkspace events={eventsWithTx} seed={seed} />);
+    const link = screen.getByTestId("meta-tx-link");
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute(
+      "href",
+      "https://sepolia.basescan.org/tx/0x8f3c7a6e129b014d3c9071fe25a6b8c9d01234567890abcdef1234567890abcd",
+    );
+  });
+});
+
 describe("accessibility", () => {
   it("has no axe violations", async () => {
     const { container } = workspace();

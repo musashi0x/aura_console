@@ -1,35 +1,55 @@
-# TEST_INFRA: Opaque-Box E2E Testing Framework for Aura Reputation & Execution Harness
+# TEST_INFRA: Opaque-Box E2E Testing Framework for Aura Memory Console & Mission Chat
 
 ## 1. Test Philosophy & Architecture Principles
 
 ### 1.1 Opaque-Box Requirement-Driven Testing
-The testing framework treats the system under test (`apps/api/src/services/`) strictly through public module interfaces, API contracts, and domain specifications as defined in `PROJECT.md` and `ORIGINAL_REQUEST.md`. Tests do not inspect internal private implementation details or state variables; instead, they verify observable state transitions, output values, mathematical invariants, and process lifecycles.
+The testing framework treats the Aura Memory Console and Mission Chat UI/UX strictly through public component interfaces, DOM rendering semantics, accessibility tree contracts, and user interactions. Tests avoid probing internal component state hooks, private closures, or component internals. Instead, assertions evaluate observable DOM structures, accessible roles (`role="img"`, `role="radiogroup"`, `role="radio"`, `role="doc-noteref"`, `role="dialog"`, `role="term"`), visual indicator attributes (`aria-label`, `data-testid`, class markers), text nodes, and user interaction responses (clicks, tab navigation, hover events).
 
-### 1.2 Progressive Testability & Milestones
-Testing is structured across four progressive tiers that mirror the development milestones:
-- **Milestone 1 (Bayesian & FSM)**: Verifiable via pure computational inputs and state assertions.
-- **Milestone 2 (CLI Runner & Verifier Agent)**: Verifiable via hermetic execution harnesses, process supervision, and git worktree isolation.
-- **Milestone 3 (Simulation Loop & Sibyl Integration)**: Verifiable via end-to-end multi-turn scenario simulation and schema write-back validation.
-- **Milestone 4 (Hardening & Acceptance)**: Verifiable via cross-feature interactions and stress/boundary conditions.
+### 1.2 Progressive Testability & Development Milestones
+Testing aligns with the six development milestones defined in `PROJECT.md`:
+- **Milestone 1 (M1: Live Status Indicators & Mission Filter)**:
+  - `<StatusDot>` indicators with pulsing animation on active runs in mission selector sidebar and runs table.
+  - `<SegmentedControl>` filter (`All`, `Active`, `Settled`) partitioning runs dynamically.
+  - Run status derivation mapping raw status/events to semantic variants (`accent`, `success`, `error`, `warning`, `neutral`).
+- **Milestone 2 (M2: Inline Agent Execution Visualizer)**:
+  - Extended `ChatMessage` data model supporting `toolCalls?: ChatToolCallItem[]`.
+  - Inline `<ChatToolCalls />` inside assistant chat bubbles displaying agent actions (CLI sandbox execution, Sibyl queries, Base Sepolia transactions) with duration, node tags, and status.
+  - Expandable `<CodeBlock container="section">` rendering stdout/stderr and JSON payloads.
+  - Collapsible multi-call groupings with status indicators.
+- **Milestone 3 (M3: Native Citations & Rich Memory HoverCards)**:
+  - Astryx native `<Citation variant="number" />` replacing bare tokens.
+  - Rich memory `<HoverCard />` previews displaying counterparty Bayesian reliability, confidence, and episode history on hover.
+  - Deep-link anchor navigation targeting `/counterparties?key=...`.
+- **Milestone 4 (M4: Context Inspector via MetadataList)**:
+  - `<MissionInspector />` displaying technical parameters (UUID, Base Sepolia tx hash, budget ceiling/spent, sandbox type) via `<MetadataList>`.
+  - Header inspector disclosure button and collapsible drawer integration in `ChatConsoleView` and `MissionWorkspace`.
+- **Milestone 5 (M5: Token & Accessibility Conformance)**:
+  - 100% token conformance (`tokens.test.ts`, zero raw hex in `globals.css`).
+  - WCAG AA contrast ratio compliance (>= 4.5:1 against canvas/surface) with violet text ink banned.
+  - Full automated axe accessibility audits (`expectNoAxeViolations`).
+- **Milestone 6 (M6: E2E Verification & Adversarial Hardening)**:
+  - Execution of 4-Tier test suite across edge cases, extreme boundaries, and multi-turn operator journeys.
 
 ### 1.3 Expected Output Derivation & Authoritative Sources
-All expected outputs and assertions in the test suite are derived directly from authoritative mathematical and system requirements:
-1. **Bayesian Beta-Binomial Updating**:
-   - Uniform Prior: $\alpha_0 = 1.0, \beta_0 = 1.0 \implies \text{overallReliability} = \frac{1}{1+1} = 0.50$.
-   - Confidence Saturation: $C(N) = \frac{N}{N + K}$ with $K = 5.0$ and $N = (\alpha - \alpha_0) + (\beta - \beta_0)$. At $N=0$, $C(0) = 0.0 < 0.1$.
-   - Excess Evidence Decay: $\alpha' = \alpha_0 + (\alpha - \alpha_0) \cdot \lambda^{\Delta t}$, $\beta' = \beta_0 + (\beta - \beta_0) \cdot \lambda^{\Delta t}$ for $\lambda \in [0.90, 0.98]$.
-2. **FSM Transition Specifications**:
-   - `NEW` $\to$ `KNOWN` on success ($s=1$); `NEW` $\to$ `WATCH` on failure ($f=1$).
-   - `KNOWN` $\to$ `PREFERRED` when $\text{overallReliability} \ge 0.80$, $\text{confidence} \ge 0.50$, and `consecutiveFailures === 0`.
-   - `KNOWN` / `PREFERRED` $\to$ `WATCH` on failure.
-   - `WATCH` $\to$ `BLOCKED` immediately upon 2 consecutive failures.
-   - `BLOCKED` invariant: Strict veto exclusion (`checkVeto`), no auto-promotion via positive scores, unblockable solely via `manualUnblock`.
-3. **CLI Runner & Sandbox Lifecycle**:
-   - Git worktrees created under `.worktrees/mission-<runId>` with `--detach HEAD`.
-   - Guaranteed cleanup via `git worktree remove --force` in `finally` blocks.
-   - Claude Code invocation with fallback to Gemini CLI.
-4. **Sibyl Memory Write-back Format**:
-   - Conformance to `SibylEpisode` and `SibylCounterparty` schemas defined in `apps/api/src/services/sibyl.ts` and `tools/sibyl_seed.py`.
+All expected outputs in this test suite derive directly from authoritative specifications:
+1. **Design System Contracts (`@astryxdesign/core` v0.5.2)**:
+   - `StatusDot`: renders `<span role="img" aria-label="{label}">` with 8px dimensions and StyleX animation for `isPulsing`.
+   - `SegmentedControl`: renders `<div role="radiogroup" aria-label="{label}">` containing `<button role="radio" aria-checked="{boolean}">`.
+   - `Citation`: renders `<a role="doc-noteref">` (when `url` provided) or `<span>` with `aria-label` generated by i18n translator.
+   - `ChatToolCalls`: renders single inline call row or collapsible summary when multiple calls are provided; displays `duration` text, node pill badge, and status icons.
+   - `CodeBlock`: renders `<pre>` / `<code>` with `container="section"` removing border/radius and setting transparent background for nested embedding.
+   - `HoverCard`: renders floating trigger container with `aria-haspopup="dialog"` and portal content with `role="dialog"` or `role="group"`.
+   - `MetadataList`: renders key-value list with `<dt>` and `<dd>` semantics or role-based item rows.
+2. **Interface Contracts (`PROJECT.md § Interface Contracts`)**:
+   - `MissionFilterStatus`: `"all" | "active" | "settled"`.
+   - `RunStatusInfo`: `{ variant: "accent" | "success" | "error" | "warning" | "neutral", label: string, isPulsing: boolean, filterCategory: "active" | "settled" }`.
+   - `ChatMessage`: `{ id: string, role: "operator" | "agent" | "console", text: string, complete: boolean, citations: MemoryCitation[], toolCalls?: ChatToolCallItem[] }`.
+   - `CounterpartyMemorySummary`: `{ counterpartyKey, displayName, status, overallReliability, confidence, episodesUsed, latestOutcome?, timestamp? }`.
+   - `MissionInspectorProps`: `{ runId, environment, budgetUsdc?, spentUsdc?, txHash?, txHashes?, isCollapsible? }`.
+3. **Design System Token Constraints (`ORIGINAL_REQUEST §R4`, `globals.css`)**:
+   - Zero raw hex (`#...`) in application stylesheets.
+   - Semantic CSS variables: `var(--color-*)`, `var(--glow-*)`.
+   - Accessible color contrast >= 4.5:1.
 
 ---
 
@@ -37,53 +57,56 @@ All expected outputs and assertions in the test suite are derived directly from 
 
 | Tier | Category | Feature / Requirement | Verification Target |
 |---|---|---|---|
-| **Tier 1** | Feature Coverage | Beta-Binomial Prior & Update | Neutral baseline ($\mathbb{E}=0.50$, $C=0.0$), updates on success/failure |
-| **Tier 1** | Feature Coverage | Time Decay ($\lambda \in [0.9, 0.98]$) | Excess evidence decay toward baseline over time steps $\Delta t$ |
-| **Tier 1** | Feature Coverage | FSM State Transitions | Valid transitions (`NEW` $\to$ `KNOWN` $\to$ `PREFERRED`, failure to `WATCH`) |
-| **Tier 1** | Feature Coverage | WATCH $\to$ BLOCKED Trigger | 2 consecutive failures in `WATCH` status immediately triggers `BLOCKED` |
-| **Tier 1** | Feature Coverage | Hard Veto Invariant | `checkVeto` rejects `BLOCKED` candidate; positive scores cannot unblock |
-| **Tier 1** | Feature Coverage | CLI Runner Headless Execution | Headless invocation of Claude Code with fallback to Gemini CLI |
-| **Tier 1** | Feature Coverage | Git Worktree Lifecycle | Ephemeral worktree creation and guaranteed `--force` cleanup |
-| **Tier 1** | Feature Coverage | Verifier Agent Evaluation | Deterministic test execution, diff detection, structured JSON evaluation |
-| **Tier 1** | Feature Coverage | Reputation Simulation Loop | Closed-loop multi-turn mission execution across candidate trajectories |
-| **Tier 1** | Feature Coverage | Sibyl Write-back Formatting | Output adheres strictly to `SibylEpisode` and `SibylCounterparty` schemas |
-| **Tier 2** | Boundary & Corner | Zero Samples / Unobserved | Neutral prior bounds ($\mathbb{E}=0.5$, $C=0.0$), status `NEW` |
-| **Tier 2** | Boundary & Corner | 100% Failure Extreme | 20 consecutive failures: $\text{reliability} \to 0$, $C \to 1.0$, blocked |
-| **Tier 2** | Boundary & Corner | 100% Success Extreme | 50 consecutive successes: $\text{reliability} \to 1.0$, $C \to 1.0$, `PREFERRED` |
-| **Tier 2** | Boundary & Corner | Infinite Time Decay Asymptote | Stale high-reputation candidate regresses to $\alpha=1, \beta=1, C=0.0$ |
-| **Tier 2** | Boundary & Corner | Timeout Enforcement | Subprocess execution exceeding `timeoutMs` triggers SIGTERM/SIGKILL |
-| **Tier 2** | Boundary & Corner | Empty Diff Handling | Verifier Agent correctly scores 0.0 with tests_passed false on empty diff |
-| **Tier 3** | Cross-Feature | Decay + FSM Demotion | Time decay reducing reliability below threshold demotes or alters status |
-| **Tier 3** | Cross-Feature | CLI Fallback + Worktree Cleanup | Claude failure triggers Gemini fallback while maintaining worktree integrity |
-| **Tier 3** | Cross-Feature | Verifier Failure $\to$ FSM Block | Verifier failures feed directly into FSM, driving `WATCH` $\to$ `BLOCKED` |
-| **Tier 3** | Cross-Feature | Hard Veto Ranking Exclusion | Veto excludes blocked candidate from candidate ranking regardless of price |
-| **Tier 4** | Real-World Scenarios | Multi-Round Mission Simulation | Realistic multi-agent competitive mission loop with degradation and recovery |
-| **Tier 4** | Real-World Scenarios | End-to-End Sibyl Export Pipeline | Full cycle from run evaluation to Sibyl profile and episode serialization |
+| **Tier 1** | Feature Coverage | F1: `StatusDot` Sidebar Indicator | Active mission rows render StatusDot with pulsing; completed/failed render static dots |
+| **Tier 1** | Feature Coverage | F2: `StatusDot` Table Indicator | Main runs table items render StatusDot corresponding to run lifecycle state |
+| **Tier 1** | Feature Coverage | F3: `SegmentedControl` Mission Filter | SegmentedControl with `All`, `Active`, `Settled` tabs filters runs accurately |
+| **Tier 1** | Feature Coverage | F4: Run Status Derivation | Maps `RUNNING`/`STARTED` -> active/accent/pulsing; `COMPLETED` -> settled/success; `FAILED` -> settled/error |
+| **Tier 1** | Feature Coverage | F5: Chat Tool Calls Data Model | `ChatMessage` objects carry optional `toolCalls?: ChatToolCallItem[]` |
+| **Tier 1** | Feature Coverage | F6: `ChatToolCalls` in Chat Bubbles | Renders inline tool call items inside assistant chat bubbles with duration and node tag |
+| **Tier 1** | Feature Coverage | F7: `CodeBlock` Expandable Section | Expanding tool call displays `<CodeBlock container="section">` with stdout/stderr |
+| **Tier 1** | Feature Coverage | F8: Multi-Tool Grouping & Status | Multiple tool calls render as collapsible group with count summary and status icons |
+| **Tier 1** | Feature Coverage | F9: Astryx Native Numbered Citations | Memory citations render as Astryx `<Citation variant="number">` with matching indices |
+| **Tier 1** | Feature Coverage | F10: Rich Memory `HoverCard` | Citations wrapped in `HoverCard` display reliability score, confidence, and episodes |
+| **Tier 1** | Feature Coverage | F11: Counterparty Profile Navigation | Citation anchor targets `/counterparties?key={key}` with safe rel attributes |
+| **Tier 1** | Feature Coverage | F12: `MetadataList` Mission Inspector | Displays Run ID, Base Sepolia TX hash, budget ceiling/spent, and sandbox type |
+| **Tier 1** | Feature Coverage | F13: Header Inspector Disclosure | Collapsible inspector toggle button in header reveals technical parameter drawer |
+| **Tier 1** | Feature Coverage | F14: Zero Raw Hex Enforcement | `globals.css` contains 0 raw hex color literals; strictly uses design tokens |
+| **Tier 1** | Feature Coverage | F15: WCAG AA Contrast & Violet Ban | Text colors satisfy >= 4.5:1 contrast; no violet ink on text |
+| **Tier 1** | Feature Coverage | F16: Axe Accessibility Compliance | `expectNoAxeViolations` passes on all console views and interactive subcomponents |
+| **Tier 1** | Feature Coverage | F17: Lint & Typecheck Cleanliness | No unescaped entities, valid JSX syntax, and 0 TypeScript compilation errors |
+| **Tier 2** | Boundary & Corner | Empty Runs List | Filter and sidebar render empty state gracefully when 0 runs exist |
+| **Tier 2** | Boundary & Corner | 0 Citations & 0 Tool Calls | Message bubbles without citations or tool calls render clean text without stray containers |
+| **Tier 2** | Boundary & Corner | Tool Call Failure (exitCode != 0) | Tool call with error status or non-zero exit displays error badge and stderr trace |
+| **Tier 2** | Boundary & Corner | Unknown Run Status Fallback | Unrecognized status string falls back gracefully to neutral dot without throwing |
+| **Tier 2** | Boundary & Corner | Missing Stdout / Null Data | Tool calls with absent stdout/stderr render fallback text instead of crashing |
+| **Tier 2** | Boundary & Corner | Extreme Timestamps & Durations | Sub-millisecond (e.g. "42ms") and multi-hour durations format correctly without overflow |
+| **Tier 2** | Boundary & Corner | Long Text & Code Wrapping | Huge terminal logs and multiline bash commands wrap properly within section codeblock |
+| **Tier 3** | Cross-Feature | Live Mission + Pulsing Dot + Active Tool Calls | Active mission selected with pulsing dot, displaying live streaming message with running tool call |
+| **Tier 3** | Cross-Feature | Settled Mission + Citations + HoverCard + Inspector | Settled mission with numbered citations, active HoverCard popup, and open MetadataList inspector |
+| **Tier 3** | Cross-Feature | Filter Change + Run Selection + Inspector State | Changing SegmentedControl filter updates run selection and synchronizes inspector data |
+| **Tier 3** | Cross-Feature | Multi-Tool Execution with Mixed Success/Error | Assistant message containing 3 tools (2 succeeded, 1 failed) collapses with aggregate error state |
+| **Tier 4** | Real-World Scenarios | Operator End-to-End Investigation Flow | Filter active missions -> select running mission -> review CLI tool execution and diff -> open inspector -> inspect Base Sepolia TX |
+| **Tier 4** | Real-World Scenarios | Counterparty Reputation Audit Flow | Operator queries agent about counterparty -> verifies numbered citation -> hovers citation to check Bayesian score -> navigates to counterparty profile |
 
 ---
 
 ## 3. Test Architecture & Execution Semantics
 
 ### 3.1 Test Framework & Runner
-- **Test Runner**: Vitest 4.1.11 configured in `apps/api/vitest.config.ts`.
+- **Test Runner**: Vitest 4.x configured in `apps/web/vitest.config.ts`.
+- **DOM Simulation**: JSDOM environment with `@testing-library/react` and `@testing-library/user-event`.
+- **Accessibility Engine**: `axe-core` integrated via `apps/web/src/test/axe.ts` (`expectNoAxeViolations`).
 - **Execution Command**:
   ```bash
-  pnpm --filter api test src/services/reputation-e2e.test.ts
+  pnpm --filter web test src/features/console/components/console-e2e.test.tsx
   ```
 - **Typecheck Command**:
   ```bash
-  pnpm --filter api typecheck
+  pnpm --filter web typecheck
   ```
 
-### 3.2 Monorepo TypeScript NodeNext Compliance
-- Module format: ECMAScript Modules (`"type": "module"` in `package.json`).
-- Compiler: `NodeNext` resolution with `verbatimModuleSyntax: true`.
-- Conventions:
-  - All local imports use explicit `.js` extensions (e.g. `import { ... } from "./reputation-fsm.js"`).
-  - All type imports use `import type { ... }`.
-  - Zero unused parameters/locals (`noUnusedLocals: true`, `noUnusedParameters: true`).
-
-### 3.3 Hermetic CLI & Process Mocking Strategy
-- While `cli-runner.ts` supports real `child_process` execution, testing requires deterministic, zero-network, sub-second execution.
-- Tests utilize dependency injection (`commandExecutor`) or mock process harnesses to simulate CLI outputs, timeouts, exit codes, and git worktrees without spawning live external LLMs.
-- Real Git worktree creation and cleanup are tested in a dedicated isolated test scenario to verify live git binary interaction without risking branch mutations.
+### 3.2 Opaque-Box Test Isolation
+- Each test runs in an isolated DOM container.
+- Chat session store is cleared before each test via `__resetChatSession()`.
+- Memory view store is reset before each test via `__resetMemoryView()`.
+- Mock data adheres strictly to domain types (`RunSummary`, `ChatMessage`, `MemoryCitation`, `ChatToolCallItem`, `CounterpartyMemorySummary`).

@@ -45,3 +45,50 @@ Integrity mode: development
 ### Code Quality & Monorepo Coherence
 - [ ] All new files pass `pnpm --filter api typecheck` and `pnpm --filter api test` cleanly with zero regressions.
 - [ ] Code follows existing codebase patterns in `apps/api/src/services/` (`mission-scoring.ts`, `mission-agent.ts`).
+
+## Follow-up — 2026-09-07T08:56:43Z
+
+Implement the full UI/UX Phased Roadmap for Aura Memory Console and Mission Chat using Astryx Design System components (`StatusDot`, `Citation`, `SegmentedControl`, `ChatToolCalls`, `CodeBlock`, `HoverCard`, `MetadataList`), transforming the console into an interactive developer/operator terminal with live status, inline sandbox execution visualization, and rich memory citations.
+
+Working directory: /Users/harryphan/.gemini/antigravity/worktrees/aura_memory/ai_cli_sandbox_reputation
+Integrity mode: development
+
+## Requirements
+
+### R1. Live Status Indicators, Native Citations & Mission Filter
+- Equip the mission selector sidebar items with `<StatusDot>` indicators (`variant="info"` with `isPulsing` for active/running missions, `variant="success"` for completed runs, `variant="error"` for failed runs).
+- Add `<SegmentedControl>` at the top of the mission list to filter runs by status (`All`, `Active`, `Settled`).
+- Upgrade chat memory citations from bare tokens to Astryx `<Citation variant="number" />` linked to cited counterparty memory records.
+
+### R2. Inline Agent Execution Visualizer (`ChatToolCalls` & `CodeBlock`)
+- Integrate `<ChatToolCalls />` inside assistant chat message bubbles to display agent actions (sandboxed CLI execution, Sibyl memory queries, Base Sepolia transaction submissions) with execution duration, sandbox node tags, and status.
+- Allow expanding/collapsing tool call outputs with syntax-highlighted `<CodeBlock container="section" />` showing stdout/stderr and JSON payloads.
+
+### R3. Rich Memory HoverCards & Context Inspector (`HoverCard` & `MetadataList`)
+- Wrap memory citations with `<HoverCard />` to display rich summaries of cited counterparty episodes (score, outcome, timestamp) on hover without navigating away.
+- Provide a collapsible or header-triggered Mission Inspector using `<MetadataList>` to display key technical parameters (Mission UUID, Base Sepolia transaction hashes, budget consumed, environment sandbox type).
+
+### R4. Design System Token & Accessibility Conformance
+- All styling must strictly use Aura design tokens (`var(--color-*)`, `var(--glow-*)`) with zero raw hex in `globals.css` (enforced by `tokens.test.ts`).
+- Maintain WCAG AA contrast standards and ensure all interactive controls have proper ARIA attributes and pass axe accessibility audits.
+
+## Verification Resources
+- Design tokens test: `apps/web/src/styles/tokens.test.ts`
+- Console chat test suite: `apps/web/src/features/console/components/console-chat.test.tsx`
+- Full web test suite: `apps/web` (`pnpm --filter web test`)
+- TypeScript compiler: `pnpm --filter web typecheck`
+
+## Acceptance Criteria
+
+### Test & Build Verification
+- [ ] `pnpm --filter web typecheck` exits with 0 TypeScript errors.
+- [ ] `pnpm --filter web test src/styles/tokens.test.ts` passes (0 raw hex in `globals.css`, no unauthorized text colors).
+- [ ] All web component tests (`pnpm --filter web test`) pass with 0 failures, including `console-chat.test.tsx` and axe accessibility checks.
+- [ ] Full monorepo tests (`pnpm test`) pass completely.
+
+### Functional & Visual Quality
+- [ ] Sidebar missions display live pulsing status dots and filter correctly via SegmentedControl.
+- [ ] Chat conversation renders inline tool invocations via `ChatToolCalls` with expandable details.
+- [ ] Memory citations render as Astryx `Citation` elements with rich `HoverCard` preview on hover.
+- [ ] Mission details inspector accurately reflects selected run state via `MetadataList`.
+
