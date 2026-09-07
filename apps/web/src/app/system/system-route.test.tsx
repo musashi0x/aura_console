@@ -27,6 +27,14 @@ vi.mock("@/lib/api-client", () => ({
         ? { ok: true, data: { status: "ok", latencyMs: 3 } }
         : { ok: false, error: { code: "db_unreachable", message: "no" } },
     sibylHealth: async () => state.sibyl,
+    /* `readGrounding` runs on every console surface now, and it asks about the
+       agent as well as memory. Stubbed unreachable: these tests are about what
+       the readiness rows report, and a grounded agent would only add a banner
+       they say nothing about. */
+    agentHealth: async () => ({
+      ok: true as const,
+      data: { configured: false, reachable: false, detail: "no agent in this test" },
+    }),
   },
 }));
 

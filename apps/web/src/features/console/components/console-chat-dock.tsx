@@ -14,6 +14,7 @@ import {
 export { setChatOpen };
 import { CONSOLE_COMMANDS } from "../console-commands";
 import { console_ } from "../copy";
+import type { ChatGrounding } from "./console-chat";
 import { ConsoleChat } from "./console-chat";
 
 /** Whether the chat panel is showing, for the shell that lays it out. */
@@ -42,10 +43,16 @@ export function useChatTouched(): boolean {
  * than a panel floating over the surface it is discussing — the reason the
  * workspace previously had to reserve a right-hand gutter by hand.
  */
-export function ConsoleChatPanel({ runId }: { runId?: string }) {
+export function ConsoleChatPanel({
+  runId,
+  grounding,
+}: {
+  runId?: string;
+  grounding?: ChatGrounding;
+}) {
   return (
     <>
-      <ConsoleChat runId={runId} />
+      <ConsoleChat runId={runId} grounding={grounding} />
 
       {/* What the chat can actually do, listed rather than discovered by
           trial. The same registry the palette runs, so this cannot drift into

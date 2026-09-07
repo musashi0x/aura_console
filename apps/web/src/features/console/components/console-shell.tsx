@@ -10,6 +10,7 @@ import { useMediaQuery } from "@astryxdesign/core/hooks";
 import { neutralTheme } from "@/themes/neutral/neutral.js";
 
 import { console_ } from "../copy";
+import type { ChatGrounding } from "./console-chat";
 import {
   ConsoleChatCloseButton,
   ConsoleChatLauncher,
@@ -34,6 +35,14 @@ export interface ConsoleShellProps {
    * a column beside it.
    */
   hostsConversation?: boolean;
+  /**
+   * Checked readiness of the answering path, read on the server.
+   *
+   * The docked chat reaches every console surface, so it needs this on every
+   * one. Passing it only from the Mission routes left the panel reporting
+   * "not checked" on four surfaces where the console could have checked.
+   */
+  grounding?: ChatGrounding;
   children: ReactNode;
 }
 
@@ -74,14 +83,20 @@ const NARROW = "(max-width: 59.99rem)";
  * the fixed dock — an element this frame no longer has, so the query silently
  * never matched and the input clipped its own placeholder.
  */
-function ConsoleChatRegion({ runId }: { runId?: string }) {
+function ConsoleChatRegion({
+  runId,
+  grounding,
+}: {
+  runId?: string;
+  grounding?: ChatGrounding;
+}) {
   return (
     <div className="cs__chat-region">
       <div className="cs__chat-dock-head">
         <h2 className="cs__chat-dock-title">{console_.chat.dock.label}</h2>
         <ConsoleChatCloseButton />
       </div>
-      <ConsoleChatPanel runId={runId} />
+      <ConsoleChatPanel runId={runId} grounding={grounding} />
     </div>
   );
 }
@@ -91,6 +106,7 @@ export function ConsoleShell({
   readiness,
   runRef,
   hostsConversation = false,
+  grounding,
   children,
 }: ConsoleShellProps) {
   const chatOpen = useChatOpen();
@@ -148,7 +164,7 @@ export function ConsoleShell({
                 role="complementary"
                 label={console_.chat.dock.label}
               >
-                <ConsoleChatRegion runId={runRef} />
+                <ConsoleChatRegion runId={runRef} grounding={grounding} />
               </LayoutPanel>
             ) : undefined
           }
@@ -168,7 +184,7 @@ export function ConsoleShell({
           height="tall"
           label={console_.chat.dock.label}
         >
-          <ConsoleChatRegion runId={runRef} />
+          <ConsoleChatRegion runId={runRef} grounding={grounding} />
         </BottomSheet>
       ) : null}
       {chatOpen || hostsConversation ? null : <ConsoleChatLauncher />}

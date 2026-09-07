@@ -2069,6 +2069,32 @@ input[type="range"].fluid-slider::-moz-range-thumb {
   padding: 0;
 }
 
+/* One card per event, with its scrub control below it. */
+.mw__entry {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-start;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.mw__entry-scrub {
+  border: 0;
+  background: none;
+  padding: var(--space-2) 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.mw__entry-scrub:hover {
+  color: var(--color-text);
+}
+
 .mw__entry-btn {
   inline-size: 100%;
   display: flex;

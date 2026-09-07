@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { ConsoleShell } from "@/features/console/components/console-shell";
+import { readGrounding } from "@/features/console/grounding";
 import { ConsoleEmptyState, ConsoleErrorState } from "@/features/console/components/console-states";
 import { StatusBadge } from "@/components/primitives";
 import { console_ } from "@/features/console/copy";
@@ -22,12 +23,12 @@ export const metadata: Metadata = { title: "Missions — Aura Console" };
  * not look".
  */
 export default async function RunsPage() {
-  const health = await apiClient.dbHealth();
+  const [health, grounding] = await Promise.all([apiClient.dbHealth(), readGrounding()]);
   const runs = health.ok ? await apiClient.listRuns() : null;
   const readiness = health.ok ? "ready" : "degraded";
 
   return (
-    <ConsoleShell surface="Missions" readiness={readiness}>
+    <ConsoleShell surface="Missions" readiness={readiness} grounding={grounding}>
       <h1 className="cs__title">{console_.missions.title}</h1>
 
       {!health.ok || runs === null || !runs.ok ? (

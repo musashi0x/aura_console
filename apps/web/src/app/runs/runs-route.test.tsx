@@ -8,6 +8,11 @@ const listRuns = vi.fn();
 
 vi.mock("@/lib/api-client", () => ({
   apiClient: {
+    /* The shared grounding read runs on every console surface now, so a
+       route test that mocks the client has to answer it. Both halves
+       report unreachable, which is what a test environment honestly is. */
+    agentHealth: async () => ({ ok: true, data: { configured: false, reachable: false } }),
+    sibylHealth: async () => ({ ok: true, data: { configured: false, reachable: false } }),
     dbHealth: () => dbHealth(),
     listRuns: () => listRuns(),
   },

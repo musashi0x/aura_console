@@ -5,6 +5,7 @@ import { Text } from "@astryxdesign/core/Text";
 import { Token } from "@astryxdesign/core/Token";
 
 import { ConsoleShell } from "@/features/console/components/console-shell";
+import { readGrounding } from "@/features/console/grounding";
 import { ConsoleUnavailableMemory } from "@/features/console/components/console-states";
 import { console_ } from "@/features/console/copy";
 import { apiClient, type SibylCounterparty } from "@/lib/api-client";
@@ -124,14 +125,15 @@ function Profile({ item }: { item: SibylCounterparty }) {
  * sayable because Sibyl answered. Rows are rows.
  */
 export default async function CounterpartiesPage() {
-  const [health, memory] = await Promise.all([
+  const [health, memory, grounding] = await Promise.all([
     apiClient.dbHealth(),
     apiClient.listSibylCounterparties(),
+    readGrounding(),
   ]);
   const readiness = health.ok ? "ready" : "degraded";
 
   return (
-    <ConsoleShell surface="Agents" readiness={readiness}>
+    <ConsoleShell surface="Agents" readiness={readiness} grounding={grounding}>
       <h1 className="cs__title">{console_.agents.title}</h1>
       <p className="cs__lede">{console_.agents.lede}</p>
 
