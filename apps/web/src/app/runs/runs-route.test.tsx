@@ -95,6 +95,37 @@ describe("the Runs list", () => {
     expect(screen.queryByText(/Nothing is known/i)).not.toBeInTheDocument();
   });
 
+  it("says there are none, not that it could not look, once the API answered", async () => {
+    dbHealth.mockResolvedValue({ ok: true, data: { status: "ok", latencyMs: 1 } });
+    listRuns.mockResolvedValue({ ok: true, data: { runs: [] } });
+
+    const { container } = render(await RunsPage());
+
+    // This branch is reached only after the API answered. The old copy said
+    // "Runs cannot be listed yet", which is the error state's claim, and it
+    // kept making it long after the endpoint existed.
+    expect(screen.getByText(console_.empty.title)).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/cannot be listed/i);
+  });
+
+  it("offers a way to start a Mission whether or not the list is empty", async () => {
+    dbHealth.mockResolvedValue({ ok: true, data: { status: "ok", latencyMs: 1 } });
+
+    listRuns.mockResolvedValue({ ok: true, data: { runs: [] } });
+    const empty = render(await RunsPage());
+    const emptyStart = empty.container.querySelector('a[href="/runs/new"]');
+    expect(emptyStart).not.toBeNull();
+    // The form has been real since #30; the control was talked out of existence
+    // by a flag nobody moved.
+    expect(empty.container.textContent).not.toMatch(/Not yet available/);
+
+    listRuns.mockResolvedValue({ ok: true, data: { runs: [run()] } });
+    const populated = render(await RunsPage());
+    // Offered only on the empty state before, so the moment an operator had one
+    // Mission the way to start the next disappeared.
+    expect(populated.container.querySelector('a[href="/runs/new"]')).not.toBeNull();
+  });
+
   it("does not ask for Runs at all when the store is down", async () => {
     dbHealth.mockResolvedValue({ ok: false, error: { code: "db", message: "down" } });
 

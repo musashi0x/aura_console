@@ -26,15 +26,39 @@ const hasRuntime = Boolean(
     })(),
 );
 
+/* The bridge reads as a named tenant and refuses to guess one, so every call
+   here names it. Sibyl isolates by tenant: reading as the wrong one answers
+   "not found" for records that exist, which is the quietest failure available
+   in this whole path. */
+const TENANT = process.env.AGENT_ID ?? "agent_buyer_1";
+
 const bridge = (args: string[], dbPath: string): Record<string, unknown> =>
   JSON.parse(
     execFileSync(python!, [BRIDGE, ...args], {
-      env: { ...process.env, SIBYL_DB_PATH: dbPath },
+      env: { ...process.env, SIBYL_DB_PATH: dbPath, SIBYL_TENANT_ID: TENANT },
       encoding: "utf8",
     }),
   ) as Record<string, unknown>;
 
+const bridgeWithoutTenant = (dbPath: string): Record<string, unknown> => {
+  const env: NodeJS.ProcessEnv = { ...process.env, SIBYL_DB_PATH: dbPath };
+  delete env.SIBYL_TENANT_ID;
+  return JSON.parse(
+    execFileSync(python!, [BRIDGE, "status"], { env, encoding: "utf8" }),
+  ) as Record<string, unknown>;
+};
+
 describe.skipIf(!hasRuntime)("the Sibyl bridge, against the real client", () => {
+  it("refuses to read without a tenant rather than guessing one", () => {
+    const dbPath = process.env.SIBYL_DB_PATH;
+    if (!dbPath) return;
+    // A guessed tenant answers from a store nobody asked about, and the result
+    // looks exactly like an honest empty one.
+    const result = bridgeWithoutTenant(dbPath);
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe("tenant_missing");
+  });
+
   it("reports an absent database rather than creating an empty one", () => {
     const result = bridge(["status"], "/tmp/aura-sibyl-does-not-exist.db");
     // `MemoryClient.local` would create the file. Letting it would turn "no

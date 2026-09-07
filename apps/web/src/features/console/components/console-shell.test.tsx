@@ -114,22 +114,31 @@ describe("product boundaries", () => {
 });
 
 describe("state surfaces", () => {
-  it("explains what a Run is instead of only saying there are none", () => {
-    const { container } = render(<ConsoleEmptyState exampleAvailable createAvailable={false} />);
+  it("explains what a Mission is instead of only saying there are none", () => {
+    const { container } = render(<ConsoleEmptyState exampleAvailable createAvailable />);
     expect(screen.getByText(/one economic objective from start to finish/i)).toBeInTheDocument();
-    // No endpoint was queried, so a verified empty list may not be claimed.
-    expect(container.textContent).not.toMatch(/no runs yet|you have no runs|0 runs/i);
+    // This surface renders only after the API answered with an empty list, so
+    // it may say there are none. What it must not do is borrow the error
+    // state's claim: "we could not look" belongs to the branch that knows it.
+    expect(container.textContent).not.toMatch(/cannot be listed|could not be read/i);
   });
 
   it("offers only destinations that exist", () => {
-    render(<ConsoleEmptyState exampleAvailable createAvailable={false} />);
-    expect(screen.getByRole("link", { name: /open example run/i })).toHaveAttribute(
+    const { rerender } = render(<ConsoleEmptyState exampleAvailable createAvailable />);
+    expect(screen.getByRole("link", { name: /open the demo mission/i })).toHaveAttribute(
       "href",
       "/runs/example",
     );
-    // The create destination is not real, so it is labelled, not linked.
-    expect(screen.queryByRole("link", { name: /start a new run/i })).not.toBeInTheDocument();
-    expect(screen.getByText(/start a new run · not yet available/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /start a mission/i })).toHaveAttribute(
+      "href",
+      "/runs/new",
+    );
+
+    // The flags still govern it. A destination that does not exist is labelled
+    // rather than linked, so the control never opens nothing.
+    rerender(<ConsoleEmptyState exampleAvailable={false} createAvailable={false} />);
+    expect(screen.queryByRole("link", { name: /start a mission/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/start a mission · not yet available/i)).toBeInTheDocument();
   });
 
   it("loads without inventing a status value", () => {

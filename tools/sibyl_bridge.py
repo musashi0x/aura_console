@@ -10,6 +10,10 @@ write to it. Writing is how a console starts inventing history, and the
 surfaces that would need it (Correct memory, Archive relationship) do not
 exist yet.
 
+Every command reads as the tenant named in `SIBYL_TENANT_ID`, which the API
+sets from its own `AGENT_ID`. Sibyl isolates by tenant, so reading as the wrong
+one answers "not found" for records that exist.
+
 It never invents a value. If the client is missing, the database is absent, or
 a call raises, it says so with a code the API turns into an explicit
 unavailable state — the product's distinction between "we could not look" and
@@ -36,6 +40,18 @@ def main() -> None:
     except ImportError as error:
         fail("client_missing", f"sibyl-memory-client is not importable: {error}")
 
+    # Sibyl isolates by tenant, and reading as the wrong one is the quietest
+    # failure available here: the records exist, the recall is clean, and it
+    # answers "not found" forever. Nothing is defaulted — a guessed tenant
+    # would report an honest-looking empty store for a store nobody asked
+    # about. The API sends its own AGENT_ID.
+    tenant = os.environ.get("SIBYL_TENANT_ID", "").strip()
+    if not tenant:
+        fail(
+            "tenant_missing",
+            "SIBYL_TENANT_ID is unset, so there is no tenant to read as.",
+        )
+
     db_path = os.environ.get("SIBYL_DB_PATH", "~/.sibyl-memory/memory.db")
     expanded = os.path.expanduser(db_path)
 
@@ -46,7 +62,7 @@ def main() -> None:
         fail("db_absent", f"No Sibyl database at {expanded}")
 
     try:
-        client = MemoryClient.local(expanded)
+        client = MemoryClient.local(expanded, tenant_id=tenant)
     except Exception as error:  # noqa: BLE001 - reported, never swallowed
         fail("client_error", f"{type(error).__name__}: {error}")
 
