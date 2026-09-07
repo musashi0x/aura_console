@@ -10,6 +10,7 @@ import type { RetrievalStatus, TimelineEntry } from "@/features/console/model/ty
 import type { Counterfactual } from "@/features/console/projection/counterfactual";
 import { ApprovalRequestCard } from "./approval-request-card";
 import { CounterfactualView } from "./counterfactual-view";
+import { MemoryDiffCard } from "./memory-diff-card";
 import { amount, list, number, text } from "./fields";
 
 /**
@@ -267,6 +268,11 @@ export function EventCard({
           ) : null}
         </Shell>
       );
+    }
+
+    case "memory.diff.published":
+    case "memory.episode.written": {
+      return <MemoryDiffCard entry={entry} />;
     }
 
     default: {

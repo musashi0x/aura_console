@@ -4,6 +4,8 @@ import { z } from "zod";
 import { env } from "../env.js";
 import { httpError } from "../errors.js";
 import { MemoryStore, type RelationshipStatus } from "../services/memory-store.js";
+import { manualUnblock, type CandidateReputation } from "../services/reputation-fsm.js";
+import { retrieveFromSibyl, updateCounterpartyInSibyl } from "../services/sibyl.js";
 
 const store = new MemoryStore();
 
@@ -79,3 +81,71 @@ counterparties.get("/:counterpartyKey/memory-diffs", async (c) => {
   });
   return c.json({ items });
 });
+
+const unblockSchema = z.object({
+  reason: z.string().trim().min(1).max(500).default("Operator manual unblock from Console"),
+  targetStatus: z.enum(["WATCH", "KNOWN", "NEW"]).default("WATCH"),
+});
+
+/**
+ * Manually unblocks a BLOCKED candidate through explicit operator intervention.
+ * Restores the candidate to WATCH or KNOWN status, clears consecutive failures,
+ * and updates Sibyl Memory.
+ */
+counterparties.post("/:counterpartyKey/unblock", async (c) => {
+  const key = parseKey(c.req.param("counterpartyKey"));
+  let body: unknown = {};
+  try {
+    body = await c.req.json();
+  } catch {
+    // optional payload
+  }
+  const parsed = unblockSchema.safeParse(body ?? {});
+  if (!parsed.success) {
+    throw httpError(422, "invalid_status", parsed.error.issues[0]?.message ?? "Invalid unblock payload");
+  }
+
+  const { reason, targetStatus } = parsed.data;
+
+  // Retrieve existing record from Sibyl
+  const retrieval = await retrieveFromSibyl(key);
+  const currentStatus = retrieval.status === "AVAILABLE" ? (retrieval.relationshipStatus ?? "KNOWN") : "BLOCKED";
+  const overallReliability = retrieval.status === "AVAILABLE" ? (retrieval.overallReliability ?? 0.5) : 0.5;
+  const confidence = retrieval.status === "AVAILABLE" ? (retrieval.confidence ?? 0.1) : 0.1;
+
+  const candidateRep: CandidateReputation = {
+    candidateId: key,
+    alpha: 2.0,
+    beta: 2.0,
+    overallReliability,
+    confidence,
+    status: currentStatus === "BLOCKED" ? "BLOCKED" : (currentStatus as RelationshipStatus),
+    consecutiveFailures: currentStatus === "BLOCKED" ? 3 : 0,
+    totalMissions: 1,
+    lastUpdatedAt: new Date().toISOString(),
+  };
+
+  const unblocked = manualUnblock(
+    candidateRep.status === "BLOCKED" ? candidateRep : { ...candidateRep, status: "BLOCKED" },
+    "console_operator",
+    reason,
+    targetStatus as RelationshipStatus,
+  );
+
+  // Write back to Sibyl Memory
+  const sibylResult = await updateCounterpartyInSibyl(key, {
+    relationshipStatus: targetStatus,
+    riskNote: `Manually unblocked by operator on ${new Date().toISOString()}: ${reason}`,
+  });
+
+  return c.json({
+    ok: true,
+    counterpartyKey: key,
+    status: targetStatus,
+    unblockedAt: unblocked.unblockedAt,
+    unblockedBy: unblocked.unblockedBy,
+    reason: unblocked.unblockedReason,
+    sibylUpdated: sibylResult.ok,
+  });
+});
+

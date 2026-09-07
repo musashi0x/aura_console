@@ -1464,6 +1464,24 @@ body:has(.lp) {
   color: var(--color-text-muted);
 }
 
+.cs__utc-clock {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+.cs__commit-badge {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm, 4px);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+}
+
+
 /* The global `a:not(.btn)` rule out-specifies a bare class, so the console's
    brand link needs the extra qualifier or it renders in accent cyan. The nav
    links that used to share this rule are SideNav's now, and it styles them. */

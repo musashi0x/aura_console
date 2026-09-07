@@ -7,12 +7,16 @@ import { getSibylStatus } from "../services/sibyl.js";
 
 export const health = new Hono();
 
+const serverStartTime = new Date().toISOString();
+
 /** Liveness only. Must answer even when Postgres is down. */
 health.get("/", (c) =>
   c.json({
     status: "ok",
     uptime: Math.round(process.uptime() * 1000) / 1000,
     timestamp: new Date().toISOString(),
+    commit: process.env.GIT_SHA || process.env.VERCEL_GIT_COMMIT_SHA || "local-dev",
+    startedAt: serverStartTime,
   }),
 );
 

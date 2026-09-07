@@ -2,6 +2,50 @@
 
 A pnpm + Turborepo monorepo: a Next.js web app, a Hono API, and Postgres through Drizzle ORM.
 
+## Sibyl Labs Hackathon — 2-Minute Quickstart & Verification Guide
+
+> **Theme**: *Build with Agents That Don't Forget*  
+> **Repository**: [musashi0x/aura_console](https://github.com/musashi0x/aura_console)  
+> **Commit Tracking**: On-screen Git SHA and live ticking UTC clock rendered in the Console topbar and `/health`.
+
+### 1. The Load-Bearing Deletion Test (Pass/Fail Gate)
+Sibyl relationship memory is strictly load-bearing. Without Sibyl, the buyer agent halts in `run.blocked` rather than making blind financial commitments:
+
+```bash
+# Run both halves side-by-side:
+pnpm demo:deletion-test
+```
+- **Half A (`SIBYL_PYTHON=""`)**: Mission fails closed (`run.created -> run.blocked`), citing missing Sibyl dependency.
+- **Half B (`SIBYL_PYTHON` active)**: Recalls persistent memory, scores candidates, and opens approval (`run.created -> candidate.scored -> decision.made -> approval.requested`).
+
+### 2. The Fresh-Session Restart Protocol (State Survival Proof)
+Proves that state survives process termination and complete database wipe. Memory lives in persistent Sibyl SQLite (`~/.sibyl-memory/memory.db`):
+
+```bash
+# Wipes Postgres event store completely; leaves Sibyl memory.db intact:
+pnpm demo:restart
+```
+
+### 3. Cryptographic Memory Commitment on Base Sepolia
+Every Bayesian reputation update is committed to Base Sepolia as a salted cryptographic hash (`keccak256(canonical || salt)`). The salt is stored exclusively in Sibyl's REFERENCE tier, allowing public verification without leaking private history:
+
+```bash
+# Verify commitment against Sibyl WARM and REFERENCE tiers:
+pnpm memory:verify virtuals:agent:alpha 1
+```
+
+### 4. Five Sibyl Dynamic Storage Tiers in Aura
+
+| Tier | Sibyl Call | What Aura Stores | Read Back Where | Visible How |
+|---|---|---|---|---|
+| **HOT** | `set_state("run:<id>")` / `get_state` | Live mission context, active execution stage, pending ceilings | API restart recovery | Mission Trace timeline |
+| **WARM** | `set_entity("counterparty", key)` | Counterparty relationship profile, reliability, FSM status | `listCounterpartiesFromSibyl` before scoring | CandidateScoredCard, Counterparties view |
+| **COLD** | `write_event(evaluated, acted)` | Immutable mission episode log with provenance actors | `readMemoryJournal` / `GET /api/memory/journal` | Trace "Memory journal", MCP tool `memory_journal` |
+| **REFERENCE** | `set_reference("commitment:<key>:v<n>")` | Cryptographic salts & policy guardrails snapshot | Base commitment verification script | `pnpm memory:verify`, Policy Gate card |
+| **ARCHIVE** | `archive_entity("counterparty", key)` | Blocked / decommissioned counterparties with audit trail | Counterparty catalog query | Status badge `BLOCKED` / `ARCHIVED`, manual unblock UI |
+
+---
+
 ## Documentation
 
 - [Product documentation](docs/product/README.md) — scope, onboarding, visual system, demo choreography, and decisions.

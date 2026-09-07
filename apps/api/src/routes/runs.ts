@@ -1,10 +1,14 @@
 import { Hono } from "hono";
+import { streamSSE } from "hono/streaming";
 import { z } from "zod";
 
 import { httpError } from "../errors.js";
+import { MissionAgent } from "../services/mission-agent.js";
+import { missionLogs } from "../services/mission-logs.js";
 import { RunStore } from "../services/run-store.js";
 
 const store = new RunStore();
+const agent = new MissionAgent(store);
 
 const uuidSchema = z.uuid();
 
@@ -96,6 +100,11 @@ runs.post("/", async (c) => {
     source: input.source,
     budgetUsdc: input.budgetUsdc ?? null,
   });
+
+  if (input.source === "CONSOLE" && process.env.NODE_ENV !== "test" && !process.env.DISABLE_AGENT_OPEN) {
+    await agent.openMission({ runId: run.id, budgetUsdc: run.budgetUsdc });
+  }
+
   return c.json({ run: runBody(run) }, 201);
 });
 
@@ -152,3 +161,52 @@ runs.post("/:runId/events", async (c) => {
 
   return c.json({ event: eventBody(event) }, created ? 201 : 200);
 });
+
+/**
+ * Returns or streams live stdout/stderr logs from AI CLI sandboxes and verifiers.
+ */
+runs.get("/:runId/logs", async (c) => {
+  const runId = parseRunId(c.req.param("runId"));
+  const wantsStream =
+    c.req.header("accept")?.includes("text/event-stream") ||
+    c.req.query("stream") === "true";
+
+  if (!wantsStream) {
+    const entries = missionLogs.getLogs(runId);
+    return c.json({ runId, entries });
+  }
+
+  return streamSSE(c, async (stream) => {
+    // 1. Send existing buffered logs
+    const existing = missionLogs.getLogs(runId);
+    for (const entry of existing) {
+      await stream.writeSSE({
+        event: "log",
+        id: entry.id,
+        data: JSON.stringify(entry),
+      });
+    }
+
+    // 2. Subscribe to new logs
+    const unsubscribe = missionLogs.subscribe(runId, async (entry) => {
+      try {
+        await stream.writeSSE({
+          event: "log",
+          id: entry.id,
+          data: JSON.stringify(entry),
+        });
+      } catch {
+        // Stream closed
+      }
+    });
+
+    stream.onAbort(() => {
+      unsubscribe();
+    });
+
+    while (!stream.aborted) {
+      await stream.sleep(1000);
+    }
+  });
+});
+
