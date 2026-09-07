@@ -48,7 +48,7 @@ export async function getSibylStatus(): Promise<SibylStatus> {
   try {
     const { stdout } = await run(python, [env.SIBYL_BRIDGE, "status"], {
       timeout: env.SIBYL_TIMEOUT_MS,
-      env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH },
+      env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH, SIBYL_TENANT_ID: env.AGENT_ID },
       maxBuffer: 1024 * 1024,
     });
     const parsed = JSON.parse(stdout) as Record<string, unknown>;
@@ -156,7 +156,7 @@ export async function retrieveFromSibyl(counterpartyKey: string): Promise<SibylR
   try {
     const { stdout } = await run(python, [env.SIBYL_BRIDGE, "retrieve", "counterparty", counterpartyKey], {
       timeout: env.SIBYL_TIMEOUT_MS,
-      env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH },
+      env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH, SIBYL_TENANT_ID: env.AGENT_ID },
       maxBuffer: 1024 * 1024,
     });
     const parsed = JSON.parse(stdout) as Record<string, unknown>;
@@ -257,7 +257,7 @@ export async function listCounterpartiesFromSibyl(): Promise<SibylCounterparties
   try {
     const { stdout } = await run(python, [env.SIBYL_BRIDGE, "entities", "counterparty"], {
       timeout: env.SIBYL_TIMEOUT_MS,
-      env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH },
+      env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH, SIBYL_TENANT_ID: env.AGENT_ID },
       maxBuffer: 4 * 1024 * 1024,
     });
     const parsed = JSON.parse(stdout) as Record<string, unknown>;
