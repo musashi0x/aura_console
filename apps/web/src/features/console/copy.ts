@@ -205,6 +205,35 @@ export const console_ = {
          card reports one that already happened. */
       ceiling: "Ceiling",
       note: "Recorded from the Run's events. This card approves nothing.",
+      /* The pending request — the one card in the console that carries a
+         control which changes the world. Every string here names what the
+         click authorizes, because an approval whose wording is vague is an
+         approval the operator did not really give. */
+      pending: {
+        title: "Approval needed",
+        lede: "Nothing settles until you approve this.",
+        action: "Action",
+        counterparty: "Counterparty",
+        ceilingLabel: "Maximum spend",
+        approve: "Approve",
+        approving: "Approving…",
+        /* Said next to the button, not buried in a tooltip. */
+        note: "Approving records your authorization against this Mission. It is non-mainnet and moves no real funds.",
+        failed: "The approval was not recorded, so nothing was authorized.",
+        missingCeiling: "This request carries no ceiling, so there is nothing to approve against.",
+      },
+    },
+    counterfactual: {
+      open: "Compare without memory",
+      close: "Hide the comparison",
+      withMemory: "With Sibyl",
+      withoutMemory: "Without previous memory",
+      whatChanged: "What changed",
+      /* Only rendered when the winner actually moves. Everywhere else this
+         product says memory was consulted, never that it decided. */
+      changed: "Memory changed this decision.",
+      unchanged: "Memory checked, recommendation unchanged.",
+      simulated: "Simulated from the evidence this Mission recorded. It re-runs nothing and authorizes nothing.",
     },
     job: { title: "Agent job", provider: "Provider", amount: "Amount", state: "State" },
     transaction: { title: "Transaction", network: "Network", amount: "Amount", reference: "Reference" },

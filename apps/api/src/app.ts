@@ -5,6 +5,7 @@ import { HTTPException } from "hono/http-exception";
 import { env } from "./env.js";
 import { errorBody } from "./errors.js";
 import { requestLogger } from "./middleware/request-logger.js";
+import { approvals } from "./routes/approvals.js";
 import { chat } from "./routes/chat.js";
 import { counterparties } from "./routes/counterparties.js";
 import { health } from "./routes/health.js";
@@ -31,6 +32,9 @@ app.route("/api/runs", runs);
 // Mounted on the same prefix: the Run resource owns its own event log, and its
 // live surfaces are paths under a Run rather than a second Run namespace.
 app.route("/api/runs", chat);
+// The approval path hangs off the Run it authorizes, and keeps its own file
+// because it is the only endpoint in the console that authorizes a spend.
+app.route("/api/runs", approvals);
 app.route("/api/counterparties", counterparties);
 // Mounted on the same prefix as the counterparty projection: memory read
 // *about* a counterparty hangs off that counterparty, but composing Postgres

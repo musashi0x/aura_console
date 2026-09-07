@@ -255,6 +255,22 @@ export const apiClient = {
   agentHealth: () => request<AgentHealth>("/health/agent"),
   /* 503 when Sibyl cannot be read, never an empty list: "we could not look" and
      "we looked and there is nobody" are different answers. */
+  /* The console's only authorization path, and its second write of any kind.
+     Called from the Approval card's button and from nowhere else: no render
+     path, no effect and no retry reaches it, because an approval that could
+     happen without a click is exactly what this product promises never to do.
+     A pending request is verified server-side, so a client that got the state
+     wrong cannot author an approval out of nothing. */
+  approveRun: (runId: string, ceilingUsdc: string) =>
+    request<{ event: { event_id: string; type: string; sequence: number } }>(
+      `/api/runs/${encodeURIComponent(runId)}/approve`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ceiling_usdc: ceilingUsdc }),
+      },
+    ),
+
   listSibylCounterparties: () =>
     request<{ items: SibylCounterparty[] }>("/api/memory/counterparties"),
 
