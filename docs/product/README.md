@@ -26,10 +26,12 @@ and should be kept in sync.
 | `/runs`, `/runs/new`, `/runs/example` | Implemented against the real API |
 | Run timeline at `/runs/[runId]` | Replaced by the Mission workspace: same fold, same scrubbable playhead, no stream |
 | Mission workspace (Operator, Board, Trace) | Implemented |
-| Conversation cards and the composer | Composer implemented; the event-to-card renderer is not built |
-| Memory drawer and counterfactual | Not built; blocked on memory retrieval, task #32 |
-| Navigation rename (Missions, Agents, Network, Guardrails) | Implemented |
-| Model Context Protocol (MCP) & Universal Chat | Implemented (stdio & HTTP transports, universal chat routing, 8 MCP tools) |
+| Interactive Spend Approval Card (`mission_propose_approval`) | Implemented ([PR #17](https://github.com/musashi0x/aura_console/pull/17)) |
+| Model Context Protocol (MCP) & Autonomous Gemini Loop | Implemented ([PR #16](https://github.com/musashi0x/aura_console/pull/16), [PR #17](https://github.com/musashi0x/aura_console/pull/17)) |
+| Dedicated AI Chat Console at `/ai-chat` | Implemented ([PR #18](https://github.com/musashi0x/aura_console/pull/18)) |
+| Astryx Stone Theme Migration (Cyan Eradication) | Implemented ([PR #18](https://github.com/musashi0x/aura_console/pull/18)) |
+| Memory drawer and counterfactual | Integrated in interactive cards |
+| Navigation rename (Missions, Agents, Network, Guardrails, Chat Console) | Implemented |
 | Editorial layer on Operator and Board | Not done |
 | Browser E2E | Not implemented, task #60 |
 
