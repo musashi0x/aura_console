@@ -1,7 +1,22 @@
 import { getDb, schema } from "@aura/db";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { app } from "../app.js";
+import type * as AdkAgent from "../services/adk-agent.js";
+
+/**
+ * The agent's configured-ness is stubbed rather than read from the environment.
+ *
+ * `packages/db/src/root-env.ts` walks up to the repository root .env, so a
+ * developer who has a real ADK agent configured was running a different test
+ * from CI: this case asserts the UNCONFIGURED branch, and it passed only on
+ * machines that happened to have no agent. Stubbing the seam makes the test
+ * assert the branch it names, on every machine.
+ */
+vi.mock("../services/adk-agent.js", async () => {
+  const actual = await vi.importActual<typeof AdkAgent>("../services/adk-agent.js");
+  return { ...actual, isAgentConfigured: vi.fn(() => false) };
+});
 
 const KEY = "virtuals:agent:alpha";
 
@@ -121,17 +136,14 @@ describe("agent chat", () => {
   }
 
   it("refuses before opening the stream when no agent is configured", async () => {
-    /* The env module reads the repository's own .env, so this assertion used to
-       pass only on a machine with no agent set up — and started failing the
-       moment one was. What is under test is the refusal, not the developer's
-       local configuration, so the absence is stated here. */
-    const { env } = await import("../env.js");
-    const configured = env.ADK_BASE_URL;
-    (env as { ADK_BASE_URL?: string }).ADK_BASE_URL = undefined;
-
+    /* Both halves of this merge fixed the same bug: the env module reads the
+       repository's own .env, so this assertion passed only on a machine with no
+       agent configured and failed the moment one was. The module seam is
+       stubbed at the top of this file rather than the env being mutated here,
+       because a mutation that is restored on the next line is not restored at
+       all when the request between them throws. */
     const runId = await createRun();
     const res = await app.request(`/api/runs/${runId}/chat?q=why%20alpha`);
-    (env as { ADK_BASE_URL?: string }).ADK_BASE_URL = configured;
     // A 503 means the console sees a connection that never established and
     // reports the agent unavailable. An open stream producing nothing would
     // read as a silent agent instead.
