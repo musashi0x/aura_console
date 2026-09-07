@@ -4,7 +4,7 @@ import { ComputeClient, cheapestTextModel } from "../compute/client.js";
 import { DEFAULT_COMPUTE_BASE_URL } from "../compute/env.js";
 
 const env = {
-  ACP_API_KEY: "acp-db745c76c907b33680cd",
+  ACP_API_KEY: "acp-000000000000000000test",
   ACP_COMPUTE_BASE_URL: DEFAULT_COMPUTE_BASE_URL,
 };
 

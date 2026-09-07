@@ -7,7 +7,7 @@ import {
 } from "../compute/env.js";
 
 const validEnv = {
-  ACP_API_KEY: "acp-db745c76c907b33680cd",
+  ACP_API_KEY: "acp-000000000000000000test",
 } satisfies NodeJS.ProcessEnv;
 
 describe("parseComputeEnv", () => {
