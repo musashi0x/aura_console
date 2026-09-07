@@ -10,6 +10,7 @@ import {
   consoleToggleMemoryViewTool,
   guardrailsGetPoliciesTool,
   memoryListCounterpartiesTool,
+  memoryJournalTool,
   memoryRecallCounterpartyTool,
   missionProposeApprovalTool,
 } from "./tools.js";
@@ -79,6 +80,21 @@ export function createAuraMcpServer(): McpServer {
     {},
     async () => {
       const result = await memoryListCounterpartiesTool.execute({});
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    },
+  );
+
+  server.tool(
+    "memory_journal",
+    memoryJournalTool.description,
+    {
+      counterpartyKey: z.string().optional(),
+      limit: z.number().int().min(1).max(100).optional(),
+    },
+    async ({ counterpartyKey, limit }) => {
+      const result = await memoryJournalTool.execute({ counterpartyKey, limit });
       return {
         content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
       };

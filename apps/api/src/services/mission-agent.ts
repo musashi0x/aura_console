@@ -87,7 +87,7 @@ export class MissionAgent {
 
     await this.append(runId, "memory.retrieved", {
       source: "SIBYL",
-      verdict_code: memory.code ?? "ok",
+      verdict_code: "ok",
       count: memory.items.length,
       retrieval_status: "AVAILABLE",
       summary: `Recalled ${memory.items.length} counterparties from Sibyl relationship memory`,

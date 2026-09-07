@@ -4,7 +4,7 @@ import { z } from "zod";
 import { env } from "../env.js";
 import { httpError } from "../errors.js";
 import { MemoryStore } from "../services/memory-store.js";
-import { listCounterpartiesFromSibyl } from "../services/sibyl.js";
+import { listCounterpartiesFromSibyl, readMemoryJournal } from "../services/sibyl.js";
 import {
   DEFAULT_RECALL_LIMIT,
   MAX_RECALL_LIMIT,
@@ -195,4 +195,29 @@ memory.get("/counterparties", async (c) => {
     return c.json({ error: { code: result.code, message: result.detail } }, 503);
   }
   return c.json({ items: result.items });
+});
+
+/**
+ * The immutable mission episode log with provenance actors from Sibyl.
+ */
+memory.get("/journal", async (c) => {
+  const limitParam = c.req.query("limit");
+  const limit = limitParam ? Number.parseInt(limitParam, 10) : 50;
+  const counterpartyKey = c.req.query("counterpartyKey") || c.req.query("counterparty");
+  const result = await readMemoryJournal({
+    limit: Number.isFinite(limit) && limit > 0 ? limit : 50,
+    counterpartyKey: counterpartyKey || undefined,
+  });
+  if (!result.ok) {
+    return c.json(
+      { error: { code: result.code ?? "journal_unavailable", message: result.detail ?? "Failed to read memory journal" } },
+      503,
+    );
+  }
+  return c.json({
+    ok: true,
+    count: result.count ?? result.events?.length ?? 0,
+    events: result.events ?? [],
+    episodes: result.episodes ?? result.events ?? [],
+  });
 });

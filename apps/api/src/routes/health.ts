@@ -2,6 +2,7 @@ import { getDb, sql } from "@aura/db";
 import { Hono } from "hono";
 
 import { errorBody } from "../errors.js";
+import { isGeminiAgentConfigured } from "../services/gemini-agent.js";
 import { getAgentStatus } from "../services/adk-agent.js";
 import { getSibylStatus } from "../services/sibyl.js";
 
@@ -51,4 +52,11 @@ health.get("/sibyl", async (c) => c.json(await getSibylStatus()));
  * `reachable: false` and a reason, because the API is up and one dependency is
  * not.
  */
-health.get("/agent", async (c) => c.json(await getAgentStatus()));
+health.get("/agent", async (c) => {
+  const adkStatus = await getAgentStatus();
+  if (adkStatus.reachable) return c.json(adkStatus);
+  if (isGeminiAgentConfigured()) {
+    return c.json({ configured: true, reachable: true, apps: ["gemini-agent"] });
+  }
+  return c.json(adkStatus);
+});

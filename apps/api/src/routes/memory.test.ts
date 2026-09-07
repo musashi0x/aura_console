@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { app } from "../app.js";
 import type * as AdkAgent from "../services/adk-agent.js";
+import type * as GeminiAgent from "../services/gemini-agent.js";
 
 /**
  * The agent's configured-ness is stubbed rather than read from the environment.
@@ -16,6 +17,11 @@ import type * as AdkAgent from "../services/adk-agent.js";
 vi.mock("../services/adk-agent.js", async () => {
   const actual = await vi.importActual<typeof AdkAgent>("../services/adk-agent.js");
   return { ...actual, isAgentConfigured: vi.fn(() => false) };
+});
+
+vi.mock("../services/gemini-agent.js", async () => {
+  const actual = await vi.importActual<typeof GeminiAgent>("../services/gemini-agent.js");
+  return { ...actual, isGeminiAgentConfigured: vi.fn(() => false) };
 });
 
 const KEY = "virtuals:agent:alpha";

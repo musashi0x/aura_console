@@ -852,14 +852,34 @@ export async function archiveCounterpartyInSibyl(
   }
 }
 
-export async function readMemoryJournal(limit = 50): Promise<{ ok: boolean; events?: unknown[]; code?: string }> {
+export interface ReadMemoryJournalOptions {
+  limit?: number;
+  counterpartyKey?: string;
+}
+
+export async function readMemoryJournal(
+  limitOrOptions: number | ReadMemoryJournalOptions = 50,
+): Promise<{
+  ok: boolean;
+  count?: number;
+  events?: unknown[];
+  episodes?: unknown[];
+  code?: string;
+  detail?: string;
+}> {
+  const options: ReadMemoryJournalOptions =
+    typeof limitOrOptions === "number" ? { limit: limitOrOptions } : (limitOrOptions ?? {});
+  const limit = options.limit ?? 50;
+  const counterpartyKey = options.counterpartyKey;
+
   const python = getSibylPython();
-  if (!python) return { ok: false, code: "not_configured" };
+  if (!python) return { ok: false, code: "not_configured", detail: "SIBYL_PYTHON not configured" };
 
   try {
+    const fetchLimit = counterpartyKey ? Math.max(limit, 100) : limit;
     const { stdout } = await run(
       python,
-      [getSibylBridgePath(), "events", `--limit=${limit}`],
+      [getSibylBridgePath(), "events", `--limit=${fetchLimit}`],
       {
         timeout: env.SIBYL_TIMEOUT_MS,
         env: { ...process.env, SIBYL_DB_PATH: env.SIBYL_DB_PATH, SIBYL_TENANT_ID: env.AGENT_ID },
@@ -867,10 +887,29 @@ export async function readMemoryJournal(limit = 50): Promise<{ ok: boolean; even
       },
     );
     const parsed = JSON.parse(stdout) as Record<string, unknown>;
-    return { ok: parsed.ok === true, events: Array.isArray(parsed.events) ? parsed.events : [] };
+    let events = Array.isArray(parsed.events) ? (parsed.events as Record<string, unknown>[]) : [];
+    if (counterpartyKey) {
+      events = events.filter((e) => {
+        const evaluated = e.evaluated as Record<string, unknown> | undefined;
+        const episode = evaluated?.episode as Record<string, unknown> | undefined;
+        return (
+          evaluated?.counterparty === counterpartyKey ||
+          episode?.counterparty === counterpartyKey
+        );
+      });
+      if (events.length > limit) {
+        events = events.slice(0, limit);
+      }
+    }
+    return {
+      ok: parsed.ok === true,
+      count: events.length,
+      events,
+      episodes: events,
+    };
   } catch (error) {
     console.error("[sibyl] read journal failed", error);
-    return { ok: false, code: "bridge_unreachable" };
+    return { ok: false, code: "bridge_unreachable", detail: error instanceof Error ? error.message : String(error) };
   }
 }
 
