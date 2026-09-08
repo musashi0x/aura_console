@@ -1,4 +1,3 @@
-import { env } from "../env.js";
 
 export interface VirtualsAcpStatus {
   configured: boolean;
@@ -18,7 +17,7 @@ export interface VirtualsAcpStatus {
  * mode, preserving the honesty boundary without claiming a live external gateway.
  */
 export async function getVirtualsAcpStatus(
-  acpUrl = env.VIRTUALS_ACP_URL,
+  acpUrl = process.env.VIRTUALS_ACP_URL,
   timeoutMs = 5000,
 ): Promise<VirtualsAcpStatus> {
   if (!acpUrl) {

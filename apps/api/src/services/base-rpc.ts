@@ -1,4 +1,3 @@
-import { env } from "../env.js";
 
 export interface BaseRpcStatus {
   configured: boolean;
@@ -17,7 +16,10 @@ export interface BaseRpcStatus {
  * latest block number, so the Console never claims Base connectivity without
  * a successful response from the network.
  */
-export async function getBaseRpcStatus(rpcUrl = env.BASE_RPC_URL, timeoutMs = env.BASE_TIMEOUT_MS): Promise<BaseRpcStatus> {
+export async function getBaseRpcStatus(
+  rpcUrl = process.env.BASE_RPC_URL ?? "https://sepolia.base.org",
+  timeoutMs = Number(process.env.BASE_TIMEOUT_MS ?? 5000),
+): Promise<BaseRpcStatus> {
   if (!rpcUrl) {
     return {
       configured: false,

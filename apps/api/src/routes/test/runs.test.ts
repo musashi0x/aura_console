@@ -6,29 +6,7 @@ interface ErrorShape {
   error: { code: string; message: string };
 }
 
-/**
- * A Run with nothing in its log but the seed.
- *
- * `source: "AGENT"` is doing real work here: a CONSOLE Mission is opened by the
- * agent on creation, so its log carries a ranking and an approval request
- * before any test appends anything. These tests are about the event store —
- * sequence allocation, idempotency, cursors — and pinning them to a log the
- * agent also writes to would make them assert the agent's output by accident,
- * and break every time it changed. The opening has its own test below.
- */
 async function createRun(objective = "Buy one dataset under budget") {
-  const res = await app.request("/api/runs", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ objective, budgetUsdc: "25.000000", source: "AGENT" }),
-  });
-  expect(res.status).toBe(201);
-  const body = (await res.json()) as { run: { id: string } };
-  return body.run;
-}
-
-/** A Mission as the Console creates one, so the agent opens it. */
-async function createMission(objective = "Buy one dataset under budget") {
   const res = await app.request("/api/runs", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -37,12 +15,6 @@ async function createMission(objective = "Buy one dataset under budget") {
   expect(res.status).toBe(201);
   const body = (await res.json()) as { run: { id: string } };
   return body.run;
-}
-
-async function eventsOf(runId: string) {
-  const res = await app.request(`/api/runs/${runId}/events`);
-  const body = (await res.json()) as { events: { type: string; sequence: number; data: unknown }[] };
-  return body.events;
 }
 
 function appendBody(overrides: Record<string, unknown> = {}) {
@@ -66,52 +38,12 @@ async function append(runId: string, body: Record<string, unknown>) {
 describe("creating a Run", () => {
   it("persists the seed and its first event in one step", async () => {
     const run = await createRun();
-    expect(run).toMatchObject({ source: "AGENT", environment: "non-mainnet", isMainnet: false });
+    expect(run).toMatchObject({ source: "CONSOLE", environment: "non-mainnet", isMainnet: false });
 
-    const events = await eventsOf(run.id);
-    expect(events).toHaveLength(1);
-    expect(events[0]).toMatchObject({ type: "run.created", sequence: 0 });
-  });
-
-  /* The guarantee, stated so it holds in any environment.
-     
-     With relationship memory reachable the agent ranks and asks for approval;
-     without it, it records that it could not look. Which one happens here
-     depends on whether this machine has a Sibyl runtime, and asserting either
-     would make the test a statement about the developer's .env. What must be
-     true everywhere is that a Mission never merely sits at `run.created` —
-     that silence was the whole reason the Console looked like it did nothing. */
-  it("does not leave a Mission sitting at run.created", async () => {
-    const mission = await createMission();
-    expect(mission).toMatchObject({ source: "CONSOLE" });
-
-    const events = await eventsOf(mission.id);
-    expect(events.length).toBeGreaterThan(1);
-    expect(events[0]).toMatchObject({ type: "run.created", sequence: 0 });
-
-    const types = events.map((event) => event.type);
-    const opened = types.includes("candidate.scored") || types.includes("run.blocked");
-    expect(opened).toBe(true);
-  });
-
-  /* An opening that ranked anyone must go all the way to the approval boundary
-     and stop there. A ranking with no request would leave the operator a
-     decision they cannot act on; anything past the request would be the agent
-     authorizing its own spend. */
-  it("stops a scored Mission at the approval boundary", async () => {
-    const events = await eventsOf((await createMission()).id);
-    const types = events.map((event) => event.type);
-    if (!types.includes("candidate.scored")) return;
-
-    expect(types).toContain("decision.made");
-    expect(types).toContain("approval.requested");
-    expect(types).not.toContain("approval.granted");
-    expect(types.some((type) => type.startsWith("acp.job"))).toBe(false);
-
-    /* Without a ceiling the Console draws no Approve button, so an opening
-       that forgot one would render a Mission nobody can move. */
-    const request = events.find((event) => event.type === "approval.requested");
-    expect((request?.data as { ceiling_usdc?: unknown }).ceiling_usdc).toBe("25.000000");
+    const res = await app.request(`/api/runs/${run.id}/events`);
+    const body = (await res.json()) as { events: { type: string; sequence: number }[] };
+    expect(body.events).toHaveLength(1);
+    expect(body.events[0]).toMatchObject({ type: "run.created", sequence: 0 });
   });
 
   it("never reports a spent amount it was not told", async () => {

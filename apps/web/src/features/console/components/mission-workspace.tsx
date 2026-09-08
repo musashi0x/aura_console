@@ -209,7 +209,7 @@ export function MissionWorkspace({
           onScrubTo={scrubTo}
         />
       ) : (
-        <Theme theme={stoneTheme} mode="dark">
+        <Theme theme={stoneTheme} mode="light">
           <Section padding={0} variant="transparent" className="mw__editorial">
             {mode === "OPERATOR" ? (
               <MissionOperator
