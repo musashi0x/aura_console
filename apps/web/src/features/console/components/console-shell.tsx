@@ -8,6 +8,7 @@ import { Theme } from "@astryxdesign/core/theme";
 import { useMediaQuery } from "@astryxdesign/core/hooks";
 
 import { stoneTheme } from "@/themes/stone/stone.js";
+import { InteractionSounds, SoundToggle } from "@/components/primitives";
 
 import { console_ } from "../copy";
 import type { ChatGrounding } from "./console-chat";
@@ -22,6 +23,7 @@ import {
 import { ConsoleNavigation } from "./console-navigation";
 import type { ReadinessState } from "./console-status";
 import { ConsoleTopbar } from "./console-topbar";
+import { Web3WalletProvider } from "@/features/web3";
 
 export interface ConsoleShellProps {
   /** The destination the operator is on, for navigation and the context bar. */
@@ -128,66 +130,77 @@ export function ConsoleShell({
   const chatAsSheet = chatOpen && narrow && !hostsConversation && chatTouched;
 
   return (
-    /* The console is a dark operator surface, always — it is not the docs, and
-       it has no light variant to follow a toggle into. Declaring the mode here
-       rather than globally lets the docs keep their own light/dark switch
-       without the two disagreeing about one shared value. */
-    <Theme theme={stoneTheme} mode="dark">
-      <AppShell
-        height="fill"
-        contentPadding={0}
-        topNav={<ConsoleTopbar surface={surface} readiness={readiness} runRef={runRef} />}
-        sideNav={<ConsoleNavigation surface={surface} />}
-      >
-        <Layout
-          content={
-            /* The workspace scrolls, and a surface whose content is all
-               read-only text has nothing inside it a keyboard can reach — so
-               the region itself has to be reachable, or that page cannot be
-               scrolled without a mouse. axe reports it as
-               scrollable-region-focusable. */
-            <LayoutContent padding={6} tabIndex={0}>
-              {/* The query container for the surfaces inside. They size
-                  against the workspace, not the window: with the chat panel
-                  open a wide window still leaves a narrow content region, and
-                  a viewport breakpoint laid five spine columns into space that
-                  fits one. */}
-              <div className="cs__workspace">{children}</div>
-            </LayoutContent>
+    <Web3WalletProvider>
+      {/* The console is a dark operator surface, always — it is not the docs, and
+         it has no light variant to follow a toggle into. Declaring the mode here
+         rather than globally lets the docs keep their own light/dark switch
+         without the two disagreeing about one shared value. */}
+      <Theme theme={stoneTheme} mode="dark">
+        <InteractionSounds />
+        <AppShell
+          height="fill"
+          contentPadding={0}
+          topNav={
+            <ConsoleTopbar
+              surface={surface}
+              readiness={readiness}
+              runRef={runRef}
+              actions={<SoundToggle variant="icon" />}
+            />
           }
-          end={
-            chatDocked ? (
-              <LayoutPanel
-                width={CHAT_PANEL_WIDTH}
-                hasDivider
-                padding={4}
-                role="complementary"
-                label={console_.chat.dock.label}
-              >
-                <ConsoleChatRegion runId={runRef} grounding={grounding} />
-              </LayoutPanel>
-            ) : undefined
-          }
-        />
-      </AppShell>
-      {/* On a phone the chat is a sheet over the page, so the surface it is
-          discussing stays in the document behind it. `tall` because the
-          composer brings up the mobile keyboard.
-          Mounted only where the frame actually needs it: a sheet renders its
-          children even while closed, so on the chat surface it put a second
-          live transcript of the same thread behind the first. */}
-      {narrow && !hostsConversation && chatTouched ? (
-        <BottomSheet
-          isOpen={chatAsSheet}
-          onOpenChange={(open) => setChatOpen(open)}
-          purpose="form"
-          height="tall"
-          label={console_.chat.dock.label}
+          sideNav={<ConsoleNavigation surface={surface} />}
         >
-          <ConsoleChatRegion runId={runRef} grounding={grounding} />
-        </BottomSheet>
-      ) : null}
-      {chatOpen || hostsConversation ? null : <ConsoleChatLauncher />}
-    </Theme>
+          <Layout
+            content={
+              /* The workspace scrolls, and a surface whose content is all
+                 read-only text has nothing inside it a keyboard can reach — so
+                 the region itself has to be reachable, or that page cannot be
+                 scrolled without a mouse. axe reports it as
+                 scrollable-region-focusable. */
+              <LayoutContent padding={6} tabIndex={0}>
+                {/* The query container for the surfaces inside. They size
+                    against the workspace, not the window: with the chat panel
+                    open a wide window still leaves a narrow content region, and
+                    a viewport breakpoint laid five spine columns into space that
+                    fits one. */}
+                <div className="cs__workspace">{children}</div>
+              </LayoutContent>
+            }
+            end={
+              chatDocked ? (
+                <LayoutPanel
+                  width={CHAT_PANEL_WIDTH}
+                  hasDivider
+                  padding={4}
+                  role="complementary"
+                  label={console_.chat.dock.label}
+                  className="cs__chat-dock"
+                >
+                  <ConsoleChatRegion runId={runRef} grounding={grounding} />
+                </LayoutPanel>
+              ) : undefined
+            }
+          />
+        </AppShell>
+        {/* On a phone the chat is a sheet over the page, so the surface it is
+            discussing stays in the document behind it. `tall` because the
+            composer brings up the mobile keyboard.
+            Mounted only where the frame actually needs it: a sheet renders its
+            children even while closed, so on the chat surface it put a second
+            live transcript of the same thread behind the first. */}
+        {narrow && !hostsConversation && chatTouched ? (
+          <BottomSheet
+            isOpen={chatAsSheet}
+            onOpenChange={(open) => setChatOpen(open)}
+            purpose="form"
+            height="tall"
+            label={console_.chat.dock.label}
+          >
+            <ConsoleChatRegion runId={runRef} grounding={grounding} />
+          </BottomSheet>
+        ) : null}
+        {chatOpen || hostsConversation ? null : <ConsoleChatLauncher />}
+      </Theme>
+    </Web3WalletProvider>
   );
 }

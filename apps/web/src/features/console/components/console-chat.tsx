@@ -17,8 +17,12 @@ import {
   ChatMessage as ChatMessageRow,
   ChatMessageBubble,
   ChatMessageList,
+  ChatToolCalls,
   type ChatComposerTrigger,
 } from "@astryxdesign/core/Chat";
+import { Citation } from "@astryxdesign/core/Citation";
+import { CodeBlock } from "@astryxdesign/core/CodeBlock";
+import { HoverCard } from "@astryxdesign/core/HoverCard";
 import {
   createStaticSource,
   TypeaheadItem,
@@ -34,6 +38,7 @@ import { env } from "@/lib/env";
 import {
   CHAT_MESSAGES_SERVER_SNAPSHOT,
   getChatMessages,
+  setActiveChatContext,
   setChatMessages,
   subscribeChatSession,
 } from "../chat/chat-session";
@@ -41,8 +46,13 @@ import { openChatStream, type ChatStreamHandle } from "../chat/chat-transport";
 import type {
   ChatConnection,
   ChatMessage,
+  ChatToolCallItem,
+  ChatToolCallStatus,
   MemoryCitation,
 } from "../chat/chat-types";
+import { ChatApprovalCard } from "./chat-approval-card";
+import { CounterpartyMemoryHoverCard } from "./counterparty-memory-hover-card";
+import { TextLoader } from "generative-loaders";
 import { useSmoothedText } from "../chat/use-smoothed-text";
 import { CONSOLE_COMMANDS, matchCommand } from "../console-commands";
 import { console_ } from "../copy";
@@ -90,7 +100,7 @@ export const SLASH_COMMANDS_BLOCKED_ON_ARIA: ChatComposerTrigger = {
   onSelect: (item) => ({
     value: item.label,
     label: item.label,
-    variant: "neutral",
+    variant: "gray",
   }),
 };
 
@@ -113,24 +123,57 @@ export interface ConsoleChatProps {
   /** Omitted means unchecked, and is reported as unchecked, never as ready. */
   grounding?: ChatGrounding;
   /**
-   * Where this chat is being rendered, which is the only thing that decides how
-   * roomy it is.
-   *
-   * `dock` is the panel on the right of a non-Mission surface: narrow, beside
-   * the thing it talks about, so it stays compact. `centre` is inside a
-   * Mission, where the conversation IS the surface rather than a column next to
-   * it, and a cramped composer there understates the primary way to direct a
-   * Mission. Same component, same behaviour; only the density and the room it
-   * is given differ.
-   */
-  placement?: "dock" | "centre";
-  /**
    * Memory On/Off, owned by the command palette (#68). The chat inherits it and
    * renders no toggle of its own: two controls for one setting would let the
    * surface disagree with the palette. Omitted means "read the palette's own
    * state"; it is an override for tests, not a second source of truth.
    */
   memoryEnabled?: boolean;
+  placement?: string;
+}
+
+/**
+ * Ensures that tool call items with output data have a properly configured
+ * `<CodeBlock container="section" />` in their `resultDetail`.
+ */
+function normalizeToolCallItem(call: ChatToolCallItem): ChatToolCallItem {
+  if (call.resultDetail != null && typeof call.resultDetail !== "string") {
+    return call;
+  }
+
+  const raw = typeof call.resultDetail === "string" ? call.resultDetail : call.data;
+  if (raw == null) {
+    return call;
+  }
+
+  let code: string;
+  let language: string = "bash";
+
+  if (typeof raw === "string") {
+    code = raw;
+    if (code.startsWith("---") || code.startsWith("diff ") || code.includes("\n+++ ")) {
+      language = "diff";
+    } else if (code.trim().startsWith("{") || code.trim().startsWith("[")) {
+      language = "json";
+    } else {
+      language = "bash";
+    }
+  } else {
+    code = JSON.stringify(raw, null, 2);
+    language = "json";
+  }
+
+  return {
+    ...call,
+    resultDetail: (
+      <CodeBlock
+        container="section"
+        code={code}
+        language={language}
+        isWrapped
+      />
+    ),
+  };
 }
 
 /**
@@ -146,13 +189,7 @@ export interface ConsoleChatProps {
  * ever list evidence that was really used. It is deliberately not a catalogue
  * of available memory: showing one would imply a retrieval that has not run.
  */
-export function ConsoleChat({
-  runId,
-  grounding,
-  memoryEnabled,
-  /* Defaults to the dock, so every existing call site keeps the size it had. */
-  placement = "dock",
-}: ConsoleChatProps) {
+export function ConsoleChat({ runId, grounding, memoryEnabled }: ConsoleChatProps) {
   const router = useRouter();
   // The owning page is a server component and cannot read a client store, so
   // the chat subscribes directly rather than having the flag drilled through
@@ -163,14 +200,28 @@ export function ConsoleChat({
     () => MEMORY_VIEW_SERVER_SNAPSHOT,
   );
   const memoryOn = memoryEnabled ?? memoryFromPalette;
-  // The thread lives outside React so a chat-driven navigation does not
-  // destroy the transcript that announced it.
+  const activeRunContext = runId?.trim() || "global";
+
+  useEffect(() => {
+    setActiveChatContext(activeRunContext);
+  }, [activeRunContext]);
+
+  // The thread lives outside React, partitioned by runId/context, so a chat-driven
+  // navigation or switching runs does not bleed transcript history.
   const messages = useSyncExternalStore(
-    subscribeChatSession,
-    getChatMessages,
+    useCallback(
+      (listener: () => void) => subscribeChatSession(listener, activeRunContext),
+      [activeRunContext],
+    ),
+    useCallback(() => getChatMessages(activeRunContext), [activeRunContext]),
     () => CHAT_MESSAGES_SERVER_SNAPSHOT,
   );
-  const setMessages = setChatMessages;
+  const setMessages = useCallback(
+    (next: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => {
+      setChatMessages(next, activeRunContext);
+    },
+    [activeRunContext],
+  );
   const [connection, setConnection] = useState<ChatConnection>({
     kind: "idle",
   });
@@ -213,6 +264,8 @@ export function ConsoleChat({
   }, [end]);
 
   function ask(question: string) {
+    const canAskWithoutRun = Boolean(grounding?.agentReachable && grounding?.memoryReachable);
+    if (!runId && !canAskWithoutRun) return;
     counterRef.current += 1;
     const turn = counterRef.current;
     const agentId = `agent-${turn}`;
@@ -236,44 +289,87 @@ export function ConsoleChat({
         prev.map((m) => (m.id === agentId ? change(m) : m)),
       );
 
-    handleRef.current?.close();
-    const chatUrl = runId
+    const streamUrl = runId
       ? `${env.NEXT_PUBLIC_API_URL}/api/runs/${encodeURIComponent(runId)}/chat?q=${encodeURIComponent(question)}`
       : `${env.NEXT_PUBLIC_API_URL}/api/chat?q=${encodeURIComponent(question)}`;
 
-    let hadToolCalls = false;
-
+    handleRef.current?.close();
     handleRef.current = openChatStream({
       // GET only. EventSource cannot issue anything else, which is why the
       // read-only requirement holds without a separate guard.
-      url: chatUrl,
+      url: streamUrl,
       onToken: (text) => {
         push(text);
         update((m) => ({ ...m, text: m.text + text }));
       },
       onCitation: (citation) =>
         update((m) => ({ ...m, citations: [...m.citations, citation] })),
-      onThought: (thought) => {
-        update((m) => ({
-          ...m,
-          thought: (m.thought ? m.thought + "\n" : "") + thought,
-        }));
+      onToolStart: (toolStart) => {
+        update((m) => {
+          const currentCalls = m.toolCalls ? [...m.toolCalls] : [];
+          const exists = currentCalls.some((c) =>
+            toolStart.callId
+              ? c.id === toolStart.callId || c.callId === toolStart.callId
+              : c.name === toolStart.name && c.status === "running",
+          );
+          if (!exists) {
+            const newItem: ChatToolCallItem = {
+              id: toolStart.callId,
+              callId: toolStart.callId,
+              name: toolStart.name,
+              status: "running",
+              args: toolStart.args,
+              target:
+                toolStart.name === "mission_propose_approval"
+                  ? `${toolStart.args.amountUsdc ?? ""} USDC with ${toolStart.args.counterpartyKey ?? ""}`
+                  : toolStart.args && Object.keys(toolStart.args).length > 0
+                    ? JSON.stringify(toolStart.args)
+                    : undefined,
+            };
+            return {
+              ...m,
+              toolCalls: [...currentCalls, newItem],
+            };
+          }
+          return m;
+        });
       },
-      onUsage: (usage) => {
-        update((m) => ({ ...m, usage }));
-      },
-      onToolCall: (toolCall) => {
-        hadToolCalls = true;
-        update((m) => ({
-          ...m,
-          toolCalls: [...(m.toolCalls ?? []), toolCall],
-        }));
-        if (toolCall.name === "console_navigate" && typeof toolCall.args?.destination === "string") {
-          router.push(toolCall.args.destination);
-        }
-        if (toolCall.name === "mission_propose_approval") {
-          router.refresh();
-        }
+      onToolCall: (call) => {
+        update((m) => {
+          const currentCalls = m.toolCalls ? [...m.toolCalls] : [];
+          const matchIdx = currentCalls.findIndex((c) =>
+            call.id || call.callId
+              ? (call.id && (c.id === call.id || c.callId === call.id)) ||
+                (call.callId && (c.id === call.callId || c.callId === call.callId))
+              : c.name === call.name && c.status === "running",
+          );
+          const hasError =
+            call.result && typeof call.result === "object" && "error" in call.result;
+          const status: ChatToolCallStatus = hasError ? "error" : "complete";
+          const updatedItem: ChatToolCallItem = {
+            id: call.id ?? call.callId,
+            callId: call.callId ?? call.id,
+            name: call.name,
+            status,
+            args: call.args,
+            result: call.result,
+            data: call.result,
+            target:
+              call.name === "mission_propose_approval"
+                ? `${call.args?.amountUsdc ?? ""} USDC with ${call.args?.counterpartyKey ?? ""}`
+                : call.args && Object.keys(call.args).length > 0
+                  ? JSON.stringify(call.args)
+                  : undefined,
+          };
+          if (matchIdx >= 0) {
+            currentCalls[matchIdx] = updatedItem;
+            return { ...m, toolCalls: currentCalls };
+          }
+          return {
+            ...m,
+            toolCalls: [...currentCalls, updatedItem],
+          };
+        });
       },
       onState: setConnection,
       onDone: () => {
@@ -281,9 +377,6 @@ export function ConsoleChat({
         update((m) => ({ ...m, complete: true }));
         setConnection({ kind: "idle" });
         setLiveId(null);
-        if (hadToolCalls) {
-          router.refresh();
-        }
       },
     });
   }
@@ -331,10 +424,11 @@ export function ConsoleChat({
       return;
     }
 
-    // Not a command, so it is a question. Questions need an agent to answer
-    // them; without one the console says so rather than producing something
-    // that reads like an answer.
-    if (!runId && grounding?.agentReachable !== true) {
+    // Not a command, so it is a question. Questions need a Run to be about and
+    // an agent to answer them; without either the console says so rather than
+    // producing something that reads like an answer.
+    const canAskWithoutRun = Boolean(grounding?.agentReachable && grounding?.memoryReachable);
+    if (!runId && !canAskWithoutRun) {
       reportConsole(said, console_.chat.did.cannotAnswer);
       return;
     }
@@ -353,7 +447,7 @@ export function ConsoleChat({
       onStop={stop}
       isStopShown={busy}
       placeholder={console_.chat.placeholder}
-      density={placement === "centre" ? "spacious" : "compact"}
+      density="compact"
       input={
         /* Deliberately no `value`/`onChange` here: the input reads both from
            the composer's context, and passing them would switch it into its own
@@ -436,7 +530,7 @@ export function ConsoleChat({
                   key={source.counterpartyKey}
                   label={`${index + 1}. ${source.label}`}
                   size="sm"
-                  color="default"
+                  color="gray"
                 />
               ))}
             </HStack>
@@ -458,6 +552,38 @@ export function ConsoleChat({
                   : console_.chat.connecting
                 : null;
 
+            const hasToolCalls =
+              message.role === "agent" &&
+              Boolean(message.toolCalls && message.toolCalls.length > 0);
+
+            const normalizedToolCalls = hasToolCalls
+              ? message.toolCalls!.map(normalizeToolCallItem)
+              : undefined;
+
+            const proposalCall = message.toolCalls?.find(
+              (c) => c.name === "mission_propose_approval",
+            );
+            const isProposalReady =
+              proposalCall &&
+              proposalCall.status !== "running" &&
+              proposalCall.status !== "error";
+            const proposalCounterparty =
+              (proposalCall?.args?.counterpartyKey as string) ??
+              ((proposalCall?.result as Record<string, unknown> | undefined)?.counterpartyKey as string) ??
+              "counterparty";
+            const proposalAmount =
+              (proposalCall?.args?.amountUsdc as string | number) ??
+              ((proposalCall?.result as Record<string, unknown> | undefined)?.amountUsdc as string | number) ??
+              "10.000000";
+            const proposalRationale =
+              (proposalCall?.args?.reason as string) ??
+              ((proposalCall?.result as Record<string, unknown> | undefined)?.counterfactualRationale as string) ??
+              "Mission spend authorization requested under guardrail limits.";
+            const proposalRunId =
+              runId ??
+              (proposalCall?.args?.runId as string) ??
+              ((proposalCall?.result as Record<string, unknown> | undefined)?.runId as string);
+
             return (
               <ChatMessageRow key={message.id} sender={senderFor(message.role)}>
                 <ChatMessageBubble
@@ -469,35 +595,102 @@ export function ConsoleChat({
                         : console_.chat.agent
                   }
                   metadata={
-                    message.citations.length > 0 || (message.toolCalls && message.toolCalls.length > 0) ? (
+                    message.citations.length > 0 ? (
                       <HStack gap={1} wrap="wrap">
-                        {message.toolCalls?.map((tool, idx) => (
-                          <Token
-                            key={`tool-${idx}-${tool.name}`}
-                            label={`MCP: ${tool.name}`}
-                            size="sm"
-                            color="default"
-                          />
-                        ))}
                         {message.citations.map((citation) => {
                           const index = sources.findIndex(
                             (s) =>
                               s.counterpartyKey === citation.counterpartyKey,
                           );
+                          const citationNumber = index >= 0 ? index + 1 : 1;
+                          const profileUrl = `/counterparties?key=${encodeURIComponent(citation.counterpartyKey)}`;
                           return (
-                            <Token
+                            <HoverCard
                               key={citation.counterpartyKey}
-                              label={String(index + 1)}
-                              size="sm"
-                              color="default"
-                            />
+                              placement="above"
+                              label="Memory Citation Preview"
+                              content={
+                                <CounterpartyMemoryHoverCard
+                                  counterpartyKey={citation.counterpartyKey}
+                                  displayName={citation.label}
+                                  summary={citation.summary}
+                                />
+                              }
+                            >
+                              <Citation
+                                variant="number"
+                                number={citationNumber}
+                                source={{
+                                  title: citation.label,
+                                  url: profileUrl,
+                                }}
+                              />
+                            </HoverCard>
                           );
                         })}
                       </HStack>
                     ) : undefined
                   }
                 >
-                  {pending ?? body}
+                  {hasToolCalls && normalizedToolCalls ? (
+                    <VStack gap={2} align="stretch">
+                      <ChatToolCalls calls={normalizedToolCalls} />
+                      {isProposalReady ? (
+                        <ChatApprovalCard
+                          counterpartyKey={proposalCounterparty}
+                          amountUsdc={proposalAmount}
+                          rationale={proposalRationale}
+                          runId={proposalRunId}
+                        />
+                      ) : null}
+                      {body ? (
+                        message.role === "agent" ? (
+                          <TextLoader
+                            text={body}
+                            variant="redact"
+                            color="var(--color-text)"
+                            paused={!live}
+                          />
+                        ) : (
+                          <div>{body}</div>
+                        )
+                      ) : pending ? (
+                        <div>{pending}</div>
+                      ) : null}
+                    </VStack>
+                  ) : isProposalReady ? (
+                    <VStack gap={2} align="stretch">
+                      <ChatApprovalCard
+                        counterpartyKey={proposalCounterparty}
+                        amountUsdc={proposalAmount}
+                        rationale={proposalRationale}
+                        runId={proposalRunId}
+                      />
+                      {body ? (
+                        message.role === "agent" ? (
+                          <TextLoader
+                            text={body}
+                            variant="redact"
+                            color="var(--color-text)"
+                            paused={!live}
+                          />
+                        ) : (
+                          <div>{body}</div>
+                        )
+                      ) : pending ? (
+                        <div>{pending}</div>
+                      ) : null}
+                    </VStack>
+                  ) : message.role === "agent" && body ? (
+                    <TextLoader
+                      text={body}
+                      variant="redact"
+                      color="var(--color-text)"
+                      paused={!live}
+                    />
+                  ) : (
+                    pending ?? body
+                  )}
                 </ChatMessageBubble>
               </ChatMessageRow>
             );

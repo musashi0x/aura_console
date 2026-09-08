@@ -5,6 +5,7 @@ import { Button } from "@astryxdesign/core/Button";
 import { HStack, VStack } from "@astryxdesign/core/Stack";
 import { Text } from "@astryxdesign/core/Text";
 import { Token } from "@astryxdesign/core/Token";
+import { AlertCircle } from "lucide-react";
 
 import { console_ } from "@/features/console/copy";
 import type { TimelineEntry } from "@/features/console/model/types";
@@ -100,11 +101,19 @@ export function ApprovalRequestCard({
 
   return (
     <VStack gap={2}>
-      <HStack gap={2} wrap="wrap">
-        <Text as="h3" size="sm" weight="semibold">
-          {copy.title}
+      <HStack justify="between" align="center" wrap="wrap" className="mw__card-header mw__row-header">
+        <HStack gap={2} align="center" className="mw__card-title-wrap mw__row-title-wrap">
+          <span className="mw__card-icon mw__row-icon" aria-hidden="true">
+            <AlertCircle size={15} />
+          </span>
+          <Text as="h3" size="sm" weight="semibold">
+            {copy.title}
+          </Text>
+          <Token label={entry.type} size="sm" color="orange" />
+        </HStack>
+        <Text as="p" size="xsm" color="secondary">
+          <time dateTime={entry.eventTime}>{entry.eventTime}</time>
         </Text>
-        <Token label={entry.type} size="sm" color="orange" />
       </HStack>
 
       <Text as="p" size="sm">
@@ -163,10 +172,6 @@ export function ApprovalRequestCard({
           ) : null}
         </VStack>
       ) : null}
-
-      <Text as="p" size="xsm" color="secondary">
-        <time dateTime={entry.eventTime}>{entry.eventTime}</time>
-      </Text>
     </VStack>
   );
 }

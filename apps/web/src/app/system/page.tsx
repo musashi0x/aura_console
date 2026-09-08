@@ -1,10 +1,21 @@
 import type { Metadata } from "next";
 import { Fragment } from "react";
 
+import { Server, Database, Brain, Activity, Link2, ShieldCheck, Bot } from "lucide-react";
 import { MonoRef, Panel, StatusBadge, type StatusTone } from "@/components/primitives";
 import { ConsoleShell } from "@/features/console/components/console-shell";
 import { readGrounding } from "@/features/console/grounding";
 import { apiClient, type SibylHealth } from "@/lib/api-client";
+
+const DOMAIN_ICONS: Record<string, React.ReactNode> = {
+  "Aura API": <Server size={14} className="text-[var(--color-accent)] inline mr-1.5" />,
+  "Event store": <Database size={14} className="text-[var(--color-accent)] inline mr-1.5" />,
+  "Sibyl Memory": <Brain size={14} className="text-[var(--color-accent)] inline mr-1.5" />,
+  "Virtuals ACP": <Activity size={14} className="text-[var(--color-accent)] inline mr-1.5" />,
+  "Base L2": <Link2 size={14} className="text-[var(--color-accent)] inline mr-1.5" />,
+  "Policy": <ShieldCheck size={14} className="text-[var(--color-accent)] inline mr-1.5" />,
+  "Agent runtime": <Bot size={14} className="text-[var(--color-accent)] inline mr-1.5" />,
+};
 
 export const dynamic = "force-dynamic";
 
@@ -88,11 +99,17 @@ function sibylReadings(status: SibylHealth): Reading[] {
  * browser-readable endpoint say so rather than being omitted or assumed.
  */
 export default async function SystemPage() {
-  const [liveness, database, sibyl, grounding] = await Promise.all([
+  const [liveness, database, sibyl, grounding, base, acp] = await Promise.all([
     apiClient.health(),
     apiClient.dbHealth(),
     apiClient.sibylHealth(),
     readGrounding(),
+    typeof apiClient.baseHealth === "function"
+      ? apiClient.baseHealth()
+      : Promise.resolve({ ok: false as const }),
+    typeof apiClient.acpHealth === "function"
+      ? apiClient.acpHealth()
+      : Promise.resolve({ ok: false as const }),
   ]);
 
   /* Sibyl reports itself. Three outcomes, and they are not interchangeable:
@@ -139,6 +156,61 @@ export default async function SystemPage() {
     };
   })();
 
+  const baseRow: Pick<ReadinessRow, "tone" | "state" | "detail" | "readings"> = (() => {
+    if (!base.ok) {
+      return {
+        tone: "error" as const,
+        state: "UNAVAILABLE",
+        detail: "The Aura API could not be asked about Base RPC.",
+      };
+    }
+    const status = base.data;
+    if (status.reachable) {
+      return {
+        tone: "ready" as const,
+        state: "READY",
+        detail: status.detail ?? "Base RPC is healthy and responding.",
+        readings: [
+          { label: "NETWORK", value: status.network },
+          ...(status.blockNumber !== undefined ? [{ label: "BLOCK", value: `#${status.blockNumber}` }] : []),
+          ...(status.latencyMs !== undefined ? [{ label: "LATENCY", value: `${status.latencyMs} ms` }] : []),
+        ],
+      };
+    }
+    return {
+      tone: "neutral" as const,
+      state: status.configured ? "UNAVAILABLE" : "NOT CONFIGURED",
+      detail: status.detail ?? "Base RPC is not reachable from this deployment.",
+    };
+  })();
+
+  const acpRow: Pick<ReadinessRow, "tone" | "state" | "detail" | "readings"> = (() => {
+    if (!acp.ok) {
+      return {
+        tone: "error" as const,
+        state: "UNAVAILABLE",
+        detail: "The Aura API could not be asked about Virtuals ACP.",
+      };
+    }
+    const status = acp.data;
+    if (status.reachable) {
+      return {
+        tone: "ready" as const,
+        state: status.mode === "live" ? "CONNECTED" : "ACTIVE",
+        detail: status.detail,
+        readings: [
+          { label: "PROTOCOL", value: status.protocol },
+          { label: "MODE", value: status.mode },
+        ],
+      };
+    }
+    return {
+      tone: "neutral" as const,
+      state: status.configured ? "UNAVAILABLE" : "NOT CONFIGURED",
+      detail: status.detail,
+    };
+  })();
+
   const rows: ReadinessRow[] = [
     {
       id: "api",
@@ -168,6 +240,24 @@ export default async function SystemPage() {
       state: sibylRow.state,
       detail: sibylRow.detail,
       readings: sibylRow.readings,
+    },
+    {
+      id: "acp",
+      label: "Virtuals ACP",
+      domain: "Virtuals ACP",
+      tone: acpRow.tone,
+      state: acpRow.state,
+      detail: acpRow.detail,
+      readings: acpRow.readings,
+    },
+    {
+      id: "base",
+      label: "Base RPC",
+      domain: "Base L2",
+      tone: baseRow.tone,
+      state: baseRow.state,
+      detail: baseRow.detail,
+      readings: baseRow.readings,
     },
     {
       id: "policy",
@@ -204,7 +294,12 @@ export default async function SystemPage() {
         {rows.map((row) => (
           <li key={row.id}>
             <Panel
-              title={row.label}
+              title={
+                <span>
+                  {DOMAIN_ICONS[row.domain]}
+                  <span>{row.label}</span>
+                </span>
+              }
               meta={<MonoRef label="DOMAIN">{row.domain}</MonoRef>}
             >
               <p className="sys__state">

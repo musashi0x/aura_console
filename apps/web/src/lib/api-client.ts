@@ -44,6 +44,28 @@ export interface AgentHealth {
   detail?: string;
 }
 
+/** Base L2 blockchain readiness. */
+export interface BaseHealth {
+  configured: boolean;
+  reachable: boolean;
+  network: string;
+  blockNumber?: number;
+  latencyMs?: number;
+  code?: string;
+  detail?: string;
+}
+
+/** Virtuals ACP (Agent Commerce Protocol) integration readiness. */
+export interface VirtualsAcpHealth {
+  configured: boolean;
+  reachable: boolean;
+  protocol: string;
+  mode: "live" | "simulated";
+  endpoint?: string;
+  code?: string;
+  detail: string;
+}
+
 /**
  * A counterparty as Sibyl holds it. `hasProfile` false means Sibyl knows the
  * name but holds no relationship profile — listed rather than hidden, and
@@ -131,6 +153,7 @@ export interface RunSummary {
   budgetUsdc: string | null;
   createdAt: string;
   updatedAt: string;
+  status?: string;
 }
 
 /** Mirrors one row of `GET /api/runs/{id}/events`. */
@@ -253,6 +276,8 @@ export const apiClient = {
      not, and the Console needs the reason to render the right state. */
   sibylHealth: () => request<SibylHealth>("/health/sibyl"),
   agentHealth: () => request<AgentHealth>("/health/agent"),
+  baseHealth: () => request<BaseHealth>("/health/base"),
+  acpHealth: () => request<VirtualsAcpHealth>("/health/acp"),
   /* 503 when Sibyl cannot be read, never an empty list: "we could not look" and
      "we looked and there is nobody" are different answers. */
   /* The console's only authorization path, and its second write of any kind.

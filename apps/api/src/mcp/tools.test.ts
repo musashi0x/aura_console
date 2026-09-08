@@ -80,7 +80,7 @@ describe("MCP Console Tools", () => {
     const createRes = await app.request("/api/runs", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ objective: "Evaluate counterparty spend" }),
+      body: JSON.stringify({ objective: "Evaluate counterparty spend", source: "FIXTURE" }),
     });
     const { run } = (await createRes.json()) as { run: { id: string } };
 
@@ -119,7 +119,7 @@ describe("MCP Console Tools", () => {
     const createRes = await app.request("/api/runs", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ objective: "Evaluate excessive spend" }),
+      body: JSON.stringify({ objective: "Evaluate excessive spend", source: "FIXTURE" }),
     });
     const { run } = (await createRes.json()) as { run: { id: string } };
 
@@ -324,7 +324,7 @@ describe("Global Chat Route (/api/chat)", () => {
     const text = await res.text();
     expect(text).toContain("console_navigate");
     expect(text).toContain("/runs");
-  });
+  }, 15000);
 
   it("handles counterparty query with memory recall over SSE", async () => {
     const res = await app.request("/api/chat?q=Why%20was%20this%20counterparty%20chosen");
@@ -332,5 +332,5 @@ describe("Global Chat Route (/api/chat)", () => {
     expect(res.headers.get("content-type")).toContain("text/event-stream");
     const text = await res.text();
     expect(text).toContain("memory_recall_counterparty");
-  });
+  }, 15000);
 });

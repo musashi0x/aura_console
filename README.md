@@ -192,10 +192,22 @@ Aura implements a Model Context Protocol (MCP) server (`apps/api/src/mcp/server.
 
 ```bash
 pnpm install
-docker compose up -d          # Postgres on host port 5433
+docker compose up -d          # Postgres on host port 5436
 cp .env.example .env
 pnpm db:migrate               # apply committed migrations
 pnpm dev                      # web on :3000, API on :3001
+pnpm agent                    # ADK agent on :8000, in a second terminal
+```
+
+`pnpm agent` is not optional if you want to use the Console. The API keeps the
+chat honest by refusing to answer without a reachable agent, so with nothing on
+:8000 every question returns `503 agent_unavailable` and every surface renders
+the grounding warning. That is the app working as designed, but it looks
+identical to an app that does nothing. Check what is actually up before
+debugging anything else:
+
+```bash
+curl -s localhost:3001/health/db localhost:3001/health/sibyl localhost:3001/health/agent
 ```
 
 Sibyl Memory is optional and off by default. With `SIBYL_PYTHON` unset the API
@@ -210,6 +222,10 @@ python3.11 -m venv .venv-sibyl
 SIBYL_TENANT_ID=agent_buyer_1 .venv-sibyl/bin/python tools/sibyl_seed.py
 # then uncomment SIBYL_PYTHON in .env
 ```
+
+Keep that interpreter inside the repository. Pointed at a scratchpad or temp
+directory it works until the directory is cleaned, and then memory goes dark
+with no signal other than the Console reporting NOT CONNECTED.
 
 [Counterparty memory](docs/ai/api/memory.md) covers what changes once it is set.
 

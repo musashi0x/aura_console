@@ -1,6 +1,10 @@
 "use client";
 
+import { useState } from "react";
+import { Button } from "@astryxdesign/core/Button";
+import { TextInput } from "@astryxdesign/core/TextInput";
 import { MonoRef } from "@/components/primitives";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 import { console_ } from "../copy";
 import type { ContextEnvelope, TimelineEntry } from "../model/types";
@@ -20,14 +24,6 @@ export interface MissionTraceProps {
 
 /**
  * The system layer: raw lifecycle events, and the full canonical spine.
- *
- * The stages are not deleted, they are moved. They are system ontology, and
- * system ontology belongs behind a mode a developer opens deliberately rather
- * than on the surface an operator opens first.
- *
- * The connection strip reports the real transport. While there is no stream it
- * says what the read actually was; "live events connected" is the shape this
- * takes once a stream exists, not a label to render early.
  */
 export function MissionTrace({
   spine,
@@ -38,6 +34,17 @@ export function MissionTrace({
   transport,
   onScrubTo,
 }: MissionTraceProps) {
+  const [filterQuery, setFilterQuery] = useState("");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const filteredEntries = filterQuery.trim()
+    ? entries.filter(
+        (e) =>
+          e.summary.toLowerCase().includes(filterQuery.toLowerCase()) ||
+          e.type.toLowerCase().includes(filterQuery.toLowerCase()),
+      )
+    : entries;
+
   return (
     <section className="mw__trace" aria-labelledby="mission-trace-heading">
       <h2 id="mission-trace-heading" className="visually-hidden">
@@ -51,32 +58,64 @@ export function MissionTrace({
 
       <RunSpine spine={spine} envelope={envelope} memoryOn={memoryOn} />
 
+      <div className="mw__trace-filter">
+        <TextInput
+          size="sm"
+          label="Filter trace events"
+          isLabelHidden
+          placeholder="Filter trace events by type or summary..."
+          value={filterQuery}
+          onChange={(val) => setFilterQuery(val)}
+        />
+      </div>
+
       <ol className="run__events">
-        {entries.map((entry) => (
-          <li key={entry.eventId} className="run__event">
-            <button
-              type="button"
-              className="run__event-btn"
-              onClick={() => onScrubTo?.(entry)}
-              aria-label={console_.mission.operator.scrubTo(entry.summary)}
-            >
-              <span className="run__seq" aria-hidden="true">
-                {String(entry.sequence).padStart(2, "0")}
-              </span>
-              <span className="run__event-body">
-                <span className="run__event-title">{entry.summary}</span>
-                <span className="run__event-meta">
-                  {/* A stage is where the event sits in the decision story. A
-                      lifecycle event has no stage but is fully understood.
-                      UNRECOGNISED is reserved for a type the fold knows nothing
-                      about, which is the only case worth a warning. */}
-                  {entry.stage ?? (entry.support === "SUPPORTED" ? "LIFECYCLE" : "UNRECOGNISED")} ·{" "}
-                  {entry.type}
-                </span>
-              </span>
-            </button>
-          </li>
-        ))}
+        {filteredEntries.map((entry) => {
+          const isExpanded = expandedId === entry.eventId;
+          return (
+            <li key={entry.eventId} className="run__event">
+              <div className="mw__trace-item">
+                <div className="mw__trace-row">
+                  <button
+                    type="button"
+                    className="run__event-btn mw__trace-btn"
+                    onClick={() => onScrubTo?.(entry)}
+                    aria-label={console_.mission.operator.scrubTo(entry.summary)}
+                  >
+                    <span className="run__seq" aria-hidden="true">
+                      {String(entry.sequence).padStart(2, "0")}
+                    </span>
+                    <span className="run__event-body">
+                      <span className="run__event-title">{entry.summary}</span>
+                      <span className="run__event-meta">
+                        {entry.stage ??
+                          (entry.support === "SUPPORTED" ? "LIFECYCLE" : "UNRECOGNISED")}{" "}
+                        · {entry.type}
+                      </span>
+                    </span>
+                  </button>
+                  {entry.data ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="mw__card-action-btn mw__trace-action"
+                      onClick={() => setExpandedId(isExpanded ? null : entry.eventId)}
+                      icon={isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                      label="JSON"
+                    />
+                  ) : null}
+                </div>
+
+                {isExpanded && entry.data ? (
+                  <pre className="mw__card-payload mw__trace-payload">
+                    <code>{JSON.stringify(entry.data, null, 2)}</code>
+                  </pre>
+                ) : null}
+              </div>
+            </li>
+          );
+        })}
       </ol>
     </section>
   );

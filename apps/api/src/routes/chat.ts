@@ -36,6 +36,12 @@ async function handleGlobalChatStream(c: Context, rawQuestion: unknown) {
       await runGeminiAgentLoop({
         query: question.data,
         signal: controller.signal,
+        onToolStart: async (start) => {
+          await stream.writeSSE({
+            event: "tool_start",
+            data: JSON.stringify(start),
+          });
+        },
         onToolCall: async (call) => {
           await stream.writeSSE({
             event: "tool_call",
@@ -125,6 +131,12 @@ chat.get("/:runId/chat", async (c) => {
         query: question.data,
         runId: runId.data,
         signal: controller.signal,
+        onToolStart: async (start) => {
+          await stream.writeSSE({
+            event: "tool_start",
+            data: JSON.stringify(start),
+          });
+        },
         onToolCall: async (call) => {
           await stream.writeSSE({
             event: "tool_call",

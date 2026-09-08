@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { DrawablyBadge, DrawablyUnderline } from "drawably/react";
 
 import { landing } from "../copy";
 
@@ -15,14 +18,18 @@ export function SiteHeader({ ready }: { ready: boolean }) {
           {landing.header.brand}
         </Link>
         <div className="lp-header__right">
-          <span className={`lp-status lp-status--${ready ? "ready" : "degraded"}`}>
+          <DrawablyBadge
+            variant="outline"
+            stroke={ready ? "var(--landing-ok)" : "var(--landing-bad)"}
+            className={`lp-status lp-status--${ready ? "ready" : "degraded"}`}
+          >
             <span aria-hidden="true" className="lp-status__glyph">
               {ready ? "✓" : "✕"}
             </span>
             {ready ? "SYSTEM READY" : "SYSTEM DEGRADED"}
-          </span>
+          </DrawablyBadge>
           <Link href="/runs/example" className="lp-header__cta">
-            {landing.header.example}
+            <DrawablyUnderline>{landing.header.example}</DrawablyUnderline>
           </Link>
         </div>
       </div>
