@@ -1,15 +1,18 @@
 "use client";
 
 import { useReducer, useState, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@astryxdesign/core/Button";
 import { Section } from "@astryxdesign/core/Section";
 import { SegmentedControl, SegmentedControlItem } from "@astryxdesign/core/SegmentedControl";
 import { Theme } from "@astryxdesign/core/theme";
+import { Bot, Play } from "lucide-react";
 
-import { MonoRef, StatusBadge, type StatusTone } from "@/components/primitives";
+import { MonoRef, StatusBadge, type StatusTone, playInteractionSound } from "@/components/primitives";
+import { env } from "@/lib/env";
 import { stoneTheme } from "@/themes/stone/stoneTheme";
 
-import { console_ } from "../copy";
+import { console_, formatEnvironment } from "../copy";
 import {
   MEMORY_VIEW_SERVER_SNAPSHOT,
   getMemoryViewEnabled,
@@ -28,6 +31,7 @@ import { foldRun, type FoldSeed } from "../projection/fold-run";
 import { buildMissionProgress } from "../projection/mission-rail";
 import { buildSpine } from "../projection/spine";
 import type { ChatGrounding } from "./console-chat";
+import { McpExecutiveOverview } from "./mcp-executive-overview";
 import { MissionBoard } from "./mission-board";
 import { MissionInspector } from "./mission-inspector";
 import { MissionOperator } from "./mission-operator";
@@ -41,6 +45,14 @@ export interface MissionWorkspaceProps {
   fixtureLabel?: string;
   /** Checked readiness of the answering path, read on the server. */
   grounding?: ChatGrounding;
+  /** Initial mode for the workspace view (default: "OPERATOR") */
+  initialMode?: MissionMode;
+  /** Force show executive autonomous agent & Sibyl memory overview */
+  showExecutiveOverview?: boolean;
+  /** Default expanded state for step cards in board view */
+  defaultExpanded?: boolean;
+  /** Initial view mode for the Board (kanban or pipeline) */
+  initialBoardView?: "kanban" | "pipeline";
 }
 
 type MissionMode = "OPERATOR" | "BOARD" | "TRACE";
@@ -73,8 +85,30 @@ export function MissionWorkspace({
   seed,
   fixtureLabel,
   grounding: _grounding,
+  initialMode = "OPERATOR",
+  showExecutiveOverview = false,
+  defaultExpanded = false,
+  initialBoardView,
 }: MissionWorkspaceProps) {
-  const [mode, setMode] = useState<MissionMode>("OPERATOR");
+  const router = useRouter();
+  const [evaluating, setEvaluating] = useState(false);
+  const [mode, setMode] = useState<MissionMode>(initialMode);
+
+  const handleStartEvaluation = async () => {
+    setEvaluating(true);
+    playInteractionSound("tick");
+    try {
+      await fetch(`${env.NEXT_PUBLIC_API_URL}/api/runs/${seed.runId}/evaluate`, {
+        method: "POST",
+      });
+      playInteractionSound("pulse");
+      router.refresh();
+    } catch (err) {
+      console.error("[mission-workspace] evaluation error", err);
+    } finally {
+      setEvaluating(false);
+    }
+  };
 
   // A finished recording must not open claiming LIVE. "Live" means following a
   // moving edge; a Mission that already ended has no edge to follow, and a
@@ -149,7 +183,7 @@ export function MissionWorkspace({
           <p className="run__meta">
             <MonoRef label="RUN">{view.runId}</MonoRef>
             <MonoRef label="SOURCE">{view.source}</MonoRef>
-            <MonoRef label="ENV">{view.environment}</MonoRef>
+            <MonoRef label="ENV">{formatEnvironment(view.environment)}</MonoRef>
           </p>
         </div>
         <div className="run__states">
@@ -162,16 +196,60 @@ export function MissionWorkspace({
         </div>
       </header>
 
-      {fixtureLabel ? <p className="run__fixture">{fixtureLabel}</p> : null}
+      {fixtureLabel && mode !== "BOARD" ? <p className="run__fixture">{fixtureLabel}</p> : null}
+
+      {/* Autonomous MCP Agent Executive Overview Hero */}
+      {showExecutiveOverview || fixtureLabel ? (
+        <McpExecutiveOverview
+          runId={view.runId}
+          budgetUsdc={view.budgetUsdc ?? undefined}
+          spentUsdc={view.spentUsdc ?? undefined}
+          onJumpToTool={() => {
+            setMode("BOARD");
+          }}
+        />
+      ) : null}
 
       <MissionInspector
         runId={view.runId}
-        environment={view.environment}
+        environment={formatEnvironment(view.environment)}
         budgetUsdc={view.budgetUsdc ?? undefined}
         spentUsdc={view.spentUsdc ?? undefined}
         memoryStatus={console_.mission.memory[view.retrievalStatus]}
         txHashes={txHashes}
       />
+
+      {view.entries.length <= 1 && !fixtureLabel ? (
+        <div className="p-4 rounded-2xl bg-[var(--color-surface-raised,#1b1b1f)] border border-[var(--color-accent)]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 my-3 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-lg bg-[var(--color-surface,#111015)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-accent)] flex-shrink-0 mt-0.5">
+              <Bot size={18} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-[var(--color-text,#f4f7fb)]">
+                  Autonomous Agent Pipeline
+                </span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950/80 text-emerald-400 border border-emerald-800/60">
+                  READY TO EVALUATE
+                </span>
+              </div>
+              <p className="text-xs text-[var(--color-text-muted,#8d9aaf)] mt-0.5">
+                Economic objective and budget ceiling are declared. Trigger autonomous evaluation to recall Sibyl memory, rank counterparties, and generate spend approval.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            disabled={evaluating}
+            onClick={handleStartEvaluation}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-medium bg-[var(--color-accent)] hover:opacity-90 text-[var(--color-accent-contrast,#ffffff)] transition-opacity disabled:opacity-50 self-start sm:self-auto flex-shrink-0 cursor-pointer"
+          >
+            <Play size={13} className={evaluating ? "animate-spin" : ""} />
+            <span>{evaluating ? "Evaluating Counterparties..." : "Start Agent Evaluation"}</span>
+          </button>
+        </div>
+      ) : null}
 
       <MissionRail progress={progress} onJump={jumpTo} />
 
@@ -189,15 +267,8 @@ export function MissionWorkspace({
         ))}
       </SegmentedControl>
 
-      {/* Two layers, split by what the surface is for rather than by which app
-          it belongs to. Operator and Board are the product layer and read on
-          the light editorial scale; Trace is the system layer and keeps the
-          dark one. Dark is now a signal that the operator is looking at raw
-          system information, not the ambient temperature of the whole product.
-
-          `Theme` is the switch because the tokens are already there: nothing
-          below invents a colour, it just resolves the same names against the
-          other mode. */}
+      {/* The console operates on a unified dark stone theme matching ai-chat.
+          Astryx tokens resolve in dark mode with high contrast (>= 4.5:1 WCAG AA). */}
       {mode === "TRACE" ? (
         <MissionTrace
           spine={spine}
@@ -209,7 +280,7 @@ export function MissionWorkspace({
           onScrubTo={scrubTo}
         />
       ) : (
-        <Theme theme={stoneTheme} mode="light">
+        <Theme theme={stoneTheme} mode="dark">
           <Section padding={0} variant="transparent" className="mw__editorial">
             {mode === "OPERATOR" ? (
               <MissionOperator
@@ -231,6 +302,9 @@ export function MissionWorkspace({
                 onResetLive={resetLive}
                 isHistorical={historical}
                 fixtureLabel={fixtureLabel}
+                defaultExpanded={defaultExpanded}
+                showImpactStrip={!showExecutiveOverview && !fixtureLabel}
+                initialViewMode={initialBoardView ?? (fixtureLabel ? "pipeline" : "kanban")}
               />
             )}
           </Section>

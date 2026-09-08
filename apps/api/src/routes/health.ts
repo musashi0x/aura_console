@@ -1,12 +1,18 @@
 import { getDb, sql } from "@aura/db";
 import { Hono } from "hono";
 
+import { env } from "../env.js";
 import { errorBody } from "../errors.js";
 import { isGeminiAgentConfigured } from "../services/gemini-agent.js";
 import { getAgentStatus } from "../services/adk-agent.js";
+import { getBaseRpcStatus } from "../services/base-rpc.js";
 import { getSibylStatus } from "../services/sibyl.js";
+import { getVirtualsAcpStatus } from "../services/virtuals-acp.js";
+import { PolicyStore } from "../services/policy-store.js";
 
 export const health = new Hono();
+
+const policyStore = new PolicyStore();
 
 import { execSync } from "node:child_process";
 
@@ -68,9 +74,73 @@ health.get("/sibyl", async (c) => c.json(await getSibylStatus()));
  */
 health.get("/agent", async (c) => {
   const adkStatus = await getAgentStatus();
-  if (adkStatus.reachable) return c.json(adkStatus);
-  if (isGeminiAgentConfigured()) {
-    return c.json({ configured: true, reachable: true, apps: ["gemini-agent"] });
+  if (adkStatus.reachable) {
+    return c.json({
+      ...adkStatus,
+      agentId: env.AGENT_ID,
+      runtime: "google-adk",
+      detail: adkStatus.detail ?? `ADK agent runtime verified for ${env.AGENT_ID}.`,
+    });
   }
-  return c.json(adkStatus);
+  if (isGeminiAgentConfigured()) {
+    return c.json({
+      configured: true,
+      reachable: true,
+      agentId: env.AGENT_ID,
+      runtime: "gemini-mcp",
+      apps: ["gemini-agent", "mcp-tools"],
+      detail: `Agent identity ${env.AGENT_ID} verified with Gemini MCP runtime.`,
+    });
+  }
+  return c.json({
+    ...adkStatus,
+    agentId: env.AGENT_ID,
+  });
+});
+
+/** Readiness of Base L2 JSON-RPC endpoint. */
+health.get("/base", async (c) => c.json(await getBaseRpcStatus()));
+
+/** Readiness of Virtuals ACP integration. */
+health.get("/acp", async (c) => c.json(await getVirtualsAcpStatus()));
+
+/** Readiness and active constraints of operator policy. */
+health.get("/policy", async (c) => {
+  try {
+    const policy = await policyStore.get(env.AGENT_ID);
+    if (policy) {
+      return c.json({
+        configured: true,
+        reachable: true,
+        verified: true,
+        agentId: env.AGENT_ID,
+        policyVersion: policy.policy_version,
+        autoSpendLimitUsdc: policy.auto_spend_limit_usdc,
+        absoluteSpendLimitUsdc: policy.absolute_spend_limit_usdc,
+        humanApprovalAboveUsdc: policy.human_approval_above_usdc,
+        minimumReliability: policy.minimum_reliability,
+        detail: `Operator policy v${policy.policy_version} verified from database for ${env.AGENT_ID}.`,
+      });
+    }
+    return c.json({
+      configured: true,
+      reachable: true,
+      verified: false,
+      agentId: env.AGENT_ID,
+      policyVersion: null,
+      autoSpendLimitUsdc: null,
+      absoluteSpendLimitUsdc: null,
+      humanApprovalAboveUsdc: null,
+      minimumReliability: null,
+      detail: `Default operator guardrails active for ${env.AGENT_ID}: manual approval required for all spends.`,
+    });
+  } catch (error) {
+    return c.json({
+      configured: false,
+      reachable: false,
+      verified: false,
+      agentId: env.AGENT_ID,
+      detail: error instanceof Error ? error.message : "Failed to inspect operator policy",
+    });
+  }
 });

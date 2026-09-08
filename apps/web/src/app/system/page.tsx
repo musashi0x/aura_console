@@ -99,7 +99,7 @@ function sibylReadings(status: SibylHealth): Reading[] {
  * browser-readable endpoint say so rather than being omitted or assumed.
  */
 export default async function SystemPage() {
-  const [liveness, database, sibyl, grounding, base, acp] = await Promise.all([
+  const [liveness, database, sibyl, grounding, base, acp, policy, agent] = await Promise.all([
     apiClient.health(),
     apiClient.dbHealth(),
     apiClient.sibylHealth(),
@@ -109,6 +109,12 @@ export default async function SystemPage() {
       : Promise.resolve({ ok: false as const }),
     typeof apiClient.acpHealth === "function"
       ? apiClient.acpHealth()
+      : Promise.resolve({ ok: false as const }),
+    typeof apiClient.policyHealth === "function"
+      ? apiClient.policyHealth()
+      : Promise.resolve({ ok: false as const }),
+    typeof apiClient.agentHealth === "function"
+      ? apiClient.agentHealth()
       : Promise.resolve({ ok: false as const }),
   ]);
 
@@ -211,6 +217,75 @@ export default async function SystemPage() {
     };
   })();
 
+  const policyRow: Pick<ReadinessRow, "tone" | "state" | "detail" | "readings"> = (() => {
+    if (!policy.ok) {
+      return {
+        tone: "neutral" as const,
+        state: "NOT CHECKED",
+        detail:
+          "v0.1 exposes no policy endpoint, so Aura cannot verify this. Policy still applies on the server.",
+      };
+    }
+    const status = policy.data;
+    if (status.reachable) {
+      if (status.verified) {
+        return {
+          tone: "ready" as const,
+          state: "ACTIVE",
+          detail: status.detail ?? `Operator policy v${status.policyVersion ?? 1} verified from database for ${status.agentId}.`,
+          readings: [
+            ...(status.policyVersion != null ? [{ label: "VERSION", value: `v${status.policyVersion}` }] : []),
+            ...(status.autoSpendLimitUsdc != null ? [{ label: "AUTO SPEND", value: `$${status.autoSpendLimitUsdc} USDC` }] : []),
+            ...(status.humanApprovalAboveUsdc != null ? [{ label: "APPROVAL", value: `>$${status.humanApprovalAboveUsdc} USDC` }] : []),
+            ...(status.minimumReliability != null ? [{ label: "MIN RELIABILITY", value: `${status.minimumReliability}%` }] : []),
+          ],
+        };
+      }
+      return {
+        tone: "neutral" as const,
+        state: "DEFAULT",
+        detail: status.detail ?? `Default operator guardrails active for ${status.agentId}.`,
+        readings: [
+          { label: "AGENT", value: status.agentId },
+          { label: "MODE", value: "manual-approval" },
+        ],
+      };
+    }
+    return {
+      tone: "neutral" as const,
+      state: status.configured ? "UNAVAILABLE" : "NOT CHECKED",
+      detail: status.detail ?? "Operator policy could not be verified.",
+    };
+  })();
+
+  const agentRow: Pick<ReadinessRow, "tone" | "state" | "detail" | "readings"> = (() => {
+    if (!agent.ok) {
+      return {
+        tone: "neutral" as const,
+        state: "NOT CHECKED",
+        detail: "Provided by server configuration and not read by the browser in v0.1.",
+      };
+    }
+    const status = agent.data;
+    if (status.reachable) {
+      return {
+        tone: "ready" as const,
+        state: "VERIFIED",
+        detail: status.detail ?? `Agent identity ${status.agentId ?? "active"} runtime verified and responsive.`,
+        readings: [
+          ...(status.agentId ? [{ label: "AGENT ID", value: status.agentId }] : []),
+          ...(status.runtime ? [{ label: "RUNTIME", value: status.runtime }] : []),
+          ...(status.apps && status.apps.length > 0 ? [{ label: "APPS", value: status.apps.join(", ") }] : []),
+        ],
+      };
+    }
+    return {
+      tone: "neutral" as const,
+      state: status.configured ? "UNAVAILABLE" : "NOT CHECKED",
+      detail: status.detail ?? "Provided by server configuration and not read by the browser in v0.1.",
+    };
+  })();
+
   const rows: ReadinessRow[] = [
     {
       id: "api",
@@ -263,18 +338,19 @@ export default async function SystemPage() {
       id: "policy",
       label: "Operator policy",
       domain: "Policy",
-      tone: "neutral" as const,
-      state: "NOT CHECKED",
-      detail:
-        "v0.1 exposes no policy endpoint, so Aura cannot verify this. Policy still applies on the server.",
+      tone: policyRow.tone,
+      state: policyRow.state,
+      detail: policyRow.detail,
+      readings: policyRow.readings,
     },
     {
       id: "agent",
       label: "Agent identity",
       domain: "Agent runtime",
-      tone: "neutral" as const,
-      state: "NOT CHECKED",
-      detail: "Provided by server configuration and not read by the browser in v0.1.",
+      tone: agentRow.tone,
+      state: agentRow.state,
+      detail: agentRow.detail,
+      readings: agentRow.readings,
     },
   ];
 

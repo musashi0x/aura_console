@@ -24,7 +24,7 @@ const run = (over: Record<string, unknown> = {}) => ({
   id: "run-1",
   objective: "Buy one market dataset",
   source: "CONSOLE",
-  environment: "non-mainnet",
+  environment: "base-sepolia",
   isMainnet: false,
   budgetUsdc: "25.000000",
   createdAt: "2026-08-29T09:00:00.000Z",
@@ -72,6 +72,16 @@ describe("the Runs list", () => {
       .find((link) => link.getAttribute("href") === "/runs/example")!;
     expect(demo).toBeDefined();
     expect(demo.textContent).toContain(console_.missions.demoBadge);
+  });
+
+  it("displays Base Sepolia network badge on Mission cards", async () => {
+    dbHealth.mockResolvedValue({ ok: true, data: { status: "ok", latencyMs: 1 } });
+    listRuns.mockResolvedValue({ ok: true, data: { runs: [run()] } });
+
+    render(await RunsPage());
+
+    const badges = screen.getAllByText("Base Sepolia");
+    expect(badges.length).toBeGreaterThanOrEqual(1);
   });
 
   it("says the store could not be read when the request fails", async () => {

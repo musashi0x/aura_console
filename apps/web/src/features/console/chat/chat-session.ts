@@ -75,10 +75,13 @@ export const getChatTouched = () => touched;
 export const CHAT_TOUCHED_SERVER_SNAPSHOT = false;
 
 export function setChatOpen(next: boolean) {
+  const touchedChanged = !touched;
+  const openChanged = open !== next;
   touched = true;
-  if (open === next) return;
   open = next;
-  emit();
+  if (touchedChanged || openChanged) {
+    emit();
+  }
 }
 
 /** Active context ID (e.g. run ID or "global"). */

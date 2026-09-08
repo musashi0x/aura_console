@@ -14,15 +14,19 @@ import {
 export interface GeminiFunctionCall {
   name: string;
   args: Record<string, unknown>;
+  id?: string;
 }
 
 export interface GeminiFunctionResponse {
   name: string;
   response: Record<string, unknown>;
+  id?: string;
 }
 
 export interface GeminiPart {
   text?: string;
+  thought?: boolean;
+  thoughtSignature?: string;
   functionCall?: GeminiFunctionCall;
   functionResponse?: GeminiFunctionResponse;
 }
@@ -359,6 +363,79 @@ function planDeterministicTurn(
     };
   }
 
+  // 5b. Create mission query via AI agent / MCP
+  const isCreateMissionQuery =
+    (norm.startsWith("create mission") ||
+      norm.startsWith("create run") ||
+      norm.startsWith("start mission") ||
+      norm.startsWith("start run") ||
+      norm.startsWith("tạo mission") ||
+      norm.startsWith("tạo run") ||
+      norm.includes("auto tạo mission") ||
+      norm.includes("tạo một mission") ||
+      norm.includes("tạo run mới")) &&
+    !norm.includes("go to") &&
+    norm !== "start a mission" &&
+    norm !== "start a run";
+
+  if (isCreateMissionQuery) {
+    if (!hasExecuted("mission_create")) {
+      let budget = "25.000000";
+      const budgetMatch =
+        query.match(/(\d+(?:\.\d+)?)\s*(?:usdc|usd|\$)/i) ||
+        query.match(/\$\s*(\d+(?:\.\d+)?)/i);
+      if (budgetMatch && budgetMatch[1]) {
+        const val = parseFloat(budgetMatch[1]);
+        if (!Number.isNaN(val) && val > 0) {
+          budget = val.toFixed(6);
+        }
+      }
+      let obj = query
+        .replace(
+          /^(?:please\s+)?(?:create|start|tạo)\s+(?:a\s+)?(?:mission|run)\s+(?:to\s+|với\s+mục\s+tiêu\s+|cho\s+)?/i,
+          "",
+        )
+        .trim();
+      if (!obj || obj.length < 3) {
+        obj = "Autonomous agent mission executed via MCP";
+      }
+      return {
+        thought: `Interpreting mission creation request. Synthesizing economic objective "${obj}" with ceiling ${budget} USDC and invoking MCP tool mission_create.`,
+        parts: [
+          {
+            functionCall: {
+              name: "mission_create",
+              args: {
+                objective: obj,
+                budgetUsdc: budget,
+                source: "AGENT",
+              },
+            },
+          },
+        ],
+      };
+    }
+    const createRes = getResponse("mission_create") as
+      | {
+          created?: boolean;
+          runId?: string;
+          objective?: string;
+          budgetUsdc?: string;
+          destination?: string;
+        }
+      | undefined;
+    const runId = createRes?.runId;
+    const dest = createRes?.destination ?? (runId ? `/runs/${runId}` : "/runs");
+    return {
+      thought: `Mission successfully created in Postgres via MCP. Providing operator confirmation with direct workspace link.`,
+      parts: [
+        {
+          text: `Mission created successfully!\n- **ID**: \`${runId ?? "unknown"}\`\n- **Objective**: ${createRes?.objective ?? "N/A"}\n- **Budget Ceiling**: ${createRes?.budgetUsdc ?? "N/A"} USDC\n\nYou can view and manage this mission at [Mission ${runId}](${dest}).`,
+        },
+      ],
+    };
+  }
+
   // 6. Tool Chaining: Counterparty memory inquiry + Spend proposal / Approval
   // e.g. "Why should we hire Beta Labs and what would it cost to draft a 10 USDC spend?"
   const asksCounterparty =
@@ -537,6 +614,22 @@ function planDeterministicTurn(
  * Generates one turn of the conversation, either through live Gemini API
  * or the autonomous deterministic planner.
  */
+const AURA_SYSTEM_INSTRUCTION = `You are Aura, the autonomous operator AI agent in Aura Console.
+You operate on an autonomous agent runtime that manages missions, spend guardrails, and counterparty reputation memory.
+You have access to Model Context Protocol (MCP) tools:
+- mission_create: Create an autonomous mission / run with an objective, budget ceiling in USDC, and source.
+- console_list_missions: Query recent missions and execution runs.
+- console_navigate: Navigate to a console route (/runs, /runs/new, /system, /policies, /counterparties, /chat).
+- console_get_readiness: Check health and latency of Postgres, Sibyl memory, and ADK agent.
+- guardrails_get_policies: Inspect active guardrails, auto-spend limits, and reliability thresholds.
+- memory_recall_counterparty: Query Sibyl memory for counterparty reputation, reliability score, and past episodes.
+- mission_propose_approval: Propose a formal spend approval for a counterparty under guardrails.
+
+When asked to create or set a random mission, use mission_create with a creative objective and reasonable USDC budget.
+When asked about counterparties (e.g. Beta Labs, Alpha Studio), inspect memory with memory_recall_counterparty.
+When asked to navigate or check readiness, use console_navigate or console_get_readiness.
+Always ground your answers in actual tool responses. Keep your tone concise, direct, and professional.`;
+
 async function generateTurn(options: {
   history: GeminiContent[];
   declarations: GeminiFunctionDeclaration[];
@@ -546,16 +639,20 @@ async function generateTurn(options: {
 }): Promise<{ parts: GeminiPart[]; thought?: string }> {
   const { history, declarations, runId, signal } = options;
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  const model = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
 
   if (apiKey && apiKey !== "test-key" && isGeminiAgentConfigured()) {
     try {
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: { "content-type": "application/json" },
           signal,
           body: JSON.stringify({
+            systemInstruction: {
+              parts: [{ text: AURA_SYSTEM_INSTRUCTION }],
+            },
             contents: history.map((h) => ({
               role: h.role === "function" ? "tool" : h.role,
               parts: h.parts.map((p) => {
@@ -564,7 +661,9 @@ async function generateTurn(options: {
                     functionCall: {
                       name: p.functionCall.name,
                       args: p.functionCall.args,
+                      ...(p.functionCall.id ? { id: p.functionCall.id } : {}),
                     },
+                    ...(p.thoughtSignature ? { thoughtSignature: p.thoughtSignature } : {}),
                   };
                 }
                 if (p.functionResponse) {
@@ -572,6 +671,7 @@ async function generateTurn(options: {
                     functionResponse: {
                       name: p.functionResponse.name,
                       response: p.functionResponse.response,
+                      ...(p.functionResponse.id ? { id: p.functionResponse.id } : {}),
                     },
                   };
                 }
@@ -591,6 +691,9 @@ async function generateTurn(options: {
         if (candidate?.content?.parts && candidate.content.parts.length > 0) {
           return { parts: candidate.content.parts };
         }
+      } else {
+        const errText = await response.text();
+        console.warn(`[gemini-agent] Live API request failed (${response.status}): ${errText}`);
       }
     } catch (err) {
       console.warn("[gemini-agent] Live API request failed, falling back to autonomous planner:", err);
@@ -653,7 +756,16 @@ export async function runGeminiAgentLoop(input: GeminiAgentInput): Promise<Gemin
       signal,
     });
 
-    if (modelTurn.thought) {
+    const thoughtParts = modelTurn.parts
+      .filter((p) => p.thought && p.text)
+      .map((p) => p.text as string);
+    if (thoughtParts.length > 0) {
+      const thoughtsText = thoughtParts.join("\n");
+      recordedThought = (recordedThought ? recordedThought + "\n" : "") + thoughtsText;
+      if (onThought) {
+        await onThought(thoughtsText);
+      }
+    } else if (modelTurn.thought) {
       recordedThought = (recordedThought ? recordedThought + "\n" : "") + modelTurn.thought;
       if (onThought) {
         await onThought(modelTurn.thought);
@@ -673,7 +785,7 @@ export async function runGeminiAgentLoop(input: GeminiAgentInput): Promise<Gemin
           throw new Error("Agent turn aborted by client signal");
         }
 
-        const callId = randomUUID();
+        const callId = call.id || randomUUID();
         const tool = findMcpTool(call.name) ?? tools.find((t) => t.name === call.name);
         const callArgs = { ...call.args };
 
@@ -726,6 +838,7 @@ export async function runGeminiAgentLoop(input: GeminiAgentInput): Promise<Gemin
                 response: (typeof result === "object" && result !== null
                   ? result
                   : { output: result }) as Record<string, unknown>,
+                ...(call.id ? { id: call.id } : {}),
               },
             },
           ],
@@ -734,6 +847,7 @@ export async function runGeminiAgentLoop(input: GeminiAgentInput): Promise<Gemin
     } else {
       // Model returned final text answer
       const textParts = modelTurn.parts
+        .filter((p) => !p.thought)
         .map((p) => p.text)
         .filter((t): t is string => Boolean(t));
       fullText = textParts.join("\n");

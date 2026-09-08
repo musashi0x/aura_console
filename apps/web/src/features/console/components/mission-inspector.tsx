@@ -5,6 +5,7 @@ import { Button } from "@astryxdesign/core/Button";
 import { Link } from "@astryxdesign/core/Link";
 import { MetadataList, MetadataListItem } from "@astryxdesign/core/MetadataList";
 import { VStack } from "@astryxdesign/core/Stack";
+import { formatEnvironment } from "../copy";
 
 export interface MissionInspectorProps {
   runId: string;
@@ -91,7 +92,7 @@ export function MissionInspector({
             </MetadataListItem>
 
             <MetadataListItem label="Sandbox Environment">
-              <span data-testid="meta-environment">{environment}</span>
+              <span data-testid="meta-environment">{environment ? formatEnvironment(environment) : ""}</span>
             </MetadataListItem>
 
             <MetadataListItem label="Budget Ceiling">

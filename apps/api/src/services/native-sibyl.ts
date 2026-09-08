@@ -370,3 +370,120 @@ export function updateNativeCounterpartyInSibyl(
   entity.updatedAt = new Date().toISOString();
   return { ok: true };
 }
+
+export function setNativeMissionState(
+  key: string,
+  state: Record<string, unknown>,
+): { ok: boolean; code?: string; detail?: string } {
+  const entityKey = `hot_state:${key}`;
+  nativeEntities.set(entityKey, {
+    id: randomUUID(),
+    category: "hot_state",
+    name: key,
+    status: "active",
+    body: state,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
+  return { ok: true };
+}
+
+export function getNativeMissionState(
+  key: string,
+): { ok: boolean; state?: Record<string, unknown>; code?: string; detail?: string } {
+  const entityKey = `hot_state:${key}`;
+  const entity = nativeEntities.get(entityKey);
+  return { ok: true, state: (entity?.body as Record<string, unknown>) ?? undefined };
+}
+
+export function setNativePolicyReference(
+  key: string,
+  reference: Record<string, unknown>,
+): { ok: boolean; code?: string; detail?: string } {
+  const entityKey = `reference:${key}`;
+  nativeEntities.set(entityKey, {
+    id: randomUUID(),
+    category: "reference",
+    name: key,
+    status: "active",
+    body: reference,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
+  return { ok: true };
+}
+
+export function getNativePolicyReference(
+  key: string,
+): { ok: boolean; reference?: unknown; code?: string; detail?: string } {
+  const entityKey = `reference:${key}`;
+  const entity = nativeEntities.get(entityKey);
+  return { ok: true, reference: entity?.body ?? null };
+}
+
+export function archiveNativeCounterpartyInSibyl(
+  counterpartyKey: string,
+  reason = "operator_archived",
+): { ok: boolean; code?: string; detail?: string } {
+  const key = `counterparty:${counterpartyKey}`;
+  const entity = nativeEntities.get(key);
+  if (entity) {
+    entity.status = "ARCHIVED";
+    entity.body.archive_reason = reason;
+    entity.body.status = "ARCHIVED";
+    entity.updatedAt = new Date().toISOString();
+  }
+  return { ok: true };
+}
+
+export function readNativeMemoryJournal(
+  limit = 50,
+  counterpartyKey?: string,
+): {
+  ok: boolean;
+  count: number;
+  events: unknown[];
+  episodes: unknown[];
+  code?: string;
+  detail?: string;
+} {
+  const allEpisodes: Record<string, unknown>[] = [];
+  for (const entity of nativeEntities.values()) {
+    if (entity.category !== "counterparty") continue;
+    if (counterpartyKey && entity.name !== counterpartyKey) continue;
+    const episodes = Array.isArray(entity.body.episodes) ? entity.body.episodes : [];
+    for (const ep of episodes) {
+      const episode = (ep ?? {}) as Record<string, unknown>;
+      allEpisodes.push({
+        run: episode.run,
+        counterpartyKey: entity.name,
+        counterparty_key: entity.name,
+        taskType: episode.task_type ?? episode.taskType ?? "mission",
+        task_type: episode.task_type ?? episode.taskType ?? "mission",
+        outcome: episode.outcome,
+        note: episode.note,
+        occurredAt: episode.occurred_at ?? episode.occurredAt ?? entity.updatedAt,
+        occurred_at: episode.occurred_at ?? episode.occurredAt ?? entity.updatedAt,
+        evaluated: {
+          counterpartyKey: entity.name,
+          run: episode.run,
+          outcome: episode.outcome,
+        },
+      });
+    }
+  }
+
+  allEpisodes.sort((a, b) => {
+    const timeA = typeof a.occurred_at === "string" ? new Date(a.occurred_at).getTime() : 0;
+    const timeB = typeof b.occurred_at === "string" ? new Date(b.occurred_at).getTime() : 0;
+    return timeB - timeA;
+  });
+
+  const sliced = allEpisodes.slice(0, limit);
+  return {
+    ok: true,
+    count: sliced.length,
+    events: sliced,
+    episodes: sliced,
+  };
+}

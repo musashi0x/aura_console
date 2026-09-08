@@ -15,6 +15,7 @@ import type { RunSummary } from "@/lib/api-client";
 import type { ChatGrounding } from "./console-chat";
 import { ConsoleChat } from "./console-chat";
 import { MissionInspector } from "./mission-inspector";
+import { formatEnvironment } from "../copy";
 
 export type MissionFilterStatus = "all" | "active" | "settled";
 
@@ -294,7 +295,7 @@ export function ChatConsoleView({
               </HStack>
               {activeRun ? (
                 <Text as="p" size="xsm" color="secondary">
-                  Grounded in Mission <code>{activeRun.id}</code> · Budget: {activeRun.budgetUsdc ? `${Number.parseFloat(activeRun.budgetUsdc)} USDC` : "0 USDC"} · {activeRun.environment}
+                  Grounded in Mission <code>{activeRun.id}</code> · Budget: {activeRun.budgetUsdc ? `${Number.parseFloat(activeRun.budgetUsdc)} USDC` : "0 USDC"} · {formatEnvironment(activeRun.environment)}
                 </Text>
               ) : (
                 <Text as="p" size="xsm" color="secondary">
@@ -318,7 +319,7 @@ export function ChatConsoleView({
             <div className="cs__chat-console-inspector-slot">
               <MissionInspector
                 runId={activeRun.id}
-                environment={activeRun.environment}
+                environment={formatEnvironment(activeRun.environment)}
                 budgetUsdc={activeRun.budgetUsdc ?? undefined}
                 isCollapsible={true}
               />

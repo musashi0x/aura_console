@@ -8,12 +8,26 @@ import type { Counterfactual } from "@/features/console/projection/counterfactua
 const api = vi.hoisted(() => ({
   approve: vi.fn(async () => ({ ok: true as const, data: { event: { event_id: "e", type: "approval.granted", sequence: 5 } } })),
   reject: vi.fn(async () => ({ ok: true as const, data: { event: { event_id: "e", type: "approval.rejected", sequence: 5 } } })),
+  authorizeAcpFund: vi.fn(async () => ({
+    ok: true as const,
+    data: {
+      authorization: {
+        eventId: "auth-1",
+        runId: "run-1",
+        type: "acp.fund.authorized",
+        sequence: 5,
+        chainId: 84532,
+        jobId: "42",
+      },
+    },
+  })),
 }));
 
 vi.mock("@/lib/api-client", () => ({
   apiClient: {
     approveRun: api.approve,
     rejectRun: api.reject,
+    authorizeAcpFund: api.authorizeAcpFund,
   },
 }));
 
@@ -62,6 +76,7 @@ const CHANGED: Counterfactual = {
 beforeEach(() => {
   api.approve.mockClear();
   api.reject.mockClear();
+  api.authorizeAcpFund.mockClear();
 });
 
 describe("the approval control", () => {
@@ -183,4 +198,45 @@ describe("the approval control", () => {
     render(<ApprovalRequestCard entry={withRationale} runId="run-1" />);
     expect(screen.getByText("Sibyl memory checked: Beta Labs has 96% reliability.")).toBeInTheDocument();
   });
+
+  it("routes approval to authorizeAcpFund when run environment is base-sepolia", async () => {
+    const onApproved = vi.fn();
+    render(
+      <ApprovalRequestCard
+        entry={PENDING}
+        runId="run-1"
+        environment="base-sepolia"
+        onApproved={onApproved}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /^approve/i }));
+
+    expect(api.authorizeAcpFund).toHaveBeenCalledTimes(1);
+    expect(api.authorizeAcpFund).toHaveBeenCalledWith("run-1", { amountUsdc: "25.000000" });
+    expect(api.approve).not.toHaveBeenCalled();
+    expect(onApproved).toHaveBeenCalled();
+  });
+
+  it("falls back to approveRun if authorizeAcpFund returns not_an_acp_run", async () => {
+    api.authorizeAcpFund.mockResolvedValueOnce({
+      ok: false as const,
+      error: { code: "not_an_acp_run", message: "Not an ACP run" },
+    } as never);
+    const onApproved = vi.fn();
+    render(
+      <ApprovalRequestCard
+        entry={PENDING}
+        runId="run-1"
+        environment="base-sepolia"
+        onApproved={onApproved}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /^approve/i }));
+
+    expect(api.authorizeAcpFund).toHaveBeenCalledTimes(1);
+    expect(api.approve).toHaveBeenCalledTimes(1);
+    expect(api.approve).toHaveBeenCalledWith("run-1", "25.000000");
+    expect(onApproved).toHaveBeenCalled();
+  });
 });
+

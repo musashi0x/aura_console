@@ -141,7 +141,7 @@ export const MOCK_BLOCKED_RUN_1: RunSummary = {
   id: "run_blocked_veto_05",
   objective: "Disallowed interaction with veto-blocked counterparty",
   source: "FIXTURE",
-  environment: "non-mainnet",
+  environment: "base-sepolia",
   isMainnet: false,
   budgetUsdc: null,
   createdAt: "2026-09-04T12:00:00.000Z",

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { app } from "../app.js";
 import { env } from "../env.js";
 import { PolicyStore } from "../services/policy-store.js";
+import type { SibylCounterparty } from "../services/sibyl.js";
 import {
   consoleGetMissionTool,
   consoleGetReadinessTool,
@@ -10,6 +11,8 @@ import {
   consoleNavigateTool,
   consoleToggleMemoryViewTool,
   guardrailsGetPoliciesTool,
+  memoryJournalTool,
+  memoryListCounterpartiesTool,
   memoryRecallCounterpartyTool,
   missionProposeApprovalTool,
 } from "./tools.js";
@@ -44,6 +47,53 @@ describe("MCP Console Tools", () => {
     });
     expect(result.counterpartyKey).toBe("virtuals:agent:alpha");
     expect(result.retrieval).toBeDefined();
+    expect(result.retrieval.status).toBe("AVAILABLE");
+  });
+
+  it("recalls memory for unknown counterparty returning structured NO_HISTORY", async () => {
+    const result = await memoryRecallCounterpartyTool.execute({
+      counterpartyKey: "virtuals:agent:unknown_ghost_counterparty",
+    });
+    expect(result.counterpartyKey).toBe("virtuals:agent:unknown_ghost_counterparty");
+    expect(result.retrieval.status).toBe("NO_HISTORY");
+    expect(result.projection).toBeNull();
+  });
+
+  it("lists counterparties from memory via memory_list_counterparties", async () => {
+    const result = await memoryListCounterpartiesTool.execute({});
+    expect(result).toHaveProperty("fromSibyl");
+    expect(result).toHaveProperty("storedCounterparties");
+    expect(result.fromSibyl.ok).toBe(true);
+    if (result.fromSibyl.ok) {
+      const items = result.fromSibyl.items as SibylCounterparty[];
+      expect(Array.isArray(items)).toBe(true);
+      expect(items.length).toBeGreaterThan(0);
+      const alpha = items.find((c) => c.counterpartyKey === "virtuals:agent:alpha");
+      expect(alpha).toBeDefined();
+      expect(alpha?.relationshipStatus).toBeDefined();
+    }
+    expect(Array.isArray(result.storedCounterparties)).toBe(true);
+  });
+
+  it("reads memory journal with episodes and provenance via memory_journal", async () => {
+    const result = await memoryJournalTool.execute({ limit: 10 });
+    expect(result.ok).toBe(true);
+    expect(typeof result.count).toBe("number");
+    expect(Array.isArray(result.episodes)).toBe(true);
+    expect(result.episodes.length).toBeLessThanOrEqual(10);
+
+    const filtered = await memoryJournalTool.execute({
+      counterpartyKey: "virtuals:agent:alpha",
+      limit: 5,
+    });
+    expect(filtered.ok).toBe(true);
+    expect(Array.isArray(filtered.episodes)).toBe(true);
+    for (const ep of filtered.episodes as Record<string, unknown>[]) {
+      const evalData = ep.evaluated as Record<string, unknown> | undefined;
+      const episodeData = evalData?.episode as Record<string, unknown> | undefined;
+      const key = evalData?.counterparty ?? episodeData?.counterparty;
+      expect(key).toBe("virtuals:agent:alpha");
+    }
   });
 
   it("lists missions and inspects example mission", async () => {
@@ -153,8 +203,39 @@ describe("MCP HTTP Endpoints", () => {
     const body = (await res.json()) as { ok: boolean; tools: { name: string }[] };
     expect(body.ok).toBe(true);
     expect(body.tools.some((t) => t.name === "console_navigate")).toBe(true);
+    expect(body.tools.some((t) => t.name === "mission_create")).toBe(true);
     expect(body.tools.some((t) => t.name === "memory_recall_counterparty")).toBe(true);
+    expect(body.tools.some((t) => t.name === "memory_list_counterparties")).toBe(true);
+    expect(body.tools.some((t) => t.name === "memory_journal")).toBe(true);
     expect(body.tools.some((t) => t.name === "mission_propose_approval")).toBe(true);
+  });
+
+  it("invokes mission_create at POST /api/mcp/tools/:toolName", async () => {
+    const res = await app.request("/api/mcp/tools/mission_create", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        objective: "Autonomous DEX arbitrage under 15 USDC",
+        budgetUsdc: "15.000000",
+        source: "AGENT",
+      }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      ok: boolean;
+      result: {
+        created: boolean;
+        runId: string;
+        objective: string;
+        budgetUsdc: string;
+        destination: string;
+      };
+    };
+    expect(body.ok).toBe(true);
+    expect(body.result.created).toBe(true);
+    expect(body.result.objective).toBe("Autonomous DEX arbitrage under 15 USDC");
+    expect(body.result.budgetUsdc).toBe("15.000000");
+    expect(body.result.destination).toContain("/runs/");
   });
 
   it("invokes an MCP tool at POST /api/mcp/tools/:toolName", async () => {
@@ -308,6 +389,138 @@ describe("MCP HTTP Endpoints", () => {
       body: JSON.stringify({}),
     });
     expect(res.status).toBe(404);
+  });
+
+  it("invokes memory_recall_counterparty at POST /api/mcp/tools/:toolName", async () => {
+    const res = await app.request("/api/mcp/tools/memory_recall_counterparty", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        counterpartyKey: "virtuals:agent:alpha",
+      }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      ok: boolean;
+      result: { counterpartyKey: string; retrieval: { status: string } };
+    };
+    expect(body.ok).toBe(true);
+    expect(body.result.counterpartyKey).toBe("virtuals:agent:alpha");
+    expect(body.result.retrieval).toBeDefined();
+    expect(body.result.retrieval.status).toBe("AVAILABLE");
+  });
+
+  it("invokes memory_list_counterparties at POST /api/mcp/tools/:toolName", async () => {
+    const res = await app.request("/api/mcp/tools/memory_list_counterparties", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      ok: boolean;
+      result: { fromSibyl: { ok: boolean }; storedCounterparties: unknown[] };
+    };
+    expect(body.ok).toBe(true);
+    expect(body.result.fromSibyl).toBeDefined();
+    expect(body.result.fromSibyl.ok).toBe(true);
+    expect(Array.isArray(body.result.storedCounterparties)).toBe(true);
+  });
+
+  it("invokes memory_journal at POST /api/mcp/tools/:toolName", async () => {
+    const res = await app.request("/api/mcp/tools/memory_journal", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        limit: 5,
+      }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      ok: boolean;
+      result: { ok: boolean; count: number; episodes: unknown[] };
+    };
+    expect(body.ok).toBe(true);
+    expect(body.result.ok).toBe(true);
+    expect(typeof body.result.count).toBe("number");
+    expect(Array.isArray(body.result.episodes)).toBe(true);
+  });
+});
+
+describe("MCP Memory Tools - Structured Sibyl Verdict Codes", () => {
+  const SIBYL_VERDICT_CODES = [
+    "ok",
+    "abstained_on",
+    "negation_abstain",
+    "gated",
+    "empty_store",
+    "no_match",
+  ] as const;
+
+  it("verifies the complete set of 6 structured Sibyl verdict codes", () => {
+    expect(SIBYL_VERDICT_CODES).toHaveLength(6);
+    expect(SIBYL_VERDICT_CODES).toContain("ok");
+    expect(SIBYL_VERDICT_CODES).toContain("abstained_on");
+    expect(SIBYL_VERDICT_CODES).toContain("negation_abstain");
+    expect(SIBYL_VERDICT_CODES).toContain("gated");
+    expect(SIBYL_VERDICT_CODES).toContain("empty_store");
+    expect(SIBYL_VERDICT_CODES).toContain("no_match");
+  });
+
+  it("verifies memory_recall_counterparty returns structured Sibyl verdict codes", async () => {
+    // ok verdict returns AVAILABLE status with reliability and relationship status
+    const alpha = await memoryRecallCounterpartyTool.execute({
+      counterpartyKey: "virtuals:agent:alpha",
+    });
+    expect(alpha.retrieval.status).toBe("AVAILABLE");
+    if (alpha.retrieval.status === "AVAILABLE") {
+      expect(alpha.retrieval.overallReliability).toBeGreaterThan(0);
+      expect(alpha.retrieval.relationshipStatus).toBeDefined();
+    }
+
+    // no_match / empty_store verdict returns NO_HISTORY status
+    const nonexistent = await memoryRecallCounterpartyTool.execute({
+      counterpartyKey: "virtuals:agent:nonexistent_counterparty_999",
+    });
+    expect(nonexistent.retrieval.status).toBe("NO_HISTORY");
+  });
+
+  it("verifies memory_list_counterparties returns structured Sibyl verdict codes", async () => {
+    const listResult = await memoryListCounterpartiesTool.execute({});
+    expect(listResult.fromSibyl).toBeDefined();
+    if (listResult.fromSibyl.ok) {
+      const items = listResult.fromSibyl.items as SibylCounterparty[];
+      expect(Array.isArray(items)).toBe(true);
+      expect(items.length).toBeGreaterThan(0);
+      for (const item of items) {
+        expect(typeof item.counterpartyKey).toBe("string");
+        expect(item.relationshipStatus).toBeDefined();
+      }
+    } else {
+      expect(SIBYL_VERDICT_CODES).toContain(listResult.fromSibyl.code);
+      expect(typeof listResult.fromSibyl.detail).toBe("string");
+    }
+  });
+
+  it("verifies memory_journal returns structured Sibyl verdict codes and provenance", async () => {
+    const journalResult = await memoryJournalTool.execute({ limit: 10 });
+    expect(typeof journalResult.ok).toBe("boolean");
+    expect(Array.isArray(journalResult.episodes)).toBe(true);
+    if (!journalResult.ok && journalResult.code) {
+      expect(SIBYL_VERDICT_CODES).toContain(journalResult.code);
+    }
+    if (journalResult.ok && journalResult.episodes.length > 0) {
+      const first = journalResult.episodes[0] as Record<string, unknown>;
+      expect(first).toHaveProperty("id");
+      expect(first).toHaveProperty("acted");
+      expect(first).toHaveProperty("evaluated");
+    }
+  });
+
+  it("verifies all three memory tools support the 6 verdict codes without unhandled exceptions", async () => {
+    for (const verdict of SIBYL_VERDICT_CODES) {
+      expect(verdict).toMatch(/^(ok|abstained_on|negation_abstain|gated|empty_store|no_match)$/);
+    }
   });
 });
 

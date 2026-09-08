@@ -6,7 +6,7 @@ import { SegmentedControl, SegmentedControlItem } from "@astryxdesign/core/Segme
 import { StatusDot } from "@astryxdesign/core/StatusDot";
 import { ChevronRight, Clock, DollarSign, Layers } from "lucide-react";
 import { StatusBadge } from "@/components/primitives";
-import { console_ } from "@/features/console/copy";
+import { console_, formatEnvironment } from "@/features/console/copy";
 import { getRunStatusInfo } from "@/features/console/components/chat-console-view";
 import type { RunSummary } from "@/lib/api-client";
 
@@ -104,8 +104,8 @@ export function RunsView({ runs, exampleRun }: RunsViewProps) {
                   </div>
                 </div>
 
-                <div className="cs__row-meta flex items-center gap-3 text-xs text-[var(--color-text-muted,#8d9aaf)] pt-1 border-t border-[var(--color-border)]/50">
-                  <span className="cs__row-env font-mono">{exampleRun.environment}</span>
+                <div className="cs__row-meta flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--color-text-muted,#8d9aaf)] pt-1 border-t border-[var(--color-border)]/50">
+                  <span className="cs__row-env font-mono">{formatEnvironment(exampleRun.environment)}</span>
                   <span>·</span>
                   <span className="flex items-center gap-1">
                     <Clock size={11} />
@@ -156,8 +156,8 @@ export function RunsView({ runs, exampleRun }: RunsViewProps) {
                     </div>
                   </div>
 
-                  <div className="cs__row-meta flex items-center gap-3 text-xs text-[var(--color-text-muted,#8d9aaf)] pt-1 border-t border-[var(--color-border)]/50">
-                    <span className="cs__row-env font-mono">{run.environment}</span>
+                  <div className="cs__row-meta flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--color-text-muted,#8d9aaf)] pt-1 border-t border-[var(--color-border)]/50">
+                    <span className="cs__row-env font-mono">{formatEnvironment(run.environment)}</span>
                     <span>·</span>
                     <time dateTime={run.createdAt} className="flex items-center gap-1">
                       <Clock size={11} />

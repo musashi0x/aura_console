@@ -111,7 +111,7 @@ export function CommandPalette() {
         aria-haspopup="dialog"
         aria-expanded={open}
       >
-        {console_.palette.open}
+        <span className="cs__palette-text">{console_.palette.open}</span>
         {/* `mod`, not a hardcoded glyph. The handler accepts metaKey OR ctrlKey,
             so the old literal "⌘K" told a Windows or Linux operator to press a
             key their keyboard does not have, for a shortcut that works. */}

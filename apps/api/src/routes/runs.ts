@@ -1,7 +1,10 @@
+import { and, eq, getDb, schema } from "@aura/db";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { z } from "zod";
 
+import { acpJobLinkedEvent } from "../acp/domain/events.js";
+import { AcpEvaluator } from "../acp/outbound/evaluator.js";
 import { httpError } from "../errors.js";
 import { MissionAgent } from "../services/mission-agent.js";
 import { missionLogs } from "../services/mission-logs.js";
@@ -102,11 +105,26 @@ runs.post("/", async (c) => {
     budgetUsdc: input.budgetUsdc ?? null,
   });
 
-  if (input.source === "CONSOLE" && process.env.NODE_ENV !== "test" && !process.env.DISABLE_AGENT_OPEN) {
+  if (
+    (input.source === "CONSOLE" || input.source === "AGENT") &&
+    process.env.NODE_ENV !== "test" &&
+    !process.env.DISABLE_AGENT_OPEN
+  ) {
     await agent.openMission({ runId: run.id, budgetUsdc: run.budgetUsdc });
   }
 
   return c.json({ run: runBody(run) }, 201);
+});
+
+runs.post("/:runId/evaluate", async (c) => {
+  const runId = parseRunId(c.req.param("runId"));
+  const run = await store.getRun(runId);
+  if (!run) {
+    throw httpError(404, "run_not_found", `No Run with id ${runId}`);
+  }
+  const opening = await agent.openMission({ runId: run.id, budgetUsdc: run.budgetUsdc });
+  const events = await store.listEvents(runId);
+  return c.json({ ok: true, opening, events: events.map(eventBody) });
 });
 
 runs.get("/", async (c) => {
@@ -237,3 +255,129 @@ runs.post("/:runId/acp/fund-authorizations", async (c) => {
     201,
   );
 });
+
+export const evaluateAcpSchema = z.object({
+  action: z.enum(["complete", "reject"]),
+  reason: z.string().trim().min(1, "reason is required"),
+});
+
+runs.post("/:runId/acp/evaluate", async (c) => {
+  const runId = parseRunId(c.req.param("runId"));
+  const input = parseBody(evaluateAcpSchema, await readJson(c.req.raw));
+
+  const run = await store.getRun(runId);
+  if (!run) {
+    throw httpError(404, "run_not_found", `No Run with id ${runId}`);
+  }
+
+  const db = getDb();
+
+  // Resolve ACP job: direct or linked
+  let [job] = await db
+    .select()
+    .from(schema.acpJobs)
+    .where(eq(schema.acpJobs.runId, runId))
+    .limit(1);
+
+  if (!job) {
+    const events = await store.listEvents(runId);
+    const linkedEvent = events.find((e) => e.type === "acp.job.linked");
+    if (linkedEvent && linkedEvent.data) {
+      const d = linkedEvent.data as Record<string, unknown>;
+      const targetRunId = typeof d.run_id === "string" ? d.run_id : typeof d.runId === "string" ? d.runId : null;
+      const targetJobId = typeof d.job_id === "string" ? d.job_id : typeof d.jobId === "string" ? d.jobId : null;
+      const targetChainId = typeof d.chain_id === "number" ? d.chain_id : typeof d.chainId === "number" ? d.chainId : null;
+
+      if (targetRunId) {
+        [job] = await db
+          .select()
+          .from(schema.acpJobs)
+          .where(eq(schema.acpJobs.runId, targetRunId))
+          .limit(1);
+      }
+      if (!job && targetJobId) {
+        const query = targetChainId
+          ? and(eq(schema.acpJobs.chainId, targetChainId), eq(schema.acpJobs.jobId, targetJobId))
+          : eq(schema.acpJobs.jobId, targetJobId);
+        [job] = await db.select().from(schema.acpJobs).where(query).limit(1);
+      }
+    }
+  }
+
+  if (!job) {
+    const linkedByEvents = await db
+      .select()
+      .from(schema.runEvents)
+      .where(eq(schema.runEvents.type, "acp.job.linked"));
+    for (const evt of linkedByEvents) {
+      const d = (evt.data ?? {}) as Record<string, unknown>;
+      if (d.run_id === runId || d.runId === runId) {
+        [job] = await db
+          .select()
+          .from(schema.acpJobs)
+          .where(eq(schema.acpJobs.runId, evt.runId))
+          .limit(1);
+        if (job) break;
+      }
+    }
+  }
+
+  const chainId = job?.chainId ?? 84532;
+  const jobId = job?.jobId ?? runId;
+
+  const evaluator = new AcpEvaluator({ db, runStore: store });
+  const evalResult = await evaluator.evaluate({
+    chainId,
+    jobId,
+    action: input.action,
+    reason: input.reason,
+    runId,
+  });
+
+  return c.json({
+    success: true,
+    action: input.action,
+    reason: input.reason,
+    eventId: evalResult.eventId,
+    runId,
+  });
+});
+
+export const linkAcpJobSchema = z.object({
+  acpRunId: z.string().uuid().optional(),
+  runId: z.string().uuid().optional(),
+  jobId: z.string().optional(),
+  chainId: z.number().int().positive().optional(),
+});
+
+runs.post("/:runId/acp/link", async (c) => {
+  const runId = parseRunId(c.req.param("runId"));
+  const input = parseBody(linkAcpJobSchema, await readJson(c.req.raw));
+
+  const run = await store.getRun(runId);
+  if (!run) {
+    throw httpError(404, "run_not_found", `No Run with id ${runId}`);
+  }
+
+  const targetRunId = input.acpRunId ?? input.runId;
+  if (!targetRunId && !input.jobId) {
+    throw httpError(422, "invalid_payload", "Either acpRunId/runId or jobId is required to link");
+  }
+
+  const linkedEvent = acpJobLinkedEvent({
+    runId: targetRunId ?? runId,
+    jobId: input.jobId,
+    chainId: input.chainId ?? 84532,
+  });
+
+  const { event } = await store.appendEvent({
+    runId,
+    eventId: linkedEvent.eventId,
+    type: linkedEvent.type,
+    eventTime: linkedEvent.eventTime,
+    data: linkedEvent.data,
+  });
+
+  return c.json({ ok: true, event: eventBody(event) }, 201);
+});
+

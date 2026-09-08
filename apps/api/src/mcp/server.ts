@@ -12,6 +12,7 @@ import {
   memoryListCounterpartiesTool,
   memoryJournalTool,
   memoryRecallCounterpartyTool,
+  missionCreateTool,
   missionProposeApprovalTool,
 } from "./tools.js";
 
@@ -119,6 +120,22 @@ export function createAuraMcpServer(): McpServer {
     { runId: z.string() },
     async ({ runId }) => {
       const result = await consoleGetMissionTool.execute({ runId });
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    },
+  );
+
+  server.tool(
+    "mission_create",
+    missionCreateTool.description,
+    {
+      objective: z.string().min(1).max(500),
+      budgetUsdc: z.union([z.string(), z.number()]).optional(),
+      source: z.enum(["CONSOLE", "AGENT", "FIXTURE"]).optional(),
+    },
+    async ({ objective, budgetUsdc, source }) => {
+      const result = await missionCreateTool.execute({ objective, budgetUsdc, source });
       return {
         content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
       };

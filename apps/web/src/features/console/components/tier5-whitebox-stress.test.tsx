@@ -141,7 +141,7 @@ describe("Tier 5 White-Box: ChatConsoleView & getRunStatusInfo", () => {
     it("handles unhandled, null, undefined, and empty status gracefully", () => {
       const edgeInputs = [null, undefined, "", "UNKNOWN_PHASE", "DRAINING", { status: null }, { status: undefined }, {}];
       for (const input of edgeInputs) {
-        const info = getRunStatusInfo(input as any);
+        const info = getRunStatusInfo(input as unknown as Parameters<typeof getRunStatusInfo>[0]);
         expect(info.variant).toBe("neutral");
         expect(info.label).toBe("Settled");
         expect(info.isPulsing).toBe(false);

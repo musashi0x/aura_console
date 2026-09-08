@@ -119,6 +119,102 @@ describe("event cards render only what the event carries", () => {
     expect(container.textContent).not.toContain(console_.cards.raw.note);
   });
 
+  it("renders ACP deliverable with evaluation controls for acp.job.submitted", () => {
+    render(
+      <EventCard
+        entry={entry("acp.job.submitted", {
+          provider: "0xProvider12345678901234567890123456789012",
+          deliverable: "Model evaluation report artifact",
+          deliverable_hash: "0x1234567890abcdef1234567890abcdef",
+        })}
+        runId="run-1"
+      />,
+    );
+    expect(screen.getByText("ACP Deliverable")).toBeInTheDocument();
+    expect(screen.getByText("Model evaluation report artifact")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /complete/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /reject/i })).toBeInTheDocument();
+  });
+
+  it("renders ACP job linked card with run and job details", () => {
+    render(
+      <EventCard
+        entry={entry("acp.job.linked", {
+          run_id: "acp-run-1234",
+          job_id: "42",
+          chain_id: 84532,
+        })}
+      />,
+    );
+    expect(screen.getByText("ACP Job Linked")).toBeInTheDocument();
+    expect(screen.getByText("acp-run-1234")).toBeInTheDocument();
+    expect(screen.getByText("42")).toBeInTheDocument();
+  });
+
+  it("renders memory.commitment.confirmed as a Transaction card with BaseScan link and 0 axe violations", async () => {
+    const txHash = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+    const commitmentHash = "0xb5217aa33d16ae634d94c72d6305bde3aaab252ac4d33e33f992fd99771b20e6";
+    const { container } = render(
+      <EventCard
+        entry={entry("memory.commitment.confirmed", {
+          summary: "Memory v1 committed to Base Sepolia",
+          counterparty_key: "virtuals:agent:beta",
+          memory_version: 1,
+          network: "Base Sepolia",
+          tx_hash: txHash,
+          commitment: commitmentHash,
+          explorer_url: `https://sepolia.basescan.org/tx/${txHash}`,
+        })}
+      />,
+    );
+
+    expect(screen.getByText(console_.cards.transaction.title)).toBeInTheDocument();
+    expect(
+      screen.getByText("Salted memory commitment published and confirmed on Base Sepolia."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("virtuals:agent:beta")).toBeInTheDocument();
+    expect(screen.getByText("v1")).toBeInTheDocument();
+    expect(screen.getByText(commitmentHash)).toBeInTheDocument();
+    expect(screen.getByText("Base Sepolia")).toBeInTheDocument();
+
+    const links = screen.getAllByRole("link");
+    const basescanLinks = links.filter((l) =>
+      l.getAttribute("href")?.includes(`sepolia.basescan.org/tx/${txHash}`),
+    );
+    expect(basescanLinks.length).toBeGreaterThanOrEqual(1);
+
+    await expectNoAxeViolations(container);
+  });
+
+  it("renders memory.commitment.submitted as a Transaction card with BaseScan link and 0 axe violations", async () => {
+    const txHash = "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890";
+    const { container } = render(
+      <EventCard
+        entry={entry("memory.commitment.submitted", {
+          summary: "Memory v2 commitment submitted to Base Sepolia",
+          counterparty_key: "virtuals:agent:beta",
+          memory_version: 2,
+          tx_hash: txHash,
+        })}
+      />,
+    );
+
+    expect(screen.getByText(console_.cards.transaction.title)).toBeInTheDocument();
+    expect(
+      screen.getByText("Salted memory commitment submitted to Base Sepolia."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("virtuals:agent:beta")).toBeInTheDocument();
+    expect(screen.getByText("v2")).toBeInTheDocument();
+
+    const links = screen.getAllByRole("link");
+    const basescanLinks = links.filter((l) =>
+      l.getAttribute("href")?.includes(`sepolia.basescan.org/tx/${txHash}`),
+    );
+    expect(basescanLinks.length).toBeGreaterThanOrEqual(1);
+
+    await expectNoAxeViolations(container);
+  });
+
   it("has no axe violations", async () => {
     const { container } = render(
       <EventCard entry={entry("decision.made", { counterparty_key: "beta_labs" })} />,
@@ -126,3 +222,4 @@ describe("event cards render only what the event carries", () => {
     await expectNoAxeViolations(container);
   });
 });
+

@@ -6,10 +6,12 @@ import { z } from "zod";
 import { env } from "../env.js";
 import { httpError } from "../errors.js";
 import { getAgentStatus } from "../services/adk-agent.js";
+import { getBaseRpcStatus } from "../services/base-rpc.js";
 import { authorizeFromRetrieval } from "../services/memory-authorization.js";
 import { MemoryStore, type RetrievalResult } from "../services/memory-store.js";
 import { PolicyStore } from "../services/policy-store.js";
 import { RunStore } from "../services/run-store.js";
+import { getVirtualsAcpStatus } from "../services/virtuals-acp.js";
 import {
   getSibylStatus,
   listCounterpartiesFromSibyl,
@@ -79,7 +81,7 @@ export const consoleToggleMemoryViewTool: McpToolDefinition<{ enabled?: boolean 
 export const consoleGetReadinessTool: McpToolDefinition<Record<string, never>> = {
   name: "console_get_readiness",
   description:
-    "Check the operational health and readiness of Aura Console and its dependencies: Postgres database, Sibyl Memory store, and Google ADK Agent.",
+    "Check the operational health and readiness of Aura Console and its dependencies: Postgres database, Sibyl Memory store, Google ADK/Gemini Agent, Base L2 RPC, Virtuals ACP, and Operator Policy.",
   parameters: z.object({}),
   execute: async () => {
     let dbStatus: { reachable: boolean; latencyMs?: number; error?: string };
@@ -93,12 +95,48 @@ export const consoleGetReadinessTool: McpToolDefinition<Record<string, never>> =
 
     const sibylStatus = await getSibylStatus();
     const agentStatus = await getAgentStatus();
+    const baseRpcStatus = await getBaseRpcStatus();
+    const virtualsAcpStatus = await getVirtualsAcpStatus();
+    let policyStatus: {
+      configured: boolean;
+      reachable: boolean;
+      verified: boolean;
+      policyVersion?: number | null;
+      detail?: string;
+    };
+    try {
+      const policy = await policies.get(env.AGENT_ID);
+      policyStatus = {
+        configured: true,
+        reachable: true,
+        verified: Boolean(policy),
+        policyVersion: policy?.policy_version ?? null,
+        detail: policy
+          ? `Operator policy v${policy.policy_version} active for ${env.AGENT_ID}.`
+          : `Default guardrails active for ${env.AGENT_ID}.`,
+      };
+    } catch (err) {
+      policyStatus = {
+        configured: false,
+        reachable: false,
+        verified: false,
+        detail: err instanceof Error ? err.message : "Failed to inspect policy",
+      };
+    }
 
     return {
-      overallReady: dbStatus.reachable && sibylStatus.reachable && agentStatus.reachable,
+      overallReady:
+        dbStatus.reachable &&
+        sibylStatus.reachable &&
+        agentStatus.reachable &&
+        baseRpcStatus.reachable &&
+        virtualsAcpStatus.reachable,
       database: dbStatus,
       sibyl: sibylStatus,
       agent: agentStatus,
+      baseRpc: baseRpcStatus,
+      virtualsAcp: virtualsAcpStatus,
+      policy: policyStatus,
     };
   },
 };
@@ -231,6 +269,50 @@ export const consoleGetMissionTool: McpToolDefinition<{ runId: string }> = {
         eventTime: e.eventTime.toISOString(),
         data: e.data,
       })),
+    };
+  },
+};
+
+export const missionCreateTool: McpToolDefinition<{
+  objective: string;
+  budgetUsdc?: string | number;
+  source?: "CONSOLE" | "AGENT" | "FIXTURE";
+}> = {
+  name: "mission_create",
+  description:
+    "Creates a new mission (Run) in Aura Console with a declared economic objective and optional budget ceiling.",
+  parameters: z.object({
+    objective: z.string().trim().min(1, "objective is required").max(500),
+    budgetUsdc: z
+      .union([
+        z.number().positive(),
+        z.string().regex(/^\d+(\.\d{1,6})?$/, "budgetUsdc must be a decimal amount"),
+      ])
+      .optional()
+      .describe("Optional budget ceiling in USDC (e.g. '25.00' or 25)"),
+    source: z.enum(["CONSOLE", "AGENT", "FIXTURE"]).optional().default("AGENT"),
+  }),
+  execute: async ({ objective, budgetUsdc, source = "AGENT" }) => {
+    let formattedBudget: string | null = null;
+    if (budgetUsdc !== undefined && budgetUsdc !== null && budgetUsdc !== "") {
+      const num = typeof budgetUsdc === "number" ? budgetUsdc : parseFloat(String(budgetUsdc));
+      if (!Number.isNaN(num) && num > 0) {
+        formattedBudget = num.toFixed(6);
+      }
+    }
+    const run = await runs.createRun({
+      objective: objective.trim(),
+      source,
+      budgetUsdc: formattedBudget,
+    });
+    return {
+      created: true,
+      runId: run.id,
+      objective: run.objective,
+      budgetUsdc: run.budgetUsdc,
+      source: run.source,
+      destination: `/runs/${run.id}`,
+      message: `Mission ${run.id} created successfully with objective: "${run.objective}"`,
     };
   },
 };
@@ -454,6 +536,7 @@ export const MCP_TOOLS: McpToolDefinition[] = [
   memoryJournalTool,
   consoleListMissionsTool,
   consoleGetMissionTool,
+  missionCreateTool,
   guardrailsGetPoliciesTool,
   missionProposeApprovalTool,
 ];

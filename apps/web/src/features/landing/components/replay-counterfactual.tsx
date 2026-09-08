@@ -1,7 +1,3 @@
-"use client";
-
-import { DrawablyBadge } from "drawably/react";
-
 import { landing } from "../copy";
 import { Reveal } from "./reveal";
 
@@ -35,9 +31,7 @@ export function ReplayCounterfactual() {
         <div className="lp-modes">
           {replay.modes.map((mode) => (
             <div key={mode.key} className="lp-mode">
-              <DrawablyBadge variant="outline" className="lp-mode__key">
-                {mode.key}
-              </DrawablyBadge>
+              <span className="lp-mode__key">{mode.key}</span>
               <span className="lp-mode__value">{mode.value}</span>
             </div>
           ))}

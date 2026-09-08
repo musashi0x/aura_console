@@ -37,6 +37,10 @@ export default async function ExampleRunPage() {
         seed={seedFromRun(exampleRun)}
         grounding={grounding}
         fixtureLabel="Example data. This Run was not executed and no economic action was taken."
+        initialMode="BOARD"
+        showExecutiveOverview={true}
+        initialBoardView="pipeline"
+        defaultExpanded={false}
       />
     </ConsoleShell>
   );

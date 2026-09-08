@@ -160,4 +160,43 @@ Integrity mode: development
 - [ ] Ready-to-paste text prepared for the two required public posts (X + Discord) tagging `@sibylcap`, `@base`, and `@virtuals_io`.
 - [ ] Form submission pack drafted for the private build page (repo, video, team, stacks, memory note).
 
+## Follow-up — 2026-09-08T15:57:21Z
 
+Requested team: Full team /boost
+
+Implement the complete Hackathon Partner Stacks plan (Virtuals Protocol ACP + Base Sepolia) and rebrand environment indicators from "non-mainnet" to "Base Sepolia" across Aura Console.
+
+Working directory: /Users/harryphan/.gemini/antigravity/worktrees/aura_memory/ai_cli_sandbox_reputation
+Integrity mode: development
+
+## Requirements
+
+### R1. Mission & Shell Rebranding (`non-mainnet` → `Base Sepolia`)
+Replace the ambiguous `non-mainnet` badges on Mission cards, Run headers, and the topbar with crisp, explicit `Base Sepolia` indicators, making it unmistakably clear that runs and counterparties operate on Base Sepolia.
+
+### R2. Virtuals ACP Inbound/Outbound Loop Integration
+Wire the existing Virtuals ACP worker and spend executor into the mission flow as specified in `docs/hackathon/04-partner-stacks-plan.md`:
+- Link the Mission run to the ACP job.
+- When an operator approves spend on a Base Sepolia mission, execute the fund authorization through `AcpSpendExecutor` / `session.fund()`.
+- Add operator evaluation control (`acp.job.completed` / `acp.job.rejected`) so deliverable evaluation completes on-camera and feeds back into `MissionExecutionService` for episode write-back.
+
+### R3. Salted Memory Commitment on Base Sepolia
+Implement the on-chain memory commitment flow from Task #35 and `04-partner-stacks-plan.md`:
+- After `recordEpisodeToSibyl`, compute `keccak256(canonical_profile || private_salt)`, publish the transaction to Base Sepolia calldata from the operator wallet, and render a Transaction card with the live BaseScan Sepolia explorer link.
+- Ensure `pnpm memory:verify <key>` can verify the commitment against Sibyl.
+
+## Acceptance Criteria
+
+### Display & Rebranding
+- [ ] Mission cards on `/runs` display `Base Sepolia` instead of `non-mainnet`.
+- [ ] Topbar displays `Base Sepolia` network status clearly.
+- [ ] Astryx Stone design tokens preserved (0 literal hex in CSS).
+
+### Partner Stacks Execution
+- [ ] Virtuals ACP job can be created, funded via operator approval, and evaluated (complete/reject) with events projected to `run_events`.
+- [ ] Memory episode write-back triggers a Base Sepolia commitment transaction, showing the tx hash and BaseScan link on the Mission view.
+- [ ] `pnpm memory:verify` runs cleanly and validates the on-chain commitment against Sibyl memory.
+
+### Quality & Tests
+- [ ] All tests pass across `@aura/api` and `@aura/web` with 0 failures (`pnpm test`).
+- [ ] Monorepo TypeScript builds compile cleanly with 0 errors (`pnpm typecheck`).

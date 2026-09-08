@@ -7,7 +7,7 @@ export type RunSource = "CONSOLE" | "AGENT" | "FIXTURE";
 export interface CreateRunInput {
   objective: string;
   source: RunSource;
-  /** Free text; the column defaults to non-mainnet when this is omitted. */
+  /** Free text; the column defaults to base-sepolia when this is omitted. */
   environment?: string;
   budgetUsdc?: string | null;
   /** Domain time for the seed event. Defaults to now, explicitly, not implicitly. */
@@ -59,7 +59,7 @@ export class RunStore {
         .values({
           objective: input.objective,
           source: input.source,
-          ...(input.environment === undefined ? {} : { environment: input.environment }),
+          environment: input.environment ?? "base-sepolia",
           budgetUsdc: input.budgetUsdc ?? null,
         })
         .returning();

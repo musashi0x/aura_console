@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { and, eq, getDb, schema } from "@aura/db";
 import { z } from "zod";
 
@@ -43,11 +44,56 @@ export async function authorizeFund(runId: string, input: AuthorizeFundInput) {
 
   const db = getDb();
 
-  const [job] = await db
+  let [job] = await db
     .select()
     .from(schema.acpJobs)
     .where(eq(schema.acpJobs.runId, runId))
     .limit(1);
+
+  // If not a direct ACP run, resolve through linked decision run
+  if (!job) {
+    const events = await store.listEvents(runId);
+    const linkedEvent = events.find((e) => e.type === "acp.job.linked");
+    if (linkedEvent && linkedEvent.data) {
+      const d = linkedEvent.data as Record<string, unknown>;
+      const targetRunId = typeof d.run_id === "string" ? d.run_id : typeof d.runId === "string" ? d.runId : null;
+      const targetJobId = typeof d.job_id === "string" ? d.job_id : typeof d.jobId === "string" ? d.jobId : null;
+      const targetChainId = typeof d.chain_id === "number" ? d.chain_id : typeof d.chainId === "number" ? d.chainId : null;
+
+      if (targetRunId) {
+        [job] = await db
+          .select()
+          .from(schema.acpJobs)
+          .where(eq(schema.acpJobs.runId, targetRunId))
+          .limit(1);
+      }
+      if (!job && targetJobId) {
+        const query = targetChainId
+          ? and(eq(schema.acpJobs.chainId, targetChainId), eq(schema.acpJobs.jobId, targetJobId))
+          : eq(schema.acpJobs.jobId, targetJobId);
+        [job] = await db.select().from(schema.acpJobs).where(query).limit(1);
+      }
+    }
+  }
+
+  if (!job) {
+    // Also check if any other run linked to THIS run via acp.job.linked
+    const linkedByEvents = await db
+      .select()
+      .from(schema.runEvents)
+      .where(eq(schema.runEvents.type, "acp.job.linked"));
+    for (const evt of linkedByEvents) {
+      const d = (evt.data ?? {}) as Record<string, unknown>;
+      if (d.run_id === runId || d.runId === runId) {
+        [job] = await db
+          .select()
+          .from(schema.acpJobs)
+          .where(eq(schema.acpJobs.runId, evt.runId))
+          .limit(1);
+        if (job) break;
+      }
+    }
+  }
 
   if (!job) {
     // Not an empty result dressed up as success: this Run has no ACP job
@@ -94,6 +140,22 @@ export async function authorizeFund(runId: string, input: AuthorizeFundInput) {
       },
       tx,
     );
+
+    if (job.runId && job.runId !== runId) {
+      await store.appendEvent(
+        {
+          runId: job.runId,
+          ...fundAuthorizedEvent({
+            eventId: randomUUID(),
+            chainId: job.chainId,
+            jobId: job.jobId,
+            amountUsdc: input.amountUsdc,
+            authorizedAt,
+          }),
+        },
+        tx,
+      );
+    }
 
     await tx.insert(schema.acpSpendIntents).values({
       authorizationEventId: input.eventId,

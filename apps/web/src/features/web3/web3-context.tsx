@@ -12,6 +12,7 @@ import {
   BASE_SEPOLIA_CHAIN_ID_DEC,
   BASE_SEPOLIA_CHAIN_ID_HEX,
   BASE_SEPOLIA_PARAMS,
+  BASE_SEPOLIA_USDC_ADDRESS,
   type EthereumProvider,
   type WalletState,
   type Web3ContextValue,
@@ -25,12 +26,49 @@ declare global {
 
 const STORAGE_KEY = "aura_web3_connected";
 
+export function encodeBalanceOfData(address: string): string {
+  const cleanAddr = address.toLowerCase().replace(/^0x/, "");
+  return `0x70a08231${cleanAddr.padStart(64, "0")}`;
+}
+
+export function parseHexQuantity(val: unknown): bigint {
+  if (typeof val !== "string") return 0n;
+  const clean = val.trim();
+  if (!clean || clean === "0x" || clean === "0x0") return 0n;
+  try {
+    return BigInt(clean);
+  } catch {
+    return 0n;
+  }
+}
+
+export function formatEth(wei: bigint): string {
+  const decimals = 18;
+  const divisor = 10n ** BigInt(decimals);
+  const integerPart = wei / divisor;
+  const remainder = wei % divisor;
+  const remStr = remainder.toString().padStart(decimals, "0");
+  return `${integerPart.toString()}.${remStr.slice(0, 4)}`;
+}
+
+export function formatUsdc(units: bigint): string {
+  const decimals = 6;
+  const divisor = 10n ** BigInt(decimals);
+  const integerPart = units / divisor;
+  const remainder = units % divisor;
+  const remStr = remainder.toString().padStart(decimals, "0");
+  return `${integerPart.toString()}.${remStr.slice(0, 2)}`;
+}
+
 const defaultState: WalletState = {
   address: null,
   chainId: null,
   isConnected: false,
   isConnecting: false,
   isBaseSepolia: false,
+  ethBalance: null,
+  usdcBalance: null,
+  isFetchingBalances: false,
   error: null,
 };
 
@@ -39,6 +77,7 @@ const Web3Context = createContext<Web3ContextValue>({
   connect: async () => {},
   disconnect: () => {},
   switchToBaseSepolia: async () => {},
+  refreshBalances: async () => {},
 });
 
 function normalizeChainId(chainIdHexOrDec: string | number | null | undefined): string | null {
@@ -59,39 +98,114 @@ function checkIsBaseSepolia(chainId: string | null): boolean {
 export function Web3WalletProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<WalletState>(defaultState);
 
-  const updateAccountAndChain = useCallback((accounts: string[], chainId: string | null) => {
-    if (!accounts || accounts.length === 0) {
+  const fetchBalances = useCallback(async (addr: string | null, isBase: boolean) => {
+    if (!addr || !isBase) {
       setState((prev) => ({
         ...prev,
-        address: null,
-        chainId: normalizeChainId(chainId),
-        isConnected: false,
-        isConnecting: false,
-        isBaseSepolia: false,
+        ethBalance: null,
+        usdcBalance: null,
+        isFetchingBalances: false,
       }));
-      if (typeof window !== "undefined") {
-        window.localStorage.removeItem(STORAGE_KEY);
-      }
       return;
     }
 
-    const address = accounts[0]!;
-    const normChain = normalizeChainId(chainId);
-    const isBase = checkIsBaseSepolia(normChain);
+    setState((prev) => ({ ...prev, isFetchingBalances: true }));
 
-    setState({
-      address,
-      chainId: normChain,
-      isConnected: true,
-      isConnecting: false,
-      isBaseSepolia: isBase,
-      error: null,
-    });
+    try {
+      const eth = typeof window !== "undefined" ? window.ethereum : undefined;
+      if (eth && typeof eth.request === "function") {
+        const [rawEth, rawUsdc] = await Promise.all([
+          eth.request({
+            method: "eth_getBalance",
+            params: [addr, "latest"],
+          }).catch((err) => {
+            console.warn("Failed to fetch eth balance:", err);
+            return null;
+          }),
+          eth.request({
+            method: "eth_call",
+            params: [
+              {
+                to: BASE_SEPOLIA_USDC_ADDRESS,
+                data: encodeBalanceOfData(addr),
+              },
+              "latest",
+            ],
+          }).catch((err) => {
+            console.warn("Failed to fetch usdc balance:", err);
+            return null;
+          }),
+        ]);
 
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEY, "true");
+        const ethBalance = typeof rawEth === "string" ? formatEth(parseHexQuantity(rawEth)) : null;
+        const usdcBalance = typeof rawUsdc === "string" ? formatUsdc(parseHexQuantity(rawUsdc)) : null;
+
+        setState((prev) => ({
+          ...prev,
+          ethBalance,
+          usdcBalance,
+          isFetchingBalances: false,
+        }));
+      } else {
+        // Simulated / demo fallback without window.ethereum
+        setState((prev) => ({
+          ...prev,
+          ethBalance: prev.ethBalance ?? "0.2500",
+          usdcBalance: prev.usdcBalance ?? "250.00",
+          isFetchingBalances: false,
+        }));
+      }
+    } catch (err) {
+      console.warn("Error in fetchBalances:", err);
+      setState((prev) => ({
+        ...prev,
+        isFetchingBalances: false,
+      }));
     }
   }, []);
+
+  const updateAccountAndChain = useCallback(
+    (accounts: string[], chainId: string | null) => {
+      if (!accounts || accounts.length === 0) {
+        setState((prev) => ({
+          ...prev,
+          address: null,
+          chainId: normalizeChainId(chainId),
+          isConnected: false,
+          isConnecting: false,
+          isBaseSepolia: false,
+          ethBalance: null,
+          usdcBalance: null,
+          isFetchingBalances: false,
+        }));
+        if (typeof window !== "undefined") {
+          window.localStorage.removeItem(STORAGE_KEY);
+        }
+        return;
+      }
+
+      const address = accounts[0]!;
+      const normChain = normalizeChainId(chainId);
+      const isBase = checkIsBaseSepolia(normChain);
+
+      setState((prev) => ({
+        ...prev,
+        address,
+        chainId: normChain,
+        isConnected: true,
+        isConnecting: false,
+        isBaseSepolia: isBase,
+        error: null,
+      }));
+
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(STORAGE_KEY, "true");
+      }
+
+      fetchBalances(address, isBase);
+    },
+    [fetchBalances]
+  );
 
   // Check initial connection on mount
   useEffect(() => {
@@ -155,6 +269,9 @@ export function Web3WalletProvider({ children }: { children: ReactNode }) {
         isConnected: true,
         isConnecting: false,
         isBaseSepolia: true,
+        ethBalance: "0.2500",
+        usdcBalance: "250.00",
+        isFetchingBalances: false,
         error: null,
       });
       window.localStorage.setItem(STORAGE_KEY, "true");
@@ -189,6 +306,8 @@ export function Web3WalletProvider({ children }: { children: ReactNode }) {
         ...prev,
         chainId: BASE_SEPOLIA_CHAIN_ID_HEX,
         isBaseSepolia: true,
+        ethBalance: prev.ethBalance ?? "0.2500",
+        usdcBalance: prev.usdcBalance ?? "250.00",
       }));
       return;
     }
@@ -217,19 +336,31 @@ export function Web3WalletProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const simulateConnect = useCallback((addr = "0x71C254890A805096aA3F33698bA7EcD73eB33a9F") => {
-    setState({
-      address: addr,
-      chainId: BASE_SEPOLIA_CHAIN_ID_HEX,
-      isConnected: true,
-      isConnecting: false,
-      isBaseSepolia: true,
-      error: null,
-    });
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEY, "true");
+  const refreshBalances = useCallback(async () => {
+    if (state.address && state.isBaseSepolia) {
+      await fetchBalances(state.address, state.isBaseSepolia);
     }
-  }, []);
+  }, [state.address, state.isBaseSepolia, fetchBalances]);
+
+  const simulateConnect = useCallback(
+    (addr = "0x71C254890A805096aA3F33698bA7EcD73eB33a9F") => {
+      setState({
+        address: addr,
+        chainId: BASE_SEPOLIA_CHAIN_ID_HEX,
+        isConnected: true,
+        isConnecting: false,
+        isBaseSepolia: true,
+        ethBalance: "0.2500",
+        usdcBalance: "250.00",
+        isFetchingBalances: false,
+        error: null,
+      });
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(STORAGE_KEY, "true");
+      }
+    },
+    []
+  );
 
   return (
     <Web3Context.Provider
@@ -238,6 +369,7 @@ export function Web3WalletProvider({ children }: { children: ReactNode }) {
         connect,
         disconnect,
         switchToBaseSepolia,
+        refreshBalances,
         simulateConnect,
       }}
     >

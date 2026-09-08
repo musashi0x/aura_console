@@ -14,6 +14,10 @@ export function ConnectWalletButton({ className }: { className?: string }) {
     isConnected,
     isConnecting,
     isBaseSepolia,
+    ethBalance,
+    usdcBalance,
+    isFetchingBalances,
+    refreshBalances,
     connect,
     disconnect,
     switchToBaseSepolia,
@@ -69,7 +73,8 @@ export function ConnectWalletButton({ className }: { className?: string }) {
         aria-label="Switch to Base Sepolia Network"
       >
         <span className="cs__wallet-icon" aria-hidden="true">⚠️</span>
-        <span>Switch to Base Sepolia</span>
+        <span className="cs__wallet-label-full">Switch to Base Sepolia</span>
+        <span className="cs__wallet-label-short">Base Sepolia</span>
       </button>
     );
   }
@@ -88,6 +93,11 @@ export function ConnectWalletButton({ className }: { className?: string }) {
         <span className="cs__base-dot" aria-hidden="true" />
         <span className="cs__network-name">Base Sepolia</span>
         <span className="cs__address-tag">{truncateAddress(address || "")}</span>
+        {usdcBalance !== null && (
+          <span className="cs__wallet-quick-balance" data-testid="wallet-quick-balance">
+            {usdcBalance} USDC
+          </span>
+        )}
         <span className="cs__chevron" aria-hidden="true">{isOpen ? "▲" : "▼"}</span>
       </button>
 
@@ -100,7 +110,9 @@ export function ConnectWalletButton({ className }: { className?: string }) {
         >
           <div className="cs__wallet-menu-header">
             <span className="cs__wallet-menu-title">Operator Wallet</span>
-            <span className="cs__wallet-menu-net">Base Sepolia (84532)</span>
+            <span className="cs__wallet-menu-net" data-testid="wallet-network-badge">
+              Base Sepolia (84532)
+            </span>
           </div>
 
           <div className="cs__wallet-menu-address-row">
@@ -115,17 +127,58 @@ export function ConnectWalletButton({ className }: { className?: string }) {
             </button>
           </div>
 
+          <div className="cs__wallet-menu-balances" data-testid="wallet-balances">
+            <div className="cs__wallet-balance-item">
+              <span className="cs__wallet-balance-label">Gas Balance (ETH)</span>
+              <span className="cs__wallet-balance-val font-mono" data-testid="wallet-eth-balance">
+                {isFetchingBalances ? "Fetching..." : ethBalance !== null ? `${ethBalance} ETH` : "—"}
+              </span>
+            </div>
+            <div className="cs__wallet-balance-item">
+              <span className="cs__wallet-balance-label">Spend Balance (USDC)</span>
+              <div className="flex items-center gap-1.5">
+                <span className="cs__wallet-balance-val font-mono" data-testid="wallet-usdc-balance">
+                  {isFetchingBalances ? "Fetching..." : usdcBalance !== null ? `${usdcBalance} USDC` : "—"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => refreshBalances()}
+                  disabled={isFetchingBalances}
+                  className="cs__wallet-menu-refresh-btn"
+                  title="Refresh testnet balances"
+                  aria-label="Refresh testnet balances"
+                  data-testid="wallet-refresh-balances-btn"
+                >
+                  <span className={isFetchingBalances ? "inline-block animate-spin" : ""}>↻</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div className="cs__wallet-menu-actions">
-            <a
-              href={`https://sepolia.basescan.org/address/${address}`}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="cs__wallet-menu-link"
-              data-testid="wallet-basescan-link"
-            >
-              <span>View on BaseScan</span>
-              <span aria-hidden="true">↗</span>
-            </a>
+            <div className="cs__wallet-menu-links">
+              <a
+                href={`https://sepolia.basescan.org/address/${address}`}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="cs__wallet-menu-link"
+                data-testid="wallet-basescan-link"
+              >
+                <span>View on BaseScan</span>
+                <span aria-hidden="true">↗</span>
+              </a>
+
+              <a
+                href="https://portal.cdp.coinbase.com/products/faucet"
+                target="_blank"
+                rel="noreferrer noopener"
+                className="cs__wallet-menu-link cs__wallet-faucet-link"
+                data-testid="wallet-faucet-link"
+              >
+                <span>Base Sepolia Faucet</span>
+                <span aria-hidden="true">↗</span>
+              </a>
+            </div>
 
             <button
               type="button"

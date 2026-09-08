@@ -39,8 +39,24 @@ export interface SibylHealth {
 export interface AgentHealth {
   configured: boolean;
   reachable: boolean;
+  agentId?: string;
+  runtime?: string;
   apps?: string[];
   code?: string;
+  detail?: string;
+}
+
+/** Operator policy readiness and constraints. */
+export interface PolicyHealth {
+  configured: boolean;
+  reachable: boolean;
+  verified?: boolean;
+  agentId: string;
+  policyVersion?: number | null;
+  autoSpendLimitUsdc?: string | null;
+  absoluteSpendLimitUsdc?: string | null;
+  humanApprovalAboveUsdc?: string | null;
+  minimumReliability?: number | null;
   detail?: string;
 }
 
@@ -278,6 +294,7 @@ export const apiClient = {
   agentHealth: () => request<AgentHealth>("/health/agent"),
   baseHealth: () => request<BaseHealth>("/health/base"),
   acpHealth: () => request<VirtualsAcpHealth>("/health/acp"),
+  policyHealth: () => request<PolicyHealth>("/health/policy"),
   /* 503 when Sibyl cannot be read, never an empty list: "we could not look" and
      "we looked and there is nobody" are different answers. */
   /* The console's only authorization path, and its second write of any kind.
@@ -303,6 +320,66 @@ export const apiClient = {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(reason !== undefined ? { reason } : {}),
+      },
+    ),
+
+  authorizeAcpFund: (
+    runId: string,
+    input: {
+      eventId?: string;
+      amountUsdc: string;
+      authorizedAt?: string;
+    },
+  ) =>
+    request<{
+      authorization: {
+        eventId: string;
+        runId: string;
+        type: string;
+        sequence: number;
+        chainId: number;
+        jobId: string;
+      };
+    }>(`/api/runs/${encodeURIComponent(runId)}/acp/fund-authorizations`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        eventId: input.eventId ?? (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : "11111111-1111-4111-8111-111111111111"),
+        amountUsdc: input.amountUsdc,
+        authorizedAt: input.authorizedAt ?? new Date().toISOString(),
+      }),
+    }),
+
+  evaluateAcpJob: (
+    runId: string,
+    input: {
+      action: "complete" | "reject";
+      reason: string;
+    },
+  ) =>
+    request<{ success: boolean; action: string; reason: string }>(
+      `/api/runs/${encodeURIComponent(runId)}/acp/evaluate`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input),
+      },
+    ),
+
+  linkAcpJob: (
+    runId: string,
+    input: {
+      acpRunId?: string;
+      jobId?: string;
+      chainId?: number;
+    },
+  ) =>
+    request<{ ok: boolean; event: unknown }>(
+      `/api/runs/${encodeURIComponent(runId)}/acp/link`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input),
       },
     ),
 

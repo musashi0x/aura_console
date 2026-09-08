@@ -140,4 +140,70 @@ describe("memory-commitment service", () => {
     expect(verifiedResult.saltFound).toBe(false);
     expect(verifiedResult.details).toContain("not found in Sibyl REFERENCE tier");
   });
+
+  it("auto-detects version in verifyMemoryCommitment when version is omitted", async () => {
+    const check = await verifyMemoryCommitment({
+      counterpartyKey: "virtuals:agent:beta",
+    });
+
+    expect(check.saltFound).toBe(true);
+    expect(check.version).toBe(1);
+    expect(check.computedCommitment).toMatch(/^0x[0-9a-f]{64}$/);
+  });
+
+  it("invokes onSubmitted callback when broadcast is simulated or broadcasted", async () => {
+    let submittedData: { txHash: string; counterpartyKey: string; version: number } | null = null;
+    const profile = {
+      relationshipStatus: "KNOWN",
+      overallReliability: 0.85,
+      confidence: 0.9,
+      memoryVersion: 2,
+    };
+
+    const res = await commitMemoryToBaseSepolia({
+      counterpartyKey: "virtuals:agent:test_submitted",
+      version: 2,
+      profile,
+      simulateBroadcast: true,
+      onSubmitted: async (data) => {
+        submittedData = data;
+      },
+    });
+
+    expect(submittedData).not.toBeNull();
+    const data = submittedData as unknown as { txHash: string; counterpartyKey: string; version: number };
+    expect(data.txHash).toBe(res.txHash);
+    expect(data.counterpartyKey).toBe("virtuals:agent:test_submitted");
+    expect(data.version).toBe(2);
+  });
+
+  it("falls back to ACP_WALLET_PRIVATE_KEY when BASE_SEPOLIA_PRIVATE_KEY is unset", async () => {
+    const origBaseKey = process.env.BASE_SEPOLIA_PRIVATE_KEY;
+    const origAcpKey = process.env.ACP_WALLET_PRIVATE_KEY;
+
+    try {
+      delete process.env.BASE_SEPOLIA_PRIVATE_KEY;
+      // Set a mock 64-character private key without 0x
+      process.env.ACP_WALLET_PRIVATE_KEY = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
+      const profile = {
+        relationshipStatus: "KNOWN",
+        overallReliability: 0.88,
+        confidence: 0.85,
+        memoryVersion: 3,
+      };
+
+      const res = await commitMemoryToBaseSepolia({
+        counterpartyKey: "virtuals:agent:key_fallback_test",
+        version: 3,
+        profile,
+      });
+
+      expect(res.network).toBe("base-sepolia");
+      expect(res.txHash).toMatch(/^0x[0-9a-f]{64}$/);
+    } finally {
+      process.env.BASE_SEPOLIA_PRIVATE_KEY = origBaseKey;
+      process.env.ACP_WALLET_PRIVATE_KEY = origAcpKey;
+    }
+  });
 });

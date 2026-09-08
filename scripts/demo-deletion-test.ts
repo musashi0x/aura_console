@@ -34,6 +34,7 @@ async function runTest() {
   console.log("-----------------------------------------------------------");
 
   process.env.SIBYL_PYTHON = "";
+  process.env.SIBYL_DISABLE_NATIVE = "true";
 
   const runA = await store.createRun({
     objective: "Hire a research agent (Deletion Test A - Memory Removed)",
@@ -67,6 +68,7 @@ async function runTest() {
   console.log("-----------------------------------------------------------");
 
   const localVenv = path.resolve(".venv-sibyl/bin/python");
+  delete process.env.SIBYL_DISABLE_NATIVE;
   process.env.SIBYL_PYTHON =
     originalPython || (existsSync(localVenv) ? localVenv : "python3");
 

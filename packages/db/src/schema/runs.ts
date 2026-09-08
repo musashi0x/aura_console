@@ -27,7 +27,7 @@ export const runs = pgTable(
     /** Who asked for the Run: CONSOLE, AGENT, or FIXTURE. */
     source: text("source").notNull(),
     /** Free text rather than an enum so a new network needs no migration. */
-    environment: text("environment").notNull().default("non-mainnet"),
+    environment: text("environment").notNull().default("base-sepolia"),
     /** The declared ceiling, not an amount spent. Spend only ever comes from events. */
     budgetUsdc: numeric("budget_usdc", { precision: 20, scale: 6 }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

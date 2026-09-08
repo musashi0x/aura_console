@@ -1,4 +1,5 @@
 import type { JobRoomEntry } from "@virtuals-protocol/acp-node-v2";
+import { z } from "zod";
 
 import { derivedEventId } from "./ids.js";
 import { usdcString } from "./usdc.js";
@@ -343,3 +344,40 @@ export function computeFailedEvent(input: {
     data,
   };
 }
+
+/**
+ * Links a decision or parent Run to the on-chain ACP job's Run.
+ */
+export const acpJobLinkedSchema = z.object({
+  jobId: z.string().optional(),
+  job_id: z.string().optional(),
+  chainId: z.number().int().positive().optional(),
+  chain_id: z.number().int().positive().optional(),
+  runId: z.string().optional(),
+  run_id: z.string().optional(),
+});
+
+export type AcpJobLinkedData = z.infer<typeof acpJobLinkedSchema>;
+
+export function acpJobLinkedEvent(input: {
+  eventId?: string;
+  chainId?: number;
+  jobId?: string;
+  runId: string;
+  linkedAt?: Date;
+}): TranslatedEvent {
+  const data: Record<string, unknown> = {
+    run_id: input.runId,
+    ...(input.chainId !== undefined ? { chain_id: input.chainId } : {}),
+    ...(input.jobId !== undefined ? { job_id: input.jobId } : {}),
+  };
+  const eventTime = input.linkedAt ?? new Date();
+
+  return {
+    eventId: input.eventId ?? derivedEventId({ type: "acp.job.linked", data, at: eventTime.toISOString() }),
+    type: "acp.job.linked",
+    eventTime,
+    data,
+  };
+}
+

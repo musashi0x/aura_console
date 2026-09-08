@@ -49,19 +49,14 @@ export interface ConsoleShellProps {
 }
 
 /** The chat is a region of the frame, not a floating sheet. */
-const CHAT_PANEL_WIDTH = 420;
+const CHAT_PANEL_WIDTH = 380;
 
 /**
- * Below this the frame cannot afford two columns: a 420px panel beside a 375px
- * viewport pushed the whole document sideways.
- *
- * The query asks whether the viewport is NARROW rather than whether it is wide,
- * because `useMediaQuery` returns false on its first render for SSR. Phrased
- * this way that first answer means "not narrow", so a desktop paints the panel
- * once; a phone reflows once instead. One of the two had to, and the phone is
- * the case where the layout visibly changes anyway.
+ * Below this the frame cannot comfortably afford two columns: a docked chat panel
+ * beside side nav on a tablet viewport crushes the workspace.
+ * Chat is launched on demand as a sheet below this breakpoint.
  */
-const NARROW = "(max-width: 59.99rem)";
+const NARROW = "(max-width: 69.99rem)";
 
 /**
  * The console frame, built from the design system's own shell.
@@ -199,7 +194,9 @@ export function ConsoleShell({
             <ConsoleChatRegion runId={runRef} grounding={grounding} />
           </BottomSheet>
         ) : null}
-        {chatOpen || hostsConversation ? null : <ConsoleChatLauncher />}
+        {!hostsConversation && !chatDocked && !chatAsSheet ? (
+          <ConsoleChatLauncher />
+        ) : null}
       </Theme>
     </Web3WalletProvider>
   );
