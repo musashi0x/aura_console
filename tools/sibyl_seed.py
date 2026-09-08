@@ -200,6 +200,15 @@ def main() -> int:
         episodes = len(body.get("episodes", []))
         print(f"seeded {CATEGORY}/{name}  status={body['relationship_status']}  episodes={episodes}")
 
+    try:
+        import sqlite3
+        con = sqlite3.connect(path)
+        con.execute("VACUUM")
+        con.commit()
+        con.close()
+    except Exception:
+        pass
+
     total = len(client.list_entities(CATEGORY))
     status = client.free_tier_status()
     print(f"\ndb          {path}")
@@ -208,6 +217,7 @@ def main() -> int:
     print(f"entities    {total} in category '{CATEGORY}'")
     print(f"size        {status.get('db_size_bytes')} of {status.get('soft_cap_bytes')} bytes")
     return 0
+
 
 
 if __name__ == "__main__":
