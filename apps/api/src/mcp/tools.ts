@@ -28,6 +28,7 @@ export const CONSOLE_DESTINATIONS = [
   "/system",
   "/policies",
   "/counterparties",
+  "/chat",
 ] as const;
 
 export type ConsoleDestination = (typeof CONSOLE_DESTINATIONS)[number];
@@ -43,7 +44,7 @@ export interface McpToolDefinition<TParams = any, TResult = any> {
 export const consoleNavigateTool: McpToolDefinition<{ destination: ConsoleDestination }> = {
   name: "console_navigate",
   description:
-    "Navigate the operator's view in Aura Console to one of the console surfaces: Missions (/runs), Start a Mission (/runs/new), Demo Mission (/runs/example), Network Readiness (/system), Guardrails (/policies), or Agents (/counterparties).",
+    "Navigate the operator's view in Aura Console to one of the console surfaces: Missions (/runs), Start a Mission (/runs/new), Demo Mission (/runs/example), Network Readiness (/system), Guardrails (/policies), Agents (/counterparties), or Assistant (/chat).",
   parameters: z.object({
     destination: z.enum(CONSOLE_DESTINATIONS).describe("The target route to open in the Console"),
   }),

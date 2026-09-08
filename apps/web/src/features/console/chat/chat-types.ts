@@ -1,6 +1,32 @@
+import type {
+  ChatToolCallItem as AstryxChatToolCallItem,
+  ChatToolCallStatus,
+} from "@astryxdesign/core/Chat";
+
+export interface ChatToolCallItem extends AstryxChatToolCallItem {
+  id?: string;
+  callId?: string;
+  args?: Record<string, unknown>;
+  result?: unknown;
+}
+
+export type { ChatToolCallStatus };
+
+export type RelationshipStatus =
+  | "PREFERRED"
+  | "KNOWN"
+  | "WATCH"
+  | "BLOCKED"
+  | "NEW"
+  | "ARCHIVED";
+
 export interface McpToolCall {
+  id?: string;
+  callId?: string;
   name: string;
-  args: Record<string, unknown>;
+  status?: ChatToolCallStatus;
+  duration?: string;
+  args?: Record<string, unknown>;
   result?: unknown;
 }
 
@@ -8,6 +34,17 @@ export interface TokenUsage {
   promptTokens: number;
   candidateTokens: number;
   totalTokens: number;
+}
+
+export interface CounterpartyMemorySummary {
+  counterpartyKey: string;
+  displayName: string;
+  status: RelationshipStatus;
+  overallReliability: number;
+  confidence: number;
+  episodesUsed: number;
+  latestOutcome?: string;
+  timestamp?: string;
 }
 
 /** One turn in the thread. The agent never speaks unless a stream produced it. */
@@ -26,8 +63,11 @@ export interface ChatMessage {
   complete: boolean;
   /** Sibyl memory records the answer cited, from #32. Empty until that lands. */
   citations: MemoryCitation[];
-  /** MCP tool calls executed during this turn */
-  toolCalls?: McpToolCall[];
+  /**
+   * Agent execution invocations (sandboxed CLI execution, Sibyl queries,
+   * Base Sepolia transaction submissions). Displayed inline via Astryx ChatToolCalls.
+   */
+  toolCalls?: ChatToolCallItem[];
   /** Agent's internal Chain-of-Thought / reasoning narrative */
   thought?: string;
   /** Token usage statistics for this turn */
@@ -41,6 +81,7 @@ export interface ChatMessage {
 export interface MemoryCitation {
   counterpartyKey: string;
   label: string;
+  summary?: CounterpartyMemorySummary;
 }
 
 export type ChatConnection =

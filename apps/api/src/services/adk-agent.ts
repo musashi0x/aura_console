@@ -1,4 +1,5 @@
 import { env } from "../env.js";
+import { isGeminiAgentConfigured } from "./gemini-agent.js";
 
 /**
  * Bridge to a Google ADK agent.
@@ -200,6 +201,13 @@ export interface AgentStatus {
 export async function getAgentStatus(): Promise<AgentStatus> {
   const base = env.ADK_BASE_URL?.replace(/\/$/, "");
   if (!base) {
+    if (isGeminiAgentConfigured()) {
+      return {
+        configured: true,
+        reachable: true,
+        apps: ["gemini-agent"],
+      };
+    }
     return {
       configured: false,
       reachable: false,

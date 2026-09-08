@@ -13,6 +13,7 @@ type RecordedToolCall = {
   name: string;
   args: Record<string, unknown>;
   result?: unknown;
+  callId?: string;
 };
 
 describe("Gemini Agent Autonomous Function-Calling Loop", () => {
@@ -200,5 +201,49 @@ describe("Gemini Agent Autonomous Function-Calling Loop", () => {
 
     setGeminiAgentOverride(null);
     expect(isGeminiAgentConfigured()).toBe(initial);
+  });
+
+  it("emits onToolStart with name, args, and callId prior to tool execution and onToolCall", async () => {
+    const events: string[] = [];
+    const startedCalls: Array<{ name: string; args: Record<string, unknown>; callId: string }> = [];
+    const completedCalls: RecordedToolCall[] = [];
+
+    await runGeminiAgentLoop({
+      query: "go to missions",
+      onToolStart: (start) => {
+        events.push(`start:${start.name}`);
+        startedCalls.push(start);
+      },
+      onToolCall: (call) => {
+        events.push(`call:${call.name}`);
+        completedCalls.push(call);
+      },
+    });
+
+    expect(startedCalls).toHaveLength(1);
+    expect(startedCalls[0]!.name).toBe("console_navigate");
+    expect(startedCalls[0]!.args.destination).toBe("/runs");
+    expect(startedCalls[0]!.callId).toBeDefined();
+
+    expect(completedCalls).toHaveLength(1);
+    expect(completedCalls[0]!.name).toBe("console_navigate");
+    expect(completedCalls[0]!.callId).toBe(startedCalls[0]!.callId);
+
+    // Verify ordering: start event precedes call event
+    expect(events).toEqual(["start:console_navigate", "call:console_navigate"]);
+  });
+
+  it("navigates to /chat when operator asks for chat or assistant", async () => {
+    const calls: RecordedToolCall[] = [];
+    await runGeminiAgentLoop({
+      query: "go to chat",
+      onToolCall: (call) => {
+        calls.push(call);
+      },
+    });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.name).toBe("console_navigate");
+    expect(calls[0]!.args.destination).toBe("/chat");
   });
 });

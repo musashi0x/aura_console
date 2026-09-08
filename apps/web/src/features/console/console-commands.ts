@@ -31,6 +31,7 @@ export const COMMAND_DESTINATIONS = [
   "/runs",
   "/runs/new",
   "/runs/example",
+  "/chat",
   "/system",
   "/policies",
   "/counterparties",
@@ -55,6 +56,14 @@ export const CONSOLE_COMMANDS: readonly ConsoleCommand[] = [
     aliases: ["start a mission", "new mission", "start a run", "new run", "create a run"],
     run: go("/runs/new"),
     done: () => console_.chat.did.navigated("Start a Run"),
+  },
+  {
+    id: "chat",
+    label: "Chat Console",
+    group: console_.palette.groupNavigate,
+    aliases: ["chat", "chat console", "open chat", "assistant", "go to chat"],
+    run: go("/chat"),
+    done: () => console_.chat.did.navigated("Chat Console"),
   },
   {
     id: "example",

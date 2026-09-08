@@ -1,11 +1,13 @@
 "use client";
 
 import { useReducer, useState, useSyncExternalStore } from "react";
+import { Button } from "@astryxdesign/core/Button";
+import { Section } from "@astryxdesign/core/Section";
 import { SegmentedControl, SegmentedControlItem } from "@astryxdesign/core/SegmentedControl";
 import { Theme } from "@astryxdesign/core/theme";
 
 import { MonoRef, StatusBadge, type StatusTone } from "@/components/primitives";
-import { stoneTheme } from "@/themes/stone/stone.js";
+import { stoneTheme } from "@/themes/stone/stoneTheme";
 
 import { console_ } from "../copy";
 import {
@@ -25,11 +27,9 @@ import {
 import { foldRun, type FoldSeed } from "../projection/fold-run";
 import { buildMissionProgress } from "../projection/mission-rail";
 import { buildSpine } from "../projection/spine";
-import { ConsoleChat, type ChatGrounding } from "./console-chat";
+import type { ChatGrounding } from "./console-chat";
 import { MissionBoard } from "./mission-board";
-import { useRouter } from "next/navigation";
-
-import { foldCounterfactual } from "../projection/counterfactual";
+import { MissionInspector } from "./mission-inspector";
 import { MissionOperator } from "./mission-operator";
 import { MissionRail } from "./mission-rail";
 import { MissionTrace } from "./mission-trace";
@@ -72,9 +72,8 @@ export function MissionWorkspace({
   events,
   seed,
   fixtureLabel,
-  grounding,
+  grounding: _grounding,
 }: MissionWorkspaceProps) {
-  const router = useRouter();
   const [mode, setMode] = useState<MissionMode>("OPERATOR");
 
   // A finished recording must not open claiming LIVE. "Live" means following a
@@ -111,6 +110,14 @@ export function MissionWorkspace({
   const scrubTo = (entry: TimelineEntry) =>
     dispatch({ kind: "scrubTo", sequence: entry.sequence, atTime: entry.eventTime });
 
+  const resetLive = () => {
+    if (ended && complete.lastSequence !== null) {
+      dispatch({ kind: "ended", finalSequence: complete.lastSequence });
+    } else {
+      dispatch({ kind: "jumpToLive" });
+    }
+  };
+
   /* Selecting a step scrolls to the event that produced it, in whichever mode
      is open. It opens no panel of its own: the rail is a summary above the
      conversation, never the primary way to read a Mission. */
@@ -123,6 +130,14 @@ export function MissionWorkspace({
         ?.scrollIntoView({ block: "center", behavior: "auto" });
     });
   };
+
+  // Extract Base Sepolia transaction references recorded in the event stream
+  const txHashes = view.entries
+    .map((e) => {
+      const val = e.data?.tx_hash ?? e.data?.reference ?? e.data?.txHash;
+      return typeof val === "string" ? val : null;
+    })
+    .filter((h): h is string => Boolean(h && h.startsWith("0x")));
 
   return (
     <section className="mw" aria-labelledby="mission-heading">
@@ -149,22 +164,14 @@ export function MissionWorkspace({
 
       {fixtureLabel ? <p className="run__fixture">{fixtureLabel}</p> : null}
 
-      <dl className="run__facts">
-        <div>
-          <dt>Budget</dt>
-          <dd>{view.budgetUsdc ?? "Not set"}</dd>
-        </div>
-        <div>
-          <dt>Spent</dt>
-          {/* null means not yet projected. Rendering it as 0.00 would assert a
-              fact no event has reported. */}
-          <dd>{view.spentUsdc ?? "Not yet reported"}</dd>
-        </div>
-        <div>
-          <dt>Memory</dt>
-          <dd>{console_.mission.memory[view.retrievalStatus]}</dd>
-        </div>
-      </dl>
+      <MissionInspector
+        runId={view.runId}
+        environment={view.environment}
+        budgetUsdc={view.budgetUsdc ?? undefined}
+        spentUsdc={view.spentUsdc ?? undefined}
+        memoryStatus={console_.mission.memory[view.retrievalStatus]}
+        txHashes={txHashes}
+      />
 
       <MissionRail progress={progress} onJump={jumpTo} />
 
@@ -203,35 +210,30 @@ export function MissionWorkspace({
         />
       ) : (
         <Theme theme={stoneTheme} mode="light">
-          <div className="mw__editorial">
+          <Section padding={0} variant="transparent" className="mw__editorial">
             {mode === "OPERATOR" ? (
               <MissionOperator
                 entries={view.entries}
                 onScrubTo={scrubTo}
-                /* Only a real Mission gets a Run id, so the fixture cannot
-                   render an approve control at all. Labelling example data is
-                   not enough when the control would authorize something. */
-                runId={fixtureLabel ? undefined : view.runId}
-                /* A recorded approval changes the stream, so the Mission is
-                   re-read rather than patched locally. One projection over one
-                   set of events stays the only account of what happened. */
-                onApproved={() => router.refresh()}
-                /* Folded from the events the Mission already carries. It
-                   re-runs no scoring and cannot act. */
-                counterfactual={foldCounterfactual(view.entries)}
-                /* The conversation sits in the centre of the Mission. It used
-                   to be a panel docked to the right edge on every console
-                   surface, which put the way you direct a Mission beside the
-                   Mission rather than in it. It stays reachable elsewhere from
-                   the launcher; here it is the surface. */
-                conversation={
-                  <ConsoleChat runId={view.runId} grounding={grounding} placement="centre" />
-                }
+                runId={view.runId}
               />
             ) : (
-              <MissionBoard progress={progress} onSelect={jumpTo} />
+              <MissionBoard
+                progress={progress}
+                runId={view.runId}
+                budgetUsdc={view.budgetUsdc ?? undefined}
+                spentUsdc={view.spentUsdc ?? undefined}
+                onSelect={jumpTo}
+                allEntries={complete.entries}
+                currentEntries={view.entries}
+                runStatus={view.status}
+                onScrubTo={scrubTo}
+                onResetLive={resetLive}
+                isHistorical={historical}
+                fixtureLabel={fixtureLabel}
+              />
             )}
-          </div>
+          </Section>
         </Theme>
       )}
 
@@ -239,18 +241,18 @@ export function MissionWorkspace({
           no stream, so pressing Play changed a badge while the Mission sat
           still. Scrubbing and returning are the two things that work. */}
       <div className="run__transport" role="group" aria-label="Timeline transport">
-        <button
-          type="button"
+        <Button
+          size="sm"
+          variant="secondary"
           className="btn"
           onClick={() =>
             ended && complete.lastSequence !== null
               ? dispatch({ kind: "ended", finalSequence: complete.lastSequence })
               : dispatch({ kind: "jumpToLive" })
           }
-          disabled={!historical}
-        >
-          {ended ? "Back to the end" : "Back to latest"}
-        </button>
+          isDisabled={!historical}
+          label={ended ? "Back to the end" : "Back to latest"}
+        />
       </div>
 
       <p className="run__foot">

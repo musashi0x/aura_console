@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { List, ListItem } from "@astryxdesign/core/List";
 import { HStack, VStack } from "@astryxdesign/core/Stack";
 import { Text } from "@astryxdesign/core/Text";
 import { Token } from "@astryxdesign/core/Token";
+import { Bot, Shield, History, Sparkles } from "lucide-react";
 
 import { ConsoleShell } from "@/features/console/components/console-shell";
 import { readGrounding } from "@/features/console/grounding";
@@ -35,43 +35,48 @@ function Episodes({ item }: { item: SibylCounterparty }) {
     );
   }
   return (
-    <VStack gap={3}>
-      {item.episodes.map((episode, index) => (
-        <VStack key={`${episode.run ?? "run"}-${index}`} gap={1}>
-          <HStack gap={2} wrap="wrap">
-            {episode.outcome ? (
-              <Token
-                label={episode.outcome}
-                size="sm"
-                color={episode.outcome === "accepted" ? "green" : "red"}
-              />
+    <div className="flex flex-col gap-2.5 pt-2 border-t border-[var(--color-border)]/60">
+      <span className="text-xs font-medium text-[var(--color-text-muted,#8d9aaf)] flex items-center gap-1.5">
+        <History size={13} />
+        <span>Verified Episodes ({item.episodes.length})</span>
+      </span>
+      <VStack gap={2}>
+        {item.episodes.map((episode, index) => (
+          <div
+            key={`${episode.run ?? "run"}-${index}`}
+            className="p-3 rounded-lg bg-[var(--color-surface,#111015)] border border-[var(--color-border)]/80 flex flex-col gap-1.5"
+          >
+            <HStack gap={2} wrap="wrap">
+              {episode.outcome ? (
+                <Token
+                  label={episode.outcome}
+                  size="sm"
+                  color={episode.outcome === "accepted" ? "green" : "red"}
+                />
+              ) : null}
+              <Text as="span" size="xsm" color="secondary">
+                {[episode.taskType, episode.occurredAt].filter(Boolean).join(" · ")}
+              </Text>
+            </HStack>
+            {episode.note ? (
+              <Text as="p" size="sm">
+                {episode.note}
+              </Text>
             ) : null}
-            <Text as="span" size="xsm" color="secondary">
-              {[episode.taskType, episode.occurredAt].filter(Boolean).join(" · ")}
-            </Text>
-          </HStack>
-          {/* The note wraps. As a ListItem label it truncated to "Delivere…" at
-              375px, and the note is the evidence the score is a summary of —
-              the one line an operator reads before trusting someone with
-              money. */}
-          {episode.note ? (
-            <Text as="p" size="sm">
-              {episode.note}
-            </Text>
-          ) : null}
-        </VStack>
-      ))}
-    </VStack>
+          </div>
+        ))}
+      </VStack>
+    </div>
   );
 }
 
 function Profile({ item }: { item: SibylCounterparty }) {
+  const reliabilityVal = item.overallReliability !== null ? Math.round(item.overallReliability * 100) : null;
+
   return (
     <VStack gap={3}>
       <HStack gap={2} wrap="wrap">
-        {/* Beside the record, not in `endContent`: there they were centred
-            against the whole row, so on a tall entry they floated halfway down
-            beside nothing. */}
+        {/* Beside the record, not in endContent */}
         {item.isFixture ? (
           <Token label={console_.agents.fixtureBadge} size="sm" color="orange" />
         ) : null}
@@ -79,25 +84,34 @@ function Profile({ item }: { item: SibylCounterparty }) {
           <Token label={item.relationshipStatus} size="sm" color="cyan" />
         ) : null}
       </HStack>
-      <HStack gap={2} wrap="wrap">
+
+      <div className="flex flex-wrap items-center gap-2">
         <Token label={`${console_.agents.fields.reliability} ${score(item.overallReliability)}`} size="sm" />
+        {reliabilityVal !== null && (
+          <div className="w-16 h-1.5 rounded-full bg-[var(--color-border)] overflow-hidden inline-block align-middle" title={`${reliabilityVal}%`}>
+            <div
+              className="h-full rounded-full bg-[var(--color-accent)] transition-all"
+              style={{ width: `${reliabilityVal}%` }}
+            />
+          </div>
+        )}
         <Token label={`${console_.agents.fields.taskFit} ${score(item.taskFit)}`} size="sm" />
         <Token label={`${console_.agents.fields.confidence} ${score(item.confidence)}`} size="sm" />
         {item.observedPriceUsdc ? (
           <Token label={`${console_.agents.price} ${item.observedPriceUsdc}`} size="sm" />
         ) : null}
-        {/* Only when Sibyl holds one. A version is metadata about a profile,
-            not the thing that makes one, so its absence is not reported as a
-            gap in the relationship. */}
         {item.memoryVersion !== null ? (
           <Token label={`${console_.agents.fields.version} ${item.memoryVersion}`} size="sm" />
         ) : null}
-      </HStack>
+      </div>
 
       {item.riskNote ? (
-        <Text as="p" size="sm">
-          {console_.agents.risk}: {item.riskNote}
-        </Text>
+        <div className="flex items-start gap-2 p-2.5 rounded-lg bg-[var(--color-surface,#111015)] border border-[var(--color-border)]/60 text-xs">
+          <Shield size={13} className="text-[var(--color-accent)] mt-0.5 flex-shrink-0" />
+          <Text as="p" size="sm">
+            {console_.agents.risk}: {item.riskNote}
+          </Text>
+        </div>
       ) : null}
 
       <Episodes item={item} />
@@ -118,11 +132,6 @@ function Profile({ item }: { item: SibylCounterparty }) {
 
 /**
  * The operator's own relationship memory, read from Sibyl.
- *
- * Three outcomes, and they are not interchangeable. Sibyl could not be read:
- * that is the unavailable state, and it says so rather than showing an empty
- * page. Sibyl answered with nothing: that is an empty list, and it is only
- * sayable because Sibyl answered. Rows are rows.
  */
 export default async function CounterpartiesPage() {
   const [health, memory, grounding] = await Promise.all([
@@ -149,22 +158,51 @@ export default async function CounterpartiesPage() {
           </Text>
         </VStack>
       ) : (
-        <VStack gap={3}>
-          <List hasDividers density="spacious">
-            {memory.data.items.map((item) => (
-              <ListItem
-                key={item.counterpartyKey}
-                label={item.displayName ?? item.counterpartyKey}
-                description={
-                  item.hasProfile ? <Profile item={item} /> : console_.agents.noProfile
-                }
-              />
-            ))}
-          </List>
+        <div className="flex flex-col gap-4 w-full max-w-4xl my-4">
+          {memory.data.items.map((item) => (
+            <div
+              key={item.counterpartyKey}
+              className="p-5 rounded-2xl bg-[var(--color-surface-raised,#1b1b1f)] border border-[var(--color-border)] hover:border-[var(--color-accent)] transition-all shadow-sm flex flex-col gap-4"
+            >
+              <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)]/60 pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-[var(--color-surface,#111015)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-accent)]">
+                    <Bot size={18} />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-sm text-[var(--color-text,#f4f7fb)]">
+                      {item.displayName ?? item.counterpartyKey}
+                    </span>
+                    {item.displayName ? (
+                      <span className="font-mono text-[11px] text-[var(--color-text-muted,#8d9aaf)]">
+                        {item.counterpartyKey}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Sparkles size={13} className="text-[var(--color-accent)] opacity-70" />
+                  <span className="text-[11px] font-mono text-[var(--color-text-muted,#8d9aaf)]">
+                    Sibyl Rep
+                  </span>
+                </div>
+              </div>
+
+              <div className="pt-1">
+                {item.hasProfile ? <Profile item={item} /> : (
+                  <Text as="p" size="sm" color="secondary">
+                    {console_.agents.noProfile}
+                  </Text>
+                )}
+              </div>
+            </div>
+          ))}
+
           <Text as="p" size="xsm" color="secondary">
             {console_.agents.scoreNote}
           </Text>
-        </VStack>
+        </div>
       )}
     </ConsoleShell>
   );

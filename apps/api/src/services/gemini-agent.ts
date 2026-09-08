@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import {
   findMcpTool,
   MCP_TOOLS,
@@ -41,10 +43,16 @@ export interface GeminiAgentInput {
   runId?: string;
   tools?: McpToolDefinition[];
   signal?: AbortSignal;
+  onToolStart?: (toolStart: {
+    name: string;
+    args: Record<string, unknown>;
+    callId: string;
+  }) => Promise<void> | void;
   onToolCall?: (toolCall: {
     name: string;
     args: Record<string, unknown>;
     result?: unknown;
+    callId?: string;
   }) => Promise<void> | void;
   onCitation?: (citation: {
     counterpartyKey: string;
@@ -61,6 +69,7 @@ export interface GeminiAgentResult {
     name: string;
     args: Record<string, unknown>;
     result?: unknown;
+    callId?: string;
   }>;
   citations: Array<{
     counterpartyKey: string;
@@ -115,6 +124,14 @@ const NAVIGATION_MAP: Record<string, { destination: ConsoleDestination; label: s
   counterparties: { destination: "/counterparties", label: "Agents" },
   providers: { destination: "/counterparties", label: "Agents" },
   "go to agents": { destination: "/counterparties", label: "Agents" },
+  chat: { destination: "/chat", label: "Assistant Chat" },
+  assistant: { destination: "/chat", label: "Assistant Chat" },
+  "chat console": { destination: "/chat", label: "Assistant Chat" },
+  "go to chat": { destination: "/chat", label: "Assistant Chat" },
+  "go to assistant": { destination: "/chat", label: "Assistant Chat" },
+  "open chat": { destination: "/chat", label: "Assistant Chat" },
+  "open assistant": { destination: "/chat", label: "Assistant Chat" },
+  "open chat console": { destination: "/chat", label: "Assistant Chat" },
 };
 
 function matchNavigation(q: string): { destination: ConsoleDestination; label: string } | null {
@@ -595,6 +612,7 @@ export async function runGeminiAgentLoop(input: GeminiAgentInput): Promise<Gemin
     runId,
     tools = MCP_TOOLS,
     signal,
+    onToolStart,
     onToolCall,
     onCitation,
     onThought,
@@ -609,6 +627,7 @@ export async function runGeminiAgentLoop(input: GeminiAgentInput): Promise<Gemin
     name: string;
     args: Record<string, unknown>;
     result?: unknown;
+    callId?: string;
   }> = [];
   const recordedCitations: Array<{
     counterpartyKey: string;
@@ -654,12 +673,17 @@ export async function runGeminiAgentLoop(input: GeminiAgentInput): Promise<Gemin
           throw new Error("Agent turn aborted by client signal");
         }
 
+        const callId = randomUUID();
         const tool = findMcpTool(call.name) ?? tools.find((t) => t.name === call.name);
         const callArgs = { ...call.args };
 
         // Ensure runId is forwarded to mission_propose_approval if runId is present
         if (call.name === "mission_propose_approval" && !callArgs.runId && runId) {
           callArgs.runId = runId;
+        }
+
+        if (onToolStart) {
+          await onToolStart({ name: call.name, args: callArgs, callId });
         }
 
         let result: unknown;
@@ -673,9 +697,9 @@ export async function runGeminiAgentLoop(input: GeminiAgentInput): Promise<Gemin
           }
         }
 
-        recordedToolCalls.push({ name: call.name, args: callArgs, result });
+        recordedToolCalls.push({ name: call.name, args: callArgs, result, callId });
         if (onToolCall) {
-          await onToolCall({ name: call.name, args: callArgs, result });
+          await onToolCall({ name: call.name, args: callArgs, result, callId });
         }
 
         // Emit citation event if counterparty memory was recalled

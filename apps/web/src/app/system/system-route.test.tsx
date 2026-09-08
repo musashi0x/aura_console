@@ -35,6 +35,27 @@ vi.mock("@/lib/api-client", () => ({
       ok: true as const,
       data: { configured: false, reachable: false, detail: "no agent in this test" },
     }),
+    baseHealth: async () => ({
+      ok: true as const,
+      data: {
+        configured: true,
+        reachable: true,
+        network: "base:sepolia",
+        blockNumber: 1234567,
+        latencyMs: 42,
+        detail: "Base RPC answered block #1234567 in 42 ms.",
+      },
+    }),
+    acpHealth: async () => ({
+      ok: true as const,
+      data: {
+        configured: true,
+        reachable: true,
+        protocol: "virtuals:acp",
+        mode: "live" as const,
+        detail: "Virtuals ACP gateway connected and responding.",
+      },
+    }),
   },
 }));
 
@@ -173,3 +194,28 @@ describe("the readiness surface's unchecked rows", () => {
     expect(screen.getAllByText("NOT CHECKED")).toHaveLength(2);
   });
 });
+
+describe("the outside world readiness rows: Virtuals ACP & Base L2", () => {
+  it("renders Virtuals ACP and Base RPC rows with verified readings", async () => {
+    answering();
+    await renderPage();
+
+    // Virtuals ACP
+    const acpRow = screen.getByRole("heading", { name: "Virtuals ACP" }).closest("li");
+    expect(acpRow).not.toBeNull();
+    const acp = within(acpRow!);
+    expect(acp.getByText("CONNECTED")).toBeInTheDocument();
+    expect(acp.getByText("virtuals:acp")).toBeInTheDocument();
+    expect(acp.getByText("live")).toBeInTheDocument();
+
+    // Base RPC
+    const baseRow = screen.getByRole("heading", { name: "Base RPC" }).closest("li");
+    expect(baseRow).not.toBeNull();
+    const base = within(baseRow!);
+    expect(base.getByText("READY")).toBeInTheDocument();
+    expect(base.getByText("base:sepolia")).toBeInTheDocument();
+    expect(base.getByText("#1234567")).toBeInTheDocument();
+    expect(base.getByText("42 ms")).toBeInTheDocument();
+  });
+});
+
