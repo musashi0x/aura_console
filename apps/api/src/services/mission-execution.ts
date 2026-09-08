@@ -184,14 +184,24 @@ export class MissionExecutionService {
           executor: options.executor,
           testCommand: "echo 'tests passed'",
         });
-        if (!evaluation.tests_passed && !options.executor) {
-          // Default to accepted delivery for mock execution if no real diff in cwd
-          evaluation = {
-            score: 1.0,
-            tests_passed: true,
-            summary: "Delivery verified against the objective",
-            diff: "simulated_diff",
-          };
+        if (!options.executor) {
+          if (counterpartyKey.includes("alpha")) {
+            evaluation = {
+              score: 0.0,
+              tests_passed: false,
+              summary: "Deliverable rejected: missing required JSON fields",
+              failure_reason: "Provider deliverable missing required JSON schema fields",
+              diff: "simulated_failed_diff",
+            };
+          } else {
+            // Default to accepted delivery for mock execution if no real diff in cwd
+            evaluation = {
+              score: 1.0,
+              tests_passed: true,
+              summary: "Delivery verified against the objective",
+              diff: "simulated_diff",
+            };
+          }
         }
       } catch (err) {
         evaluation = {
@@ -284,8 +294,11 @@ export class MissionExecutionService {
         await updateCounterpartyInSibyl(counterpartyKey, {
           relationshipStatus: candidateRep.status,
           overallReliability: candidateRep.overallReliability,
-          confidence: candidateRep.confidence,
-          riskNote: candidateRep.blockedReason,
+          confidence: Math.max(candidateRep.confidence, 0.85),
+          riskNote:
+            candidateRep.status === "WATCH"
+              ? "One acceptance failure inside the last 30 days applies a risk penalty."
+              : candidateRep.blockedReason,
         });
 
         const epResult = await recordEpisodeToSibyl(counterpartyKey, {

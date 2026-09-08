@@ -4,6 +4,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 
 import { httpError } from "../errors.js";
+import { MissionExecutionService } from "../services/mission-execution.js";
 import { RunStore } from "../services/run-store.js";
 
 const store = new RunStore();
@@ -75,6 +76,15 @@ approvals.post("/:runId/approve", async (c) => {
     decision: "approve",
     ceilingUsdc: parsed.data.ceiling_usdc,
   });
+
+  if (process.env.NODE_ENV !== "test" && !process.env.DISABLE_AUTO_EXECUTION) {
+    const executionService = new MissionExecutionService(store);
+    setTimeout(() => {
+      executionService.execute({ runId: runId.data }).catch((err) => {
+        console.error(`[mission-execution] background execution failed for run ${runId.data}:`, err);
+      });
+    }, 100);
+  }
 
   return c.json({ event: { event_id: event.eventId, type: event.type, sequence: event.sequence } }, 201);
 });
@@ -177,6 +187,15 @@ approvals.post("/:runId/approvals", async (c) => {
     decision: "approve",
     ceilingUsdc: parsed.data.ceiling_usdc,
   });
+
+  if (process.env.NODE_ENV !== "test" && !process.env.DISABLE_AUTO_EXECUTION) {
+    const executionService = new MissionExecutionService(store);
+    setTimeout(() => {
+      executionService.execute({ runId: runId.data }).catch((err) => {
+        console.error(`[mission-execution] background execution failed for run ${runId.data}:`, err);
+      });
+    }, 100);
+  }
 
   return c.json({ event: { event_id: event.eventId, type: event.type, sequence: event.sequence } }, 201);
 });

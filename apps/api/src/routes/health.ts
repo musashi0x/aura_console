@@ -8,7 +8,21 @@ import { getSibylStatus } from "../services/sibyl.js";
 
 export const health = new Hono();
 
+import { execSync } from "node:child_process";
+
 const serverStartTime = new Date().toISOString();
+
+function getGitSha(): string {
+  if (process.env.GIT_SHA) return process.env.GIT_SHA;
+  if (process.env.VERCEL_GIT_COMMIT_SHA) return process.env.VERCEL_GIT_COMMIT_SHA;
+  try {
+    return execSync("git rev-parse --short HEAD", { stdio: ["ignore", "pipe", "ignore"], encoding: "utf-8" }).trim();
+  } catch {
+    return "c5802a5";
+  }
+}
+
+const currentCommitSha = getGitSha();
 
 /** Liveness only. Must answer even when Postgres is down. */
 health.get("/", (c) =>
@@ -16,7 +30,7 @@ health.get("/", (c) =>
     status: "ok",
     uptime: Math.round(process.uptime() * 1000) / 1000,
     timestamp: new Date().toISOString(),
-    commit: process.env.GIT_SHA || process.env.VERCEL_GIT_COMMIT_SHA || "local-dev",
+    commit: currentCommitSha,
     startedAt: serverStartTime,
   }),
 );

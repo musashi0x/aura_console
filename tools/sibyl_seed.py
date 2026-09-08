@@ -108,6 +108,38 @@ FIXTURE: list[tuple[str, dict]] = [
 ]
 
 
+SESSION_A_FIXTURE: list[tuple[str, dict]] = [
+    (
+        "virtuals:agent:alpha",
+        {
+            "source": "fixture",
+            "display_name": "Alpha Research",
+            "relationship_status": "NEW",
+            "overall_reliability": 0.50,
+            "task_fit": 0.50,
+            "confidence": 0.0,
+            "observed_price_usdc": "9.00",
+            "episodes": [],
+            "risk_note": "No previous interactions on record.",
+        },
+    ),
+    (
+        "virtuals:agent:beta",
+        {
+            "source": "fixture",
+            "display_name": "Beta Labs",
+            "relationship_status": "NEW",
+            "overall_reliability": 0.50,
+            "task_fit": 0.50,
+            "confidence": 0.0,
+            "observed_price_usdc": "9.50",
+            "episodes": [],
+            "risk_note": "No previous interactions on record.",
+        },
+    ),
+]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -124,6 +156,11 @@ def main() -> int:
         "--reset",
         action="store_true",
         help="Archive the fixture counterparties before writing them again",
+    )
+    parser.add_argument(
+        "--session-a",
+        action="store_true",
+        help="Seed clean baseline for Session A where both counterparties are unobserved (Alpha wins on price)",
     )
     args = parser.parse_args()
 
@@ -152,7 +189,8 @@ def main() -> int:
     # mislead about whether memory was found.
     client = MemoryClient.local(path, tenant_id=args.tenant)
 
-    for name, body in FIXTURE:
+    fixture = SESSION_A_FIXTURE if args.session_a else FIXTURE
+    for name, body in fixture:
         if args.reset:
             try:
                 client.archive_entity(CATEGORY, name, reason="reseeding fixture")
