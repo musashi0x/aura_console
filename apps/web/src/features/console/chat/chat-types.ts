@@ -4,6 +4,8 @@ import type {
 } from "@astryxdesign/core/Chat";
 
 export interface ChatToolCallItem extends AstryxChatToolCallItem {
+  id?: string;
+  callId?: string;
   args?: Record<string, unknown>;
   result?: unknown;
 }
@@ -20,6 +22,7 @@ export type RelationshipStatus =
 
 export interface McpToolCall {
   id?: string;
+  callId?: string;
   name: string;
   status?: ChatToolCallStatus;
   duration?: string;

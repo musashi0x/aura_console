@@ -1,9 +1,18 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { beforeEach, describe, expect, it } from "vitest";
-
+import { apiClient } from "@/lib/api-client";
 import { expectNoAxeViolations } from "@/test/axe";
+
+vi.mock("@/lib/api-client", () => ({
+  apiClient: {
+    approveRun: vi.fn(async () => ({
+      ok: true,
+      data: { event: { event_id: "evt_granted", type: "approval.granted", sequence: 2 } },
+    })),
+  },
+}));
 
 // Inlined by vitest.config.ts (`define`) — see cssRaw there.
 declare const __GLOBALS_CSS__: string;
@@ -440,6 +449,145 @@ describe("generative-loaders text streaming effects", () => {
     expect(loader).toHaveAttribute("role", "status");
     expect(loader).toHaveAttribute("aria-live", "polite");
     expect(screen.getByText(/I'll organize the launch plan/)).toBeInTheDocument();
+  });
+});
+
+describe("interactive in-chat approvals and tool start streaming", () => {
+  it("renders interactive in-chat approval action card when message contains mission_propose_approval tool call", async () => {
+    const user = userEvent.setup();
+    setChatMessages([
+      {
+        id: "msg-approval-1",
+        role: "agent",
+        text: "I evaluated Beta Labs and drafted an approval proposal.",
+        complete: true,
+        citations: [],
+        toolCalls: [
+          {
+            name: "mission_propose_approval",
+            status: "complete",
+            args: {
+              counterpartyKey: "virtuals:agent:beta",
+              amountUsdc: "10.000000",
+              reason: "Draft contract and engagement with Beta Labs under 10 USDC ceiling",
+              runId: "run_42",
+            },
+            result: {
+              proposed: true,
+              status: "AWAITING_APPROVAL",
+              amountUsdc: "10.000000",
+              counterpartyKey: "virtuals:agent:beta",
+              counterfactualRationale: "Memory checked; Beta Labs has 94% reliability.",
+            },
+          },
+        ],
+      },
+    ]);
+
+    render(<ConsoleChat runId="run_42" />);
+
+    expect(screen.getByText("Proposed Spend Approval")).toBeInTheDocument();
+    expect(screen.getByText("virtuals:agent:beta")).toBeInTheDocument();
+    expect(screen.getByText("$10.00 USDC")).toBeInTheDocument();
+    expect(
+      screen.getByText("Draft contract and engagement with Beta Labs under 10 USDC ceiling"),
+    ).toBeInTheDocument();
+
+    const approveButton = screen.getByRole("button", { name: /approve spend/i });
+    expect(approveButton).toBeInTheDocument();
+
+    await user.click(approveButton);
+
+    await waitFor(() => {
+      expect(apiClient.approveRun).toHaveBeenCalledWith("run_42", "10.000000");
+    });
+    expect(screen.getByText("Spend Approved")).toBeInTheDocument();
+  });
+
+  it("renders running tool call with active status from tool_start", () => {
+    setChatMessages([
+      {
+        id: "msg-running-1",
+        role: "agent",
+        text: "Inspecting sandbox...",
+        complete: false,
+        citations: [],
+        toolCalls: [
+          {
+            name: "cli_sandbox",
+            status: "running",
+            target: '{"cmd":"eval"}',
+          },
+        ],
+      },
+    ]);
+
+    render(<ConsoleChat runId="run_42" />);
+
+    expect(screen.getByText("cli_sandbox")).toBeInTheDocument();
+  });
+
+  it("does not render Approve Spend action card while proposal is still running", () => {
+    setChatMessages([
+      {
+        id: "msg-running-proposal",
+        role: "agent",
+        text: "Evaluating spend...",
+        complete: false,
+        citations: [],
+        toolCalls: [
+          {
+            name: "mission_propose_approval",
+            status: "running",
+            args: {
+              counterpartyKey: "virtuals:agent:beta",
+              amountUsdc: "10.000000",
+              reason: "Awaiting backend execution",
+              runId: "run_42",
+            },
+          },
+        ],
+      },
+    ]);
+
+    render(<ConsoleChat runId="run_42" />);
+
+    // The tool call item should be rendered
+    expect(screen.getByText("mission_propose_approval")).toBeInTheDocument();
+    // But the interactive approval card with the Approve Spend button must NOT be offered yet
+    expect(screen.queryByRole("button", { name: /approve spend/i })).not.toBeInTheDocument();
+    expect(screen.queryByText("Proposed Spend Approval")).not.toBeInTheDocument();
+  });
+
+  it("does not render Approve Spend card if proposal tool call resulted in error", () => {
+    setChatMessages([
+      {
+        id: "msg-failed-proposal",
+        role: "agent",
+        text: "Spend rejected by policy.",
+        complete: true,
+        citations: [],
+        toolCalls: [
+          {
+            name: "mission_propose_approval",
+            status: "error",
+            args: {
+              counterpartyKey: "virtuals:agent:beta",
+              amountUsdc: "500.000000",
+              reason: "Exceeds absolute spend limit",
+              runId: "run_42",
+            },
+            result: { error: "Spend exceeds policy limit" },
+          },
+        ],
+      },
+    ]);
+
+    render(<ConsoleChat runId="run_42" />);
+
+    expect(screen.getByText("mission_propose_approval")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /approve spend/i })).not.toBeInTheDocument();
+    expect(screen.queryByText("Proposed Spend Approval")).not.toBeInTheDocument();
   });
 });
 

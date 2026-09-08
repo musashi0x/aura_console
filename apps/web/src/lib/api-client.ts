@@ -296,6 +296,16 @@ export const apiClient = {
       },
     ),
 
+  rejectRun: (runId: string, reason?: string) =>
+    request<{ event: { event_id: string; type: string; sequence: number } }>(
+      `/api/runs/${encodeURIComponent(runId)}/reject`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(reason !== undefined ? { reason } : {}),
+      },
+    ),
+
   listSibylCounterparties: () =>
     request<{ items: SibylCounterparty[] }>("/api/memory/counterparties"),
 

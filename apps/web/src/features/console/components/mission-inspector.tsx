@@ -1,6 +1,8 @@
 "use client";
 
 import { useId, useState, type ReactNode } from "react";
+import { Button } from "@astryxdesign/core/Button";
+import { Link } from "@astryxdesign/core/Link";
 import { MetadataList, MetadataListItem } from "@astryxdesign/core/MetadataList";
 import { VStack } from "@astryxdesign/core/Stack";
 
@@ -64,15 +66,16 @@ export function MissionInspector({
     >
       {isCollapsible ? (
         <div className="cs__inspector-disclosure-trigger">
-          <button
+          <Button
             type="button"
-            className="btn btn--sm btn--secondary cs__inspector-toggle"
+            size="sm"
+            variant="secondary"
+            className="cs__inspector-toggle"
             onClick={handleToggle}
             aria-expanded={isOpen}
             aria-controls={panelId}
-          >
-            {isOpen ? "Hide Inspector" : "Show Inspector"}
-          </button>
+            label={isOpen ? "Hide Inspector" : "Show Inspector"}
+          />
         </div>
       ) : null}
 
@@ -110,16 +113,15 @@ export function MissionInspector({
               {hashes.length > 0 ? (
                 <VStack gap={1}>
                   {hashes.map((h) => (
-                    <a
+                    <Link
                       key={h}
                       href={`https://sepolia.basescan.org/tx/${h}`}
                       target="_blank"
-                      rel="noopener noreferrer"
                       className="cs__tx-link"
                       data-testid="meta-tx-link"
                     >
                       {h.length > 20 ? `${h.slice(0, 10)}...${h.slice(-8)} ↗` : `${h} ↗`}
-                    </a>
+                    </Link>
                   ))}
                 </VStack>
               ) : (

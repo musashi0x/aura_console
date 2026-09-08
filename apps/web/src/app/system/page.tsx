@@ -1,10 +1,21 @@
 import type { Metadata } from "next";
 import { Fragment } from "react";
 
+import { Server, Database, Brain, Activity, Link2, ShieldCheck, Bot } from "lucide-react";
 import { MonoRef, Panel, StatusBadge, type StatusTone } from "@/components/primitives";
 import { ConsoleShell } from "@/features/console/components/console-shell";
 import { readGrounding } from "@/features/console/grounding";
 import { apiClient, type SibylHealth } from "@/lib/api-client";
+
+const DOMAIN_ICONS: Record<string, React.ReactNode> = {
+  "Aura API": <Server size={14} className="text-[var(--color-accent)] inline mr-1.5" />,
+  "Event store": <Database size={14} className="text-[var(--color-accent)] inline mr-1.5" />,
+  "Sibyl Memory": <Brain size={14} className="text-[var(--color-accent)] inline mr-1.5" />,
+  "Virtuals ACP": <Activity size={14} className="text-[var(--color-accent)] inline mr-1.5" />,
+  "Base L2": <Link2 size={14} className="text-[var(--color-accent)] inline mr-1.5" />,
+  "Policy": <ShieldCheck size={14} className="text-[var(--color-accent)] inline mr-1.5" />,
+  "Agent runtime": <Bot size={14} className="text-[var(--color-accent)] inline mr-1.5" />,
+};
 
 export const dynamic = "force-dynamic";
 
@@ -93,8 +104,12 @@ export default async function SystemPage() {
     apiClient.dbHealth(),
     apiClient.sibylHealth(),
     readGrounding(),
-    apiClient.baseHealth(),
-    apiClient.acpHealth(),
+    typeof apiClient.baseHealth === "function"
+      ? apiClient.baseHealth()
+      : Promise.resolve({ ok: false as const }),
+    typeof apiClient.acpHealth === "function"
+      ? apiClient.acpHealth()
+      : Promise.resolve({ ok: false as const }),
   ]);
 
   /* Sibyl reports itself. Three outcomes, and they are not interchangeable:
@@ -279,7 +294,12 @@ export default async function SystemPage() {
         {rows.map((row) => (
           <li key={row.id}>
             <Panel
-              title={row.label}
+              title={
+                <span>
+                  {DOMAIN_ICONS[row.domain]}
+                  <span>{row.label}</span>
+                </span>
+              }
               meta={<MonoRef label="DOMAIN">{row.domain}</MonoRef>}
             >
               <p className="sys__state">

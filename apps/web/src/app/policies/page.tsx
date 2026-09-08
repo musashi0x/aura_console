@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 
 import { ConsoleShell } from "@/features/console/components/console-shell";
 import { readGrounding } from "@/features/console/grounding";
-import { ConsoleErrorState } from "@/features/console/components/console-states";
+import { GuardrailsDashboard } from "@/features/console/components/guardrails-dashboard";
 import { apiClient } from "@/lib/api-client";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = { title: "Policies — Aura Console" };
+export const metadata: Metadata = { title: "Guardrails & Policies — Aura Console" };
 
 export default async function PoliciesPage() {
   const [health, grounding] = await Promise.all([apiClient.dbHealth(), readGrounding()]);
@@ -15,14 +15,12 @@ export default async function PoliciesPage() {
 
   return (
     <ConsoleShell surface="Guardrails" readiness={readiness} grounding={grounding}>
-      <h1 className="cs__title">Policies</h1>
-      {/* Policy is enforced on the server whether or not this surface can read
-          it. Absence here is not absence of policy. */}
-      <ConsoleErrorState
-        domain="Policy"
-        detail="No policy endpoint exists in v0.1, so Aura cannot show the operator policy or its version. Policy still applies on the server, and this surface will never display an assumed value."
-      />
-      <p className="cs__deferred">Tracked by task #30.</p>
+      <h1 className="cs__title">Guardrails & Policies</h1>
+      <p className="cs__lede">
+        Runtime economic barriers, execution sandbox boundaries, and cryptographic verification policies governing agent operations.
+      </p>
+
+      <GuardrailsDashboard />
     </ConsoleShell>
   );
 }

@@ -125,9 +125,9 @@
     0 0 32px rgba(72, 215, 255, 0.22);
   --glow-violet: 0 0 60px rgba(155, 108, 255, 0.12);
 
-  /* Backdrop wash. Decorative only. */
-  --backdrop-cyan: rgba(72, 215, 255, 0.1);
-  --backdrop-violet: rgba(155, 108, 255, 0.1);
+  /* Backdrop wash. Decorative only. Warm stone ambient atmosphere. */
+  --backdrop-cyan: rgba(243, 243, 245, 0.025);
+  --backdrop-violet: rgba(39, 39, 42, 0.2);
 
   /* Opaque stop for mask gradients. Colour is irrelevant, only the alpha. */
   --mask-opaque: rgb(0 0 0);

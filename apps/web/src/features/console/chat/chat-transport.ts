@@ -10,6 +10,7 @@ import type {
 export interface ChatStreamHandlers {
   onToken: (text: string) => void;
   onCitation: (citation: MemoryCitation) => void;
+  onToolStart?: (toolStart: { name: string; args: Record<string, unknown>; callId?: string }) => void;
   onToolCall?: (toolCall: McpToolCall) => void;
   onThought?: (thought: string) => void;
   onUsage?: (usage: TokenUsage) => void;
@@ -57,6 +58,7 @@ export function openChatStream(options: ChatStreamOptions): ChatStreamHandle {
     url,
     onToken,
     onCitation,
+    onToolStart,
     onToolCall,
     onThought,
     onUsage,
@@ -88,16 +90,21 @@ export function openChatStream(options: ChatStreamOptions): ChatStreamHandle {
     }
     stream = created;
 
-    created.addEventListener("token", (event) => {
-      if (closed) return;
+    const markEstablished = () => {
       established = true;
       attempt = 0;
       onState({ kind: "streaming" });
+    };
+
+    created.addEventListener("token", (event) => {
+      if (closed) return;
+      markEstablished();
       onToken(String(event.data ?? ""));
     });
 
     created.addEventListener("citation", (event) => {
       if (closed) return;
+      markEstablished();
       try {
         const parsed: unknown = JSON.parse(String(event.data ?? "null"));
         if (
@@ -117,13 +124,34 @@ export function openChatStream(options: ChatStreamOptions): ChatStreamHandle {
       }
     });
 
+    created.addEventListener("tool_start", (event) => {
+      if (closed) return;
+      markEstablished();
+      try {
+        const parsed: unknown = JSON.parse(String(event.data ?? "null"));
+        if (parsed && typeof parsed === "object" && "name" in parsed) {
+          const call = parsed as Record<string, unknown>;
+          onToolStart?.({
+            name: String(call.name),
+            args: (call.args as Record<string, unknown>) ?? {},
+            callId: call.callId ? String(call.callId) : undefined,
+          });
+        }
+      } catch {
+        // Malformed tool start dropped
+      }
+    });
+
     created.addEventListener("tool_call", (event) => {
       if (closed) return;
+      markEstablished();
       try {
         const parsed: unknown = JSON.parse(String(event.data ?? "null"));
         if (parsed && typeof parsed === "object" && "name" in parsed) {
           const call = parsed as Record<string, unknown>;
           onToolCall?.({
+            id: call.callId ? String(call.callId) : (call.id ? String(call.id) : undefined),
+            callId: call.callId ? String(call.callId) : undefined,
             name: String(call.name),
             args: (call.args as Record<string, unknown>) ?? {},
             result: call.result,
@@ -136,11 +164,13 @@ export function openChatStream(options: ChatStreamOptions): ChatStreamHandle {
 
     created.addEventListener("thought", (event) => {
       if (closed) return;
+      markEstablished();
       onThought?.(String(event.data ?? ""));
     });
 
     created.addEventListener("usage", (event) => {
       if (closed) return;
+      markEstablished();
       try {
         const parsed: unknown = JSON.parse(String(event.data ?? "null"));
         if (parsed && typeof parsed === "object" && "totalTokens" in parsed) {

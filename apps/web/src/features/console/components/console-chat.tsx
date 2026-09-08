@@ -38,6 +38,7 @@ import { env } from "@/lib/env";
 import {
   CHAT_MESSAGES_SERVER_SNAPSHOT,
   getChatMessages,
+  setActiveChatContext,
   setChatMessages,
   subscribeChatSession,
 } from "../chat/chat-session";
@@ -46,8 +47,10 @@ import type {
   ChatConnection,
   ChatMessage,
   ChatToolCallItem,
+  ChatToolCallStatus,
   MemoryCitation,
 } from "../chat/chat-types";
+import { ChatApprovalCard } from "./chat-approval-card";
 import { CounterpartyMemoryHoverCard } from "./counterparty-memory-hover-card";
 import { TextLoader } from "generative-loaders";
 import { useSmoothedText } from "../chat/use-smoothed-text";
@@ -197,14 +200,28 @@ export function ConsoleChat({ runId, grounding, memoryEnabled }: ConsoleChatProp
     () => MEMORY_VIEW_SERVER_SNAPSHOT,
   );
   const memoryOn = memoryEnabled ?? memoryFromPalette;
-  // The thread lives outside React so a chat-driven navigation does not
-  // destroy the transcript that announced it.
+  const activeRunContext = runId?.trim() || "global";
+
+  useEffect(() => {
+    setActiveChatContext(activeRunContext);
+  }, [activeRunContext]);
+
+  // The thread lives outside React, partitioned by runId/context, so a chat-driven
+  // navigation or switching runs does not bleed transcript history.
   const messages = useSyncExternalStore(
-    subscribeChatSession,
-    getChatMessages,
+    useCallback(
+      (listener: () => void) => subscribeChatSession(listener, activeRunContext),
+      [activeRunContext],
+    ),
+    useCallback(() => getChatMessages(activeRunContext), [activeRunContext]),
     () => CHAT_MESSAGES_SERVER_SNAPSHOT,
   );
-  const setMessages = setChatMessages;
+  const setMessages = useCallback(
+    (next: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => {
+      setChatMessages(next, activeRunContext);
+    },
+    [activeRunContext],
+  );
   const [connection, setConnection] = useState<ChatConnection>({
     kind: "idle",
   });
@@ -287,6 +304,73 @@ export function ConsoleChat({ runId, grounding, memoryEnabled }: ConsoleChatProp
       },
       onCitation: (citation) =>
         update((m) => ({ ...m, citations: [...m.citations, citation] })),
+      onToolStart: (toolStart) => {
+        update((m) => {
+          const currentCalls = m.toolCalls ? [...m.toolCalls] : [];
+          const exists = currentCalls.some((c) =>
+            toolStart.callId
+              ? c.id === toolStart.callId || c.callId === toolStart.callId
+              : c.name === toolStart.name && c.status === "running",
+          );
+          if (!exists) {
+            const newItem: ChatToolCallItem = {
+              id: toolStart.callId,
+              callId: toolStart.callId,
+              name: toolStart.name,
+              status: "running",
+              args: toolStart.args,
+              target:
+                toolStart.name === "mission_propose_approval"
+                  ? `${toolStart.args.amountUsdc ?? ""} USDC with ${toolStart.args.counterpartyKey ?? ""}`
+                  : toolStart.args && Object.keys(toolStart.args).length > 0
+                    ? JSON.stringify(toolStart.args)
+                    : undefined,
+            };
+            return {
+              ...m,
+              toolCalls: [...currentCalls, newItem],
+            };
+          }
+          return m;
+        });
+      },
+      onToolCall: (call) => {
+        update((m) => {
+          const currentCalls = m.toolCalls ? [...m.toolCalls] : [];
+          const matchIdx = currentCalls.findIndex((c) =>
+            call.id || call.callId
+              ? (call.id && (c.id === call.id || c.callId === call.id)) ||
+                (call.callId && (c.id === call.callId || c.callId === call.callId))
+              : c.name === call.name && c.status === "running",
+          );
+          const hasError =
+            call.result && typeof call.result === "object" && "error" in call.result;
+          const status: ChatToolCallStatus = hasError ? "error" : "complete";
+          const updatedItem: ChatToolCallItem = {
+            id: call.id ?? call.callId,
+            callId: call.callId ?? call.id,
+            name: call.name,
+            status,
+            args: call.args,
+            result: call.result,
+            data: call.result,
+            target:
+              call.name === "mission_propose_approval"
+                ? `${call.args?.amountUsdc ?? ""} USDC with ${call.args?.counterpartyKey ?? ""}`
+                : call.args && Object.keys(call.args).length > 0
+                  ? JSON.stringify(call.args)
+                  : undefined,
+          };
+          if (matchIdx >= 0) {
+            currentCalls[matchIdx] = updatedItem;
+            return { ...m, toolCalls: currentCalls };
+          }
+          return {
+            ...m,
+            toolCalls: [...currentCalls, updatedItem],
+          };
+        });
+      },
       onState: setConnection,
       onDone: () => {
         end();
@@ -476,6 +560,30 @@ export function ConsoleChat({ runId, grounding, memoryEnabled }: ConsoleChatProp
               ? message.toolCalls!.map(normalizeToolCallItem)
               : undefined;
 
+            const proposalCall = message.toolCalls?.find(
+              (c) => c.name === "mission_propose_approval",
+            );
+            const isProposalReady =
+              proposalCall &&
+              proposalCall.status !== "running" &&
+              proposalCall.status !== "error";
+            const proposalCounterparty =
+              (proposalCall?.args?.counterpartyKey as string) ??
+              ((proposalCall?.result as Record<string, unknown> | undefined)?.counterpartyKey as string) ??
+              "counterparty";
+            const proposalAmount =
+              (proposalCall?.args?.amountUsdc as string | number) ??
+              ((proposalCall?.result as Record<string, unknown> | undefined)?.amountUsdc as string | number) ??
+              "10.000000";
+            const proposalRationale =
+              (proposalCall?.args?.reason as string) ??
+              ((proposalCall?.result as Record<string, unknown> | undefined)?.counterfactualRationale as string) ??
+              "Mission spend authorization requested under guardrail limits.";
+            const proposalRunId =
+              runId ??
+              (proposalCall?.args?.runId as string) ??
+              ((proposalCall?.result as Record<string, unknown> | undefined)?.runId as string);
+
             return (
               <ChatMessageRow key={message.id} sender={senderFor(message.role)}>
                 <ChatMessageBubble
@@ -527,6 +635,37 @@ export function ConsoleChat({ runId, grounding, memoryEnabled }: ConsoleChatProp
                   {hasToolCalls && normalizedToolCalls ? (
                     <VStack gap={2} align="stretch">
                       <ChatToolCalls calls={normalizedToolCalls} />
+                      {isProposalReady ? (
+                        <ChatApprovalCard
+                          counterpartyKey={proposalCounterparty}
+                          amountUsdc={proposalAmount}
+                          rationale={proposalRationale}
+                          runId={proposalRunId}
+                        />
+                      ) : null}
+                      {body ? (
+                        message.role === "agent" ? (
+                          <TextLoader
+                            text={body}
+                            variant="redact"
+                            color="var(--color-text)"
+                            paused={!live}
+                          />
+                        ) : (
+                          <div>{body}</div>
+                        )
+                      ) : pending ? (
+                        <div>{pending}</div>
+                      ) : null}
+                    </VStack>
+                  ) : isProposalReady ? (
+                    <VStack gap={2} align="stretch">
+                      <ChatApprovalCard
+                        counterpartyKey={proposalCounterparty}
+                        amountUsdc={proposalAmount}
+                        rationale={proposalRationale}
+                        runId={proposalRunId}
+                      />
                       {body ? (
                         message.role === "agent" ? (
                           <TextLoader

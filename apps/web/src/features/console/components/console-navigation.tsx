@@ -3,7 +3,28 @@
 import Link from "next/link";
 import { SideNav, SideNavItem, SideNavSection } from "@astryxdesign/core/SideNav";
 
+import {
+  ListFilter,
+  PlusCircle,
+  MessageSquareCode,
+  Users,
+  ShieldCheck,
+  Activity,
+  BookOpen,
+} from "lucide-react";
+import type { IconType } from "@astryxdesign/core/Icon";
+
 import { console_ } from "../copy";
+
+const NAV_ICONS: Record<string, IconType> = {
+  Missions: ListFilter as unknown as IconType,
+  "New Mission": PlusCircle as unknown as IconType,
+  "Chat Console": MessageSquareCode as unknown as IconType,
+  Agents: Users as unknown as IconType,
+  Guardrails: ShieldCheck as unknown as IconType,
+  Network: Activity as unknown as IconType,
+  Docs: BookOpen as unknown as IconType,
+};
 
 /**
  * The console's navigation, as the design system's own rail.
@@ -30,7 +51,9 @@ export function ConsoleNavigation({
       as={Link}
       href={href}
       label={label}
+      icon={NAV_ICONS[label]}
       isSelected={surface === label}
+      data-sound="tick"
     />
   );
 

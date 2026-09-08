@@ -7,6 +7,7 @@ import { TopNav } from "@astryxdesign/core/TopNav";
 import { console_ } from "../copy";
 import { CommandPalette } from "./command-palette";
 import { ConsoleStatus, type ReadinessState } from "./console-status";
+import { ConnectWalletButton } from "@/features/web3";
 
 function getUtcTimeString() {
   const d = new Date();
@@ -82,6 +83,7 @@ export function ConsoleTopbar({
       endContent={
         <>
           {actions}
+          <ConnectWalletButton />
           {/* The palette lives in the bar so its keyboard hint is discoverable
               without hunting: a shortcut nobody can see is a shortcut nobody
               uses. */}

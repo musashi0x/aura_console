@@ -104,6 +104,37 @@ describe("chat stream transport", () => {
     expect(h.citations).toEqual([{ counterpartyKey: "cp_1", label: "Alpha" }]);
   });
 
+  it("delivers tool_start and tool_call events", () => {
+    const started: unknown[] = [];
+    const called: unknown[] = [];
+    const h = harness({
+      onToolStart: (s) => started.push(s),
+      onToolCall: (c) => called.push(c),
+    });
+
+    h.created[0]!.emit("tool_start", JSON.stringify({ name: "cli_sandbox", args: { cmd: "test" }, callId: "c-1" }));
+    h.created[0]!.emit("tool_call", JSON.stringify({ name: "cli_sandbox", args: { cmd: "test" }, callId: "c-1", result: { ok: true } }));
+
+    expect(started).toEqual([{ name: "cli_sandbox", args: { cmd: "test" }, callId: "c-1" }]);
+    expect(called).toEqual([{ id: "c-1", callId: "c-1", name: "cli_sandbox", args: { cmd: "test" }, result: { ok: true } }]);
+  });
+
+  it("marks connection established on tool_start so network drops during tool execution trigger reconnection", () => {
+    const h = harness();
+    h.created[0]!.emit("tool_start", JSON.stringify({ name: "mission_propose_approval", args: {}, callId: "c-prop" }));
+
+    expect(h.states.at(-1)).toEqual({ kind: "streaming" });
+
+    // Stream drops while tool was executing
+    h.created[0]!.emit("error");
+
+    expect(h.states.at(-1)).toEqual({ kind: "reconnecting", attempt: 1 });
+    expect(h.pending).toHaveLength(1);
+
+    h.pending[0]!();
+    expect(h.created).toHaveLength(2);
+  });
+
   it("has no write path anywhere in the module", async () => {
     // The read-only guarantee is structural: EventSource can only GET, and no
     // mutating verb appears in the source. A future edit that adds one should

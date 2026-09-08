@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
 import { ConsoleShell } from "@/features/console/components/console-shell";
 import { readGrounding } from "@/features/console/grounding";
@@ -7,12 +6,10 @@ import {
   ConsoleEmptyState,
   ConsoleErrorState,
 } from "@/features/console/components/console-states";
-import { StatusBadge } from "@/components/primitives";
 import { console_ } from "@/features/console/copy";
 import { exampleRun } from "@/features/console/fixtures/example-run";
 import { apiClient } from "@/lib/api-client";
-import { StatusDot } from "@astryxdesign/core/StatusDot";
-import { getRunStatusInfo } from "@/features/console/components/chat-console-view";
+import { RunsView } from "@/features/console/components/runs-view";
 
 export const dynamic = "force-dynamic";
 
@@ -56,74 +53,7 @@ export default async function RunsPage() {
            moved. */
         <ConsoleEmptyState exampleAvailable createAvailable />
       ) : (
-        <>
-          {/* Reachable whether or not the list is empty. Starting a Mission was
-              offered only on the empty state, so the moment an operator had one
-              Mission the way to start the next disappeared. */}
-          <p className="cs__actions">
-            <Link href="/runs/new" className="btn btn--primary cs__action-link">
-              {console_.empty.create}
-            </Link>
-          </p>
-          <ul className="cs__list" role="list">
-            {/* The demo Mission lives here, badged, rather than in a rail item of
-              its own. It is not a Run the API returned and must never be
-              counted as one, which is what the badge says out loud. */}
-            <li>
-              <Link className="cs__row" href="/runs/example">
-                <span className="cs__row-objective">
-                  <span
-                    className="cs__row-title-wrap"
-                    style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-2)" }}
-                  >
-                    <StatusDot
-                      variant="success"
-                      label="Completed"
-                      isPulsing={false}
-                      tooltip="Completed"
-                    />
-                    <span>{exampleRun.objective}</span>
-                  </span>
-                </span>
-                <span className="cs__row-meta">
-                  <StatusBadge tone="warning">
-                    {console_.missions.demoBadge}
-                  </StatusBadge>
-                  <span className="cs__row-env">{exampleRun.environment}</span>
-                </span>
-              </Link>
-            </li>
-            {runs.data.runs.map((run) => {
-              const statusInfo = getRunStatusInfo(run.status);
-              return (
-                <li key={run.id}>
-                  <Link className="cs__row" href={`/runs/${run.id}`}>
-                    <span className="cs__row-objective">
-                      <span
-                        className="cs__row-title-wrap"
-                        style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-2)" }}
-                      >
-                        <StatusDot
-                          variant={statusInfo.variant}
-                          label={statusInfo.label}
-                          isPulsing={statusInfo.isPulsing}
-                          tooltip={statusInfo.tooltip}
-                        />
-                        <span>{run.objective}</span>
-                      </span>
-                    </span>
-                    <span className="cs__row-meta">
-                      <span className="cs__row-env">{run.environment}</span>
-                      <time dateTime={run.createdAt}>
-                        {run.createdAt.slice(0, 19).replace("T", " ")}
-                      </time>
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </>
+        <RunsView runs={runs.data.runs} exampleRun={exampleRun} />
       )}
     </ConsoleShell>
   );

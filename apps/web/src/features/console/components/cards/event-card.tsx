@@ -1,40 +1,88 @@
-"use client";
-
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { Button } from "@astryxdesign/core/Button";
+import { Link } from "@astryxdesign/core/Link";
 import { HStack, VStack } from "@astryxdesign/core/Stack";
 import { Text } from "@astryxdesign/core/Text";
 import { Token } from "@astryxdesign/core/Token";
+import {
+  Brain,
+  ShieldCheck,
+  Coins,
+  CheckCircle2,
+  Database,
+  Activity,
+  AlertCircle,
+  ExternalLink,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 
 import { console_ } from "@/features/console/copy";
 import type { RetrievalStatus, TimelineEntry } from "@/features/console/model/types";
+import type { Counterfactual } from "@/features/console/projection/counterfactual";
+import { ApprovalRequestCard } from "./approval-request-card";
+import { CounterfactualView } from "./counterfactual-view";
+import { MemoryDiffCard } from "./memory-diff-card";
 import { amount, list, number, text } from "./fields";
 
-/**
- * One canonical event, rendered as the card its type earns.
- *
- * A card is a projection, never a message. Every value below is read by name
- * out of the event that produced it, so nothing here can render a fact the
- * stream does not contain — no economic value computed locally, no completion
- * inferred from silence. If a model could author one of these, every guarantee
- * the Console has would leave through it.
- *
- * A type with no card yet falls through to the raw entry rather than being
- * dropped or paraphrased, which is the treatment `UNSUPPORTED_TYPE` already
- * gets and for the same reason.
- */
+function getEventIcon(type: string) {
+  if (type.startsWith("memory")) return <Database size={15} />;
+  if (type.startsWith("decision")) return <Brain size={15} />;
+  if (type.startsWith("policy")) return <ShieldCheck size={15} />;
+  if (type.startsWith("approval")) return <AlertCircle size={15} />;
+  if (type.startsWith("acp") || type.startsWith("base") || type.startsWith("commitment"))
+    return <Coins size={15} />;
+  if (type.startsWith("outcome") || type.startsWith("evaluation"))
+    return <CheckCircle2 size={15} />;
+  return <Activity size={15} />;
+}
+
+function getNarrative(type: string, d?: Record<string, unknown> | null): string | null {
+  if (type === "run.created") return "Mission initialized with an economic budget ceiling.";
+  if (type === "run.started") return "Autonomous agent runtime initiated task execution.";
+  if (type === "decision.made" || type === "decision.proposed") {
+    const cp = d?.counterparty_key || d?.chosen;
+    return cp
+      ? `Agent evaluated options and selected counterparty ${cp} under ${d?.authorization_mode || "governed policy"}.`
+      : "Agent finalized execution decision.";
+  }
+  if (type === "policy.evaluated") {
+    return d?.passed === false
+      ? "Policy gate failed or triggered an authorization condition."
+      : "Policy gate verified: spend ceiling and trust bounds satisfied.";
+  }
+  if (type === "approval.requested") {
+    return "Action exceeds automated spend threshold and requires manual operator authorization.";
+  }
+  if (type === "approval.granted") {
+    return "Operator authorized spend ceiling.";
+  }
+  if (type === "acp.job.funded" || type === "acp.job.created") {
+    return `Escrow funded with ${d?.amount_usdc ?? "USDC"} committed to counterparty.`;
+  }
+  if (type === "base.transaction.confirmed" || type === "commitment.settled") {
+    return "Transaction settled and confirmed on Base Sepolia.";
+  }
+  if (type === "outcome.recorded" || type === "evaluation.completed") {
+    return d?.failure_reason
+      ? `Evaluation failed: ${d.failure_reason}`
+      : "Service delivery verified and accepted against quality criteria.";
+  }
+  if (type === "memory.diff.published" || type === "memory.episode.written") {
+    return "Relationship memory updated with newly recorded episode metrics and score adjustments.";
+  }
+  return null;
+}
+
 export interface EventCardProps {
   entry: TimelineEntry;
   onScrubTo?: (entry: TimelineEntry) => void;
+  runId?: string;
+  onApproved?: () => void;
+  onRejected?: () => void;
+  counterfactual?: Counterfactual;
 }
 
-/**
- * A labelled fact, or nothing at all.
- *
- * An absent field is not rendered. A row reading "Chose —" invites the reader
- * to wonder what was chosen and hidden, when the truth is that the event never
- * said. Showing only what the stream carries keeps the card the same size as
- * its evidence.
- */
 function Row({ label, value }: { label: string; value: ReactNode }) {
   if (value === null || value === undefined || value === "") return null;
   return (
@@ -60,18 +108,83 @@ function Shell({
   entry: TimelineEntry;
   children: ReactNode;
 }) {
+  const [showPayload, setShowPayload] = useState(false);
+  const narrative = getNarrative(entry.type, entry.data);
+  const d = entry.data;
+  const hasPayload = d && Object.keys(d).length > 0;
+  const canShowPayload = hasPayload && entry.type !== "approval.granted";
+
+  const txHash = (() => {
+    const v = d?.tx_hash ?? d?.reference ?? d?.txHash;
+    return typeof v === "string" && v.startsWith("0x") ? v : null;
+  })();
+
   return (
     <VStack gap={2}>
-      <HStack gap={2} wrap="wrap">
-        <Text as="h3" size="sm" weight="semibold">
-          {title}
+      <HStack justify="between" align="center" wrap="wrap" className="mw__card-header mw__row-header">
+        <HStack gap={2} align="center" className="mw__card-title-wrap mw__row-title-wrap">
+          <span className="mw__card-icon mw__row-icon" aria-hidden="true">
+            {getEventIcon(entry.type)}
+          </span>
+          <Text as="h3" size="sm" weight="semibold">
+            {title}
+          </Text>
+          {tone ? <Token label={entry.type} size="sm" color={tone} /> : null}
+        </HStack>
+        <Text as="p" size="xsm" color="secondary">
+          <time dateTime={entry.eventTime}>{entry.eventTime}</time>
         </Text>
-        {tone ? <Token label={entry.type} size="sm" color={tone} /> : null}
       </HStack>
+
+      {narrative ? <p className="mw__card-narrative mw__row-narrative">{narrative}</p> : null}
+
       {children}
-      <Text as="p" size="xsm" color="secondary">
-        <time dateTime={entry.eventTime}>{entry.eventTime}</time>
-      </Text>
+
+      {txHash ? (
+        <div className="mw__card-metrics mw__row-metrics">
+          <div className="mw__card-metric-chip mw__row-metric-chip">
+            <span className="mw__card-metric-label mw__row-metric-label">On-Chain Tx</span>
+            <Link
+              href={`https://sepolia.basescan.org/tx/${txHash}`}
+              target="_blank"
+              className="mw__card-metric-value mw__tx-link"
+            >
+              {txHash.slice(0, 8)}...{txHash.slice(-6)}
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
+      {canShowPayload ? (
+        <HStack gap={2} align="center" className="mw__card-actions mw__row-actions">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="mw__card-action-btn mw__row-action-btn"
+            onClick={() => setShowPayload((prev) => !prev)}
+            aria-expanded={showPayload}
+            icon={showPayload ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            label={showPayload ? "Hide Payload" : "View Payload"}
+          />
+          {txHash ? (
+            <Link
+              href={`https://sepolia.basescan.org/tx/${txHash}`}
+              target="_blank"
+              className="mw__card-action-btn mw__row-action-btn"
+            >
+              <ExternalLink size={12} />
+              <span>Base Sepolia Explorer</span>
+            </Link>
+          ) : null}
+        </HStack>
+      ) : null}
+
+      {showPayload && d ? (
+        <pre className="mw__card-payload mw__row-payload">
+          <code>{JSON.stringify(d, null, 2)}</code>
+        </pre>
+      ) : null}
     </VStack>
   );
 }
@@ -88,7 +201,13 @@ function retrievalStatus(value: string | null): RetrievalStatus | null {
   return RETRIEVAL_STATUSES.find((status) => status === value) ?? null;
 }
 
-export function EventCard({ entry }: EventCardProps) {
+export function EventCard({
+  entry,
+  runId,
+  onApproved,
+  onRejected,
+  counterfactual,
+}: EventCardProps) {
   const d = entry.data;
   const copy = console_.cards;
 
@@ -116,7 +235,25 @@ export function EventCard({ entry }: EventCardProps) {
               ))}
             </VStack>
           ) : null}
+          {/* The comparison hangs off the decision it explains, not off a stage
+              of its own. It renders nothing when the Mission recorded no
+              memory component to subtract. */}
+          {counterfactual ? <CounterfactualView counterfactual={counterfactual} /> : null}
         </Shell>
+      );
+    }
+
+    /* The pending request. Its own component because it is the only card that
+       carries a control, and that deserves to be read in one place. */
+    case "approval.requested": {
+      return (
+        <ApprovalRequestCard
+          entry={entry}
+          runId={runId}
+          onApproved={onApproved}
+          onRejected={onRejected}
+          counterfactual={counterfactual}
+        />
       );
     }
 
@@ -221,6 +358,11 @@ export function EventCard({ entry }: EventCardProps) {
           ) : null}
         </Shell>
       );
+    }
+
+    case "memory.diff.published":
+    case "memory.episode.written": {
+      return <MemoryDiffCard entry={entry} />;
     }
 
     default: {

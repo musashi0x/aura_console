@@ -1,11 +1,13 @@
 "use client";
 
 import { useReducer, useState, useSyncExternalStore } from "react";
+import { Button } from "@astryxdesign/core/Button";
+import { Section } from "@astryxdesign/core/Section";
 import { SegmentedControl, SegmentedControlItem } from "@astryxdesign/core/SegmentedControl";
 import { Theme } from "@astryxdesign/core/theme";
 
 import { MonoRef, StatusBadge, type StatusTone } from "@/components/primitives";
-import { neutralTheme } from "@/themes/neutral/neutral.js";
+import { stoneTheme } from "@/themes/stone/stoneTheme";
 
 import { console_ } from "../copy";
 import {
@@ -108,6 +110,14 @@ export function MissionWorkspace({
   const scrubTo = (entry: TimelineEntry) =>
     dispatch({ kind: "scrubTo", sequence: entry.sequence, atTime: entry.eventTime });
 
+  const resetLive = () => {
+    if (ended && complete.lastSequence !== null) {
+      dispatch({ kind: "ended", finalSequence: complete.lastSequence });
+    } else {
+      dispatch({ kind: "jumpToLive" });
+    }
+  };
+
   /* Selecting a step scrolls to the event that produced it, in whichever mode
      is open. It opens no panel of its own: the rail is a summary above the
      conversation, never the primary way to read a Mission. */
@@ -199,17 +209,31 @@ export function MissionWorkspace({
           onScrubTo={scrubTo}
         />
       ) : (
-        <Theme theme={neutralTheme} mode="dark">
-          <div className="mw__editorial">
+        <Theme theme={stoneTheme} mode="dark">
+          <Section padding={0} variant="transparent" className="mw__editorial">
             {mode === "OPERATOR" ? (
               <MissionOperator
                 entries={view.entries}
                 onScrubTo={scrubTo}
+                runId={view.runId}
               />
             ) : (
-              <MissionBoard progress={progress} onSelect={jumpTo} />
+              <MissionBoard
+                progress={progress}
+                runId={view.runId}
+                budgetUsdc={view.budgetUsdc ?? undefined}
+                spentUsdc={view.spentUsdc ?? undefined}
+                onSelect={jumpTo}
+                allEntries={complete.entries}
+                currentEntries={view.entries}
+                runStatus={view.status}
+                onScrubTo={scrubTo}
+                onResetLive={resetLive}
+                isHistorical={historical}
+                fixtureLabel={fixtureLabel}
+              />
             )}
-          </div>
+          </Section>
         </Theme>
       )}
 
@@ -217,18 +241,18 @@ export function MissionWorkspace({
           no stream, so pressing Play changed a badge while the Mission sat
           still. Scrubbing and returning are the two things that work. */}
       <div className="run__transport" role="group" aria-label="Timeline transport">
-        <button
-          type="button"
+        <Button
+          size="sm"
+          variant="secondary"
           className="btn"
           onClick={() =>
             ended && complete.lastSequence !== null
               ? dispatch({ kind: "ended", finalSequence: complete.lastSequence })
               : dispatch({ kind: "jumpToLive" })
           }
-          disabled={!historical}
-        >
-          {ended ? "Back to the end" : "Back to latest"}
-        </button>
+          isDisabled={!historical}
+          label={ended ? "Back to the end" : "Back to latest"}
+        />
       </div>
 
       <p className="run__foot">
