@@ -94,14 +94,27 @@ export async function getSaltFromSibyl(
 }
 
 /**
- * Creates memory commitment and commits it to Base Sepolia (or formats calldata).
+ * Options for committing memory to Base Sepolia.
  */
-export async function commitMemoryToBaseSepolia(options: {
+export interface CommitMemoryOptions {
   counterpartyKey: string;
   version: number;
   profile: Record<string, unknown>;
   runId?: string;
-}): Promise<MemoryCommitmentResult> {
+  simulateBroadcast?: boolean;
+  onSubmitted?: (data: {
+    txHash: string;
+    counterpartyKey: string;
+    version: number;
+  }) => Promise<void> | void;
+}
+
+/**
+ * Creates memory commitment and commits it to Base Sepolia (or formats calldata).
+ */
+export async function commitMemoryToBaseSepolia(
+  options: CommitMemoryOptions,
+): Promise<MemoryCommitmentResult> {
   const { counterpartyKey, version, profile } = options;
   const { salt, commitment } = computeCommitment(profile);
 
@@ -116,12 +129,19 @@ export async function commitMemoryToBaseSepolia(options: {
 
   // Real Base Sepolia tx broadcast if configured, else deterministic hash
   let txHash: string;
-  const privateKey = process.env.BASE_SEPOLIA_PRIVATE_KEY;
+  // Support BASE_SEPOLIA_PRIVATE_KEY with fallback to ACP_WALLET_PRIVATE_KEY
+  const rawKey =
+    process.env.BASE_SEPOLIA_PRIVATE_KEY || process.env.ACP_WALLET_PRIVATE_KEY;
+  const privateKey = rawKey
+    ? rawKey.startsWith("0x")
+      ? rawKey
+      : `0x${rawKey}`
+    : undefined;
   const rpcUrl = process.env.BASE_RPC_URL || "https://sepolia.base.org";
 
   if (privateKey && privateKey.startsWith("0x")) {
     try {
-      const { createWalletClient, http } = await import("viem");
+      const { createPublicClient, createWalletClient, http } = await import("viem");
       const { privateKeyToAccount } = await import("viem/accounts");
       const { baseSepolia } = await import("viem/chains");
 
@@ -137,6 +157,25 @@ export async function commitMemoryToBaseSepolia(options: {
         value: 0n,
         data: calldata,
       });
+
+      // Emit submitted event immediately upon broadcasting transaction
+      if (options.onSubmitted) {
+        await options.onSubmitted({
+          txHash,
+          counterpartyKey,
+          version,
+        });
+      }
+
+      // Wait for transaction receipt confirmation
+      const publicClient = createPublicClient({
+        chain: baseSepolia,
+        transport: http(rpcUrl),
+      });
+      await publicClient.waitForTransactionReceipt({
+        hash: txHash as `0x${string}`,
+        timeout: 15_000,
+      });
     } catch (err) {
       console.warn(
         "[memory-commitment] Live broadcast failed, generating verifiable commitment record:",
@@ -150,6 +189,13 @@ export async function commitMemoryToBaseSepolia(options: {
     txHash = keccak256(
       stringToBytes(`base-sepolia-commitment:${counterpartyKey}:v${version}:${commitment}`),
     );
+    if (options.simulateBroadcast && options.onSubmitted) {
+      await options.onSubmitted({
+        txHash,
+        counterpartyKey,
+        version,
+      });
+    }
   }
 
   return {
@@ -169,15 +215,31 @@ export async function commitMemoryToBaseSepolia(options: {
  */
 export async function verifyMemoryCommitment(options: {
   counterpartyKey: string;
-  version: number;
+  version?: number;
   expectedCommitment?: string;
 }): Promise<{
   verified: boolean;
   computedCommitment?: string;
   saltFound: boolean;
   details: string;
+  version?: number;
 }> {
-  const { counterpartyKey, version, expectedCommitment } = options;
+  const { counterpartyKey, expectedCommitment } = options;
+  let version = options.version;
+
+  // Auto-detect version from Sibyl WARM tier if omitted
+  if (version === undefined || version === null || version <= 0) {
+    const retrieval = await retrieveFromSibyl(counterpartyKey);
+    if (
+      retrieval.status === "AVAILABLE" &&
+      typeof retrieval.memoryVersion === "number" &&
+      retrieval.memoryVersion > 0
+    ) {
+      version = retrieval.memoryVersion;
+    } else {
+      version = 1;
+    }
+  }
 
   // 1. Retrieve salt from Sibyl REFERENCE tier
   const salt = await getSaltFromSibyl(counterpartyKey, version);
@@ -185,6 +247,7 @@ export async function verifyMemoryCommitment(options: {
     return {
       verified: false,
       saltFound: false,
+      version,
       details: `Salt for ${counterpartyKey} v${version} not found in Sibyl REFERENCE tier.`,
     };
   }
@@ -195,6 +258,7 @@ export async function verifyMemoryCommitment(options: {
     return {
       verified: false,
       saltFound: true,
+      version,
       details: `Profile for ${counterpartyKey} is not available in Sibyl (status: ${retrieval.status})`,
     };
   }
@@ -216,8 +280,9 @@ export async function verifyMemoryCommitment(options: {
     verified,
     computedCommitment: commitment,
     saltFound: true,
+    version,
     details: !expectedCommitment
-      ? `Recomputed commitment: ${commitment} (current Sibyl state)`
+      ? `Recomputed commitment: ${commitment} (current Sibyl state v${version})`
       : verified
         ? `Memory commitment verified successfully against Base Sepolia calldata!`
         : `Commitment mismatch: computed ${commitment} but expected ${expectedCommitment}`,

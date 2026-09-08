@@ -21,6 +21,7 @@ const STAGE_BY_PREFIX: [string, CanonicalStage][] = [
   ["memory.episode", "LEARN"],
   ["memory.profile", "LEARN"],
   ["memory.diff", "LEARN"],
+  ["memory.commitment", "LEARN"],
   ["commitment.", "COMMIT"],
 ];
 

@@ -67,6 +67,19 @@ Object.defineProperty(window, "localStorage", {
   value: new MemoryStorage(),
 });
 
+if (typeof HTMLDialogElement !== "undefined") {
+  if (!HTMLDialogElement.prototype.showModal) {
+    HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
+      this.setAttribute("open", "");
+    };
+  }
+  if (!HTMLDialogElement.prototype.close) {
+    HTMLDialogElement.prototype.close = function (this: HTMLDialogElement) {
+      this.removeAttribute("open");
+    };
+  }
+}
+
 /**
  * jsdom does not implement matchMedia. Default to "no preference" so reveal
  * motion is exercised, and let a test override it to assert the reduced

@@ -248,6 +248,64 @@ describe("MissionBoard", () => {
     expect(onResetLive).toHaveBeenCalled();
   });
 
+  it("renders live backend run banner when viewing the example fixture", () => {
+    const progress = buildMissionProgress(dummyEntries, "COMPLETED");
+    render(
+      <MissionBoard
+        progress={progress}
+        runId="run_example_0001"
+        fixtureLabel="Demo Mission Fixture"
+        allEntries={dummyEntries}
+      />,
+    );
+
+    expect(screen.getByTestId("mission-board-live-banner")).toBeInTheDocument();
+    expect(screen.getByText(/Viewing Demo Mission Fixture/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /open live run/i })).toBeInTheDocument();
+  });
+
+  it("renders prominent MCP tool call highlights on step cards", () => {
+    const progress = buildMissionProgress(dummyEntries, "COMPLETED");
+    render(
+      <MissionBoard
+        progress={progress}
+        runId="run_test_001"
+      />,
+    );
+
+    expect(screen.getByTestId("mcp-step-highlight-remember")).toBeInTheDocument();
+    expect(screen.getAllByText("memory_recall_counterparty").length).toBeGreaterThan(0);
+    expect(screen.getByText(/Sibyl Memory Lookup/i)).toBeInTheDocument();
+    expect(screen.getByText(/alpha \(score 28\) blocked · beta \(score 94\) verified/i)).toBeInTheDocument();
+  });
+
+  it("omits the board impact strip when showImpactStrip is false", () => {
+    const progress = buildMissionProgress(dummyEntries, "COMPLETED");
+    render(
+      <MissionBoard
+        progress={progress}
+        runId="run_test_001"
+        showImpactStrip={false}
+      />,
+    );
+
+    expect(screen.queryByLabelText("Executive Impact Summary")).not.toBeInTheDocument();
+  });
+
+  it("initializes directly in pipeline view when initialViewMode is pipeline", () => {
+    const progress = buildMissionProgress(dummyEntries, "COMPLETED");
+    render(
+      <MissionBoard
+        progress={progress}
+        runId="run_test_001"
+        allEntries={dummyEntries}
+        initialViewMode="pipeline"
+      />,
+    );
+
+    expect(screen.getByRole("region", { name: /pipeline view of all 6 steps/i })).toBeInTheDocument();
+  });
+
   it("has no accessibility violations in Board view", async () => {
     const progress = buildMissionProgress(dummyEntries, "COMPLETED");
     const { container } = render(

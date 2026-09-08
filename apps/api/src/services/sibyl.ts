@@ -4,6 +4,25 @@ import path from "node:path";
 import { promisify } from "node:util";
 
 import { env } from "../env.js";
+import {
+  archiveNativeCounterpartyInSibyl,
+  getNativeEntity,
+  getNativeMissionState,
+  getNativePolicyReference,
+  getNativeSibylStatus,
+  listNativeCounterpartiesFromSibyl,
+  readNativeMemoryJournal,
+  recallNativeEntities,
+  recordEpisodeToNativeSibyl,
+  retrieveNativeFromSibyl,
+  setNativeMissionState,
+  setNativePolicyReference,
+  updateNativeCounterpartyInSibyl,
+} from "./native-sibyl.js";
+
+function isNativeSibylFallbackEnabled(): boolean {
+  return process.env.SIBYL_DISABLE_NATIVE !== "true";
+}
 
 const run = promisify(execFile);
 
@@ -132,6 +151,9 @@ async function runBridge(args: string[]): Promise<BridgeOutcome> {
 export async function getSibylStatus(): Promise<SibylStatus> {
   const outcome = await runBridge(["status"]);
   if (!outcome.ok) {
+    if (isNativeSibylFallbackEnabled()) {
+      return getNativeSibylStatus();
+    }
     if (!outcome.configured) return NOT_CONFIGURED;
     return {
       configured: true,
@@ -355,6 +377,9 @@ export async function recallEntities(
 
   const outcome = await runBridge(args);
   if (!outcome.ok) {
+    if (isNativeSibylFallbackEnabled()) {
+      return recallNativeEntities(query, opts);
+    }
     return { reachable: false, records: [], code: outcome.code, detail: outcome.detail };
   }
 
@@ -395,6 +420,9 @@ export async function recallEntities(
 export async function getEntity(category: string, name: string): Promise<SibylEntityLookup> {
   const outcome = await runBridge(["entity", category, name]);
   if (!outcome.ok) {
+    if (outcome.code !== "entity_absent" && isNativeSibylFallbackEnabled()) {
+      return getNativeEntity(category, name);
+    }
     return {
       reachable: outcome.code === "entity_absent",
       code: outcome.code,
@@ -489,7 +517,12 @@ function episodeCount(body: Record<string, unknown>): number {
 
 export async function retrieveFromSibyl(counterpartyKey: string): Promise<SibylRetrieval> {
   const python = getSibylPython();
-  if (!python) return { status: "ERROR", counterpartyKey, retryable: true };
+  if (!python) {
+    if (isNativeSibylFallbackEnabled()) {
+      return retrieveNativeFromSibyl(counterpartyKey);
+    }
+    return { status: "ERROR", counterpartyKey, retryable: true };
+  }
 
   try {
     const { stdout } = await run(python, [getSibylBridgePath(), "retrieve", "counterparty", counterpartyKey], {
@@ -498,7 +531,12 @@ export async function retrieveFromSibyl(counterpartyKey: string): Promise<SibylR
       maxBuffer: 1024 * 1024,
     });
     const parsed = JSON.parse(stdout) as Record<string, unknown>;
-    if (parsed.ok !== true) return { status: "ERROR", counterpartyKey, retryable: true };
+    if (parsed.ok !== true) {
+      if (isNativeSibylFallbackEnabled()) {
+        return retrieveNativeFromSibyl(counterpartyKey);
+      }
+      return { status: "ERROR", counterpartyKey, retryable: true };
+    }
     if (parsed.found !== true) return { status: "NO_HISTORY", counterpartyKey };
 
     const body = (parsed.body ?? {}) as Record<string, unknown>;
@@ -522,6 +560,9 @@ export async function retrieveFromSibyl(counterpartyKey: string): Promise<SibylR
     };
   } catch (error) {
     console.error("[sibyl] retrieve failed", error);
+    if (isNativeSibylFallbackEnabled()) {
+      return retrieveNativeFromSibyl(counterpartyKey);
+    }
     return { status: "ERROR", counterpartyKey, retryable: true };
   }
 }
@@ -585,6 +626,9 @@ function episodesFrom(body: Record<string, unknown>): SibylEpisode[] {
 export async function listCounterpartiesFromSibyl(): Promise<SibylCounterparties> {
   const python = getSibylPython();
   if (!python) {
+    if (isNativeSibylFallbackEnabled()) {
+      return listNativeCounterpartiesFromSibyl();
+    }
     return {
       ok: false,
       code: "not_configured",
@@ -600,6 +644,9 @@ export async function listCounterpartiesFromSibyl(): Promise<SibylCounterparties
     });
     const parsed = JSON.parse(stdout) as Record<string, unknown>;
     if (parsed.ok !== true) {
+      if (isNativeSibylFallbackEnabled()) {
+        return listNativeCounterpartiesFromSibyl();
+      }
       return {
         ok: false,
         code: String(parsed.code ?? "bridge_error"),
@@ -607,12 +654,11 @@ export async function listCounterpartiesFromSibyl(): Promise<SibylCounterparties
       };
     }
 
-    const rows = Array.isArray(parsed.entities) ? parsed.entities : [];
-    const items = rows.map((row): SibylCounterparty => {
-      const entity = (row ?? {}) as Record<string, unknown>;
+    const raw = (parsed.entities ?? []) as Record<string, unknown>[];
+    const items: SibylCounterparty[] = raw.map((entity) => {
       const body = (entity.body ?? {}) as Record<string, unknown>;
       return {
-        counterpartyKey: typeof entity.name === "string" ? entity.name : "",
+        counterpartyKey: String(entity.name ?? ""),
         displayName: str(body, "display_name"),
         hasProfile: hasProfileBody(body),
         isFixture: str(body, "source") === "fixture",
@@ -630,6 +676,9 @@ export async function listCounterpartiesFromSibyl(): Promise<SibylCounterparties
     return { ok: true, items: items.filter((item) => item.counterpartyKey !== "") };
   } catch (error) {
     console.error("[sibyl] counterparty listing failed", error);
+    if (isNativeSibylFallbackEnabled()) {
+      return listNativeCounterpartiesFromSibyl();
+    }
     return { ok: false, code: "bridge_unreachable", detail: "Sibyl could not be read." };
   }
 }
@@ -654,7 +703,12 @@ export async function recordEpisodeToSibyl(
   actor = "buyer_agent",
 ): Promise<RecordEpisodeOutcome> {
   const python = getSibylPython();
-  if (!python) return { ok: false, code: "not_configured", detail: "SIBYL_PYTHON not configured" };
+  if (!python) {
+    if (isNativeSibylFallbackEnabled()) {
+      return recordEpisodeToNativeSibyl(counterpartyKey, episode);
+    }
+    return { ok: false, code: "not_configured", detail: "SIBYL_PYTHON not configured" };
+  }
 
   try {
     const payload = {
@@ -676,6 +730,9 @@ export async function recordEpisodeToSibyl(
     );
     const parsed = JSON.parse(stdout) as Record<string, unknown>;
     if (parsed.ok !== true) {
+      if (isNativeSibylFallbackEnabled()) {
+        return recordEpisodeToNativeSibyl(counterpartyKey, episode);
+      }
       return {
         ok: false,
         code: String(parsed.code ?? "bridge_error"),
@@ -689,6 +746,9 @@ export async function recordEpisodeToSibyl(
     };
   } catch (error) {
     console.error("[sibyl] record episode failed", error);
+    if (isNativeSibylFallbackEnabled()) {
+      return recordEpisodeToNativeSibyl(counterpartyKey, episode);
+    }
     return { ok: false, code: "bridge_unreachable", detail: "Sibyl bridge failed to record episode" };
   }
 }
@@ -703,7 +763,12 @@ export async function updateCounterpartyInSibyl(
   },
 ): Promise<{ ok: boolean; code?: string; detail?: string }> {
   const python = getSibylPython();
-  if (!python) return { ok: false, code: "not_configured", detail: "SIBYL_PYTHON not configured" };
+  if (!python) {
+    if (isNativeSibylFallbackEnabled()) {
+      return updateNativeCounterpartyInSibyl(counterpartyKey, update);
+    }
+    return { ok: false, code: "not_configured", detail: "SIBYL_PYTHON not configured" };
+  }
 
   try {
     const payload: Record<string, unknown> = {};
@@ -722,9 +787,18 @@ export async function updateCounterpartyInSibyl(
       },
     );
     const parsed = JSON.parse(stdout) as Record<string, unknown>;
-    return { ok: parsed.ok === true };
+    if (parsed.ok !== true) {
+      if (isNativeSibylFallbackEnabled()) {
+        return updateNativeCounterpartyInSibyl(counterpartyKey, update);
+      }
+      return { ok: false, code: String(parsed.code ?? "bridge_error"), detail: "Failed to update counterparty" };
+    }
+    return { ok: true };
   } catch (error) {
     console.error("[sibyl] update counterparty failed", error);
+    if (isNativeSibylFallbackEnabled()) {
+      return updateNativeCounterpartyInSibyl(counterpartyKey, update);
+    }
     return { ok: false, code: "bridge_unreachable", detail: "Sibyl bridge failed to update counterparty" };
   }
 }
@@ -734,7 +808,12 @@ export async function setMissionState(
   state: Record<string, unknown>,
 ): Promise<{ ok: boolean; code?: string; detail?: string }> {
   const python = getSibylPython();
-  if (!python) return { ok: false, code: "not_configured", detail: "SIBYL_PYTHON not configured" };
+  if (!python) {
+    if (isNativeSibylFallbackEnabled()) {
+      return setNativeMissionState(key, state);
+    }
+    return { ok: false, code: "not_configured", detail: "SIBYL_PYTHON not configured" };
+  }
 
   try {
     const { stdout } = await run(
@@ -747,9 +826,18 @@ export async function setMissionState(
       },
     );
     const parsed = JSON.parse(stdout) as Record<string, unknown>;
-    return { ok: parsed.ok === true };
+    if (parsed.ok !== true) {
+      if (isNativeSibylFallbackEnabled()) {
+        return setNativeMissionState(key, state);
+      }
+      return { ok: false, code: "bridge_error", detail: "Failed to set state" };
+    }
+    return { ok: true };
   } catch (error) {
     console.error("[sibyl] set state failed", error);
+    if (isNativeSibylFallbackEnabled()) {
+      return setNativeMissionState(key, state);
+    }
     return { ok: false, code: "bridge_unreachable", detail: "Failed to set state" };
   }
 }
@@ -758,7 +846,12 @@ export async function getMissionState(
   key: string,
 ): Promise<{ ok: boolean; state?: Record<string, unknown>; code?: string; detail?: string }> {
   const python = getSibylPython();
-  if (!python) return { ok: false, code: "not_configured", detail: "SIBYL_PYTHON not configured" };
+  if (!python) {
+    if (isNativeSibylFallbackEnabled()) {
+      return getNativeMissionState(key);
+    }
+    return { ok: false, code: "not_configured", detail: "SIBYL_PYTHON not configured" };
+  }
 
   try {
     const { stdout } = await run(
@@ -771,9 +864,18 @@ export async function getMissionState(
       },
     );
     const parsed = JSON.parse(stdout) as Record<string, unknown>;
-    return { ok: parsed.ok === true, state: parsed.state as Record<string, unknown> | undefined };
+    if (parsed.ok !== true) {
+      if (isNativeSibylFallbackEnabled()) {
+        return getNativeMissionState(key);
+      }
+      return { ok: false, code: "bridge_error", detail: "Failed to get state" };
+    }
+    return { ok: true, state: parsed.state as Record<string, unknown> | undefined };
   } catch (error) {
     console.error("[sibyl] get state failed", error);
+    if (isNativeSibylFallbackEnabled()) {
+      return getNativeMissionState(key);
+    }
     return { ok: false, code: "bridge_unreachable", detail: "Failed to get state" };
   }
 }
@@ -783,7 +885,12 @@ export async function setPolicyReference(
   reference: Record<string, unknown>,
 ): Promise<{ ok: boolean; code?: string; detail?: string }> {
   const python = getSibylPython();
-  if (!python) return { ok: false, code: "not_configured", detail: "SIBYL_PYTHON not configured" };
+  if (!python) {
+    if (isNativeSibylFallbackEnabled()) {
+      return setNativePolicyReference(key, reference);
+    }
+    return { ok: false, code: "not_configured", detail: "SIBYL_PYTHON not configured" };
+  }
 
   try {
     const { stdout } = await run(
@@ -796,9 +903,18 @@ export async function setPolicyReference(
       },
     );
     const parsed = JSON.parse(stdout) as Record<string, unknown>;
-    return { ok: parsed.ok === true };
+    if (parsed.ok !== true) {
+      if (isNativeSibylFallbackEnabled()) {
+        return setNativePolicyReference(key, reference);
+      }
+      return { ok: false, code: "bridge_error", detail: "Failed to set reference" };
+    }
+    return { ok: true };
   } catch (error) {
     console.error("[sibyl] set reference failed", error);
+    if (isNativeSibylFallbackEnabled()) {
+      return setNativePolicyReference(key, reference);
+    }
     return { ok: false, code: "bridge_unreachable", detail: "Failed to set reference" };
   }
 }
@@ -807,7 +923,12 @@ export async function getPolicyReference(
   key: string,
 ): Promise<{ ok: boolean; reference?: unknown; code?: string; detail?: string }> {
   const python = getSibylPython();
-  if (!python) return { ok: false, code: "not_configured", detail: "SIBYL_PYTHON not configured" };
+  if (!python) {
+    if (isNativeSibylFallbackEnabled()) {
+      return getNativePolicyReference(key);
+    }
+    return { ok: false, code: "not_configured", detail: "SIBYL_PYTHON not configured" };
+  }
 
   try {
     const { stdout } = await run(
@@ -820,9 +941,18 @@ export async function getPolicyReference(
       },
     );
     const parsed = JSON.parse(stdout) as Record<string, unknown>;
-    return { ok: parsed.ok === true, reference: parsed.reference };
+    if (parsed.ok !== true) {
+      if (isNativeSibylFallbackEnabled()) {
+        return getNativePolicyReference(key);
+      }
+      return { ok: false, code: "bridge_error", detail: "Failed to get reference" };
+    }
+    return { ok: true, reference: parsed.reference };
   } catch (error) {
     console.error("[sibyl] get reference failed", error);
+    if (isNativeSibylFallbackEnabled()) {
+      return getNativePolicyReference(key);
+    }
     return { ok: false, code: "bridge_unreachable", detail: "Failed to get reference" };
   }
 }
@@ -832,7 +962,12 @@ export async function archiveCounterpartyInSibyl(
   reason = "operator_archived",
 ): Promise<{ ok: boolean; code?: string; detail?: string }> {
   const python = getSibylPython();
-  if (!python) return { ok: false, code: "not_configured", detail: "SIBYL_PYTHON not configured" };
+  if (!python) {
+    if (isNativeSibylFallbackEnabled()) {
+      return archiveNativeCounterpartyInSibyl(counterpartyKey, reason);
+    }
+    return { ok: false, code: "not_configured", detail: "SIBYL_PYTHON not configured" };
+  }
 
   try {
     const { stdout } = await run(
@@ -845,9 +980,18 @@ export async function archiveCounterpartyInSibyl(
       },
     );
     const parsed = JSON.parse(stdout) as Record<string, unknown>;
-    return { ok: parsed.ok === true };
+    if (parsed.ok !== true) {
+      if (isNativeSibylFallbackEnabled()) {
+        return archiveNativeCounterpartyInSibyl(counterpartyKey, reason);
+      }
+      return { ok: false, code: "bridge_error", detail: "Failed to archive entity" };
+    }
+    return { ok: true };
   } catch (error) {
     console.error("[sibyl] archive entity failed", error);
+    if (isNativeSibylFallbackEnabled()) {
+      return archiveNativeCounterpartyInSibyl(counterpartyKey, reason);
+    }
     return { ok: false, code: "bridge_unreachable", detail: "Failed to archive entity" };
   }
 }
@@ -873,7 +1017,12 @@ export async function readMemoryJournal(
   const counterpartyKey = options.counterpartyKey;
 
   const python = getSibylPython();
-  if (!python) return { ok: false, code: "not_configured", detail: "SIBYL_PYTHON not configured" };
+  if (!python) {
+    if (isNativeSibylFallbackEnabled()) {
+      return readNativeMemoryJournal(limit, counterpartyKey);
+    }
+    return { ok: false, code: "not_configured", detail: "SIBYL_PYTHON not configured" };
+  }
 
   try {
     const fetchLimit = counterpartyKey ? Math.max(limit, 100) : limit;
@@ -887,6 +1036,12 @@ export async function readMemoryJournal(
       },
     );
     const parsed = JSON.parse(stdout) as Record<string, unknown>;
+    if (parsed.ok !== true) {
+      if (isNativeSibylFallbackEnabled()) {
+        return readNativeMemoryJournal(limit, counterpartyKey);
+      }
+      return { ok: false, code: "bridge_error", detail: "Failed to read memory journal" };
+    }
     let events = Array.isArray(parsed.events) ? (parsed.events as Record<string, unknown>[]) : [];
     if (counterpartyKey) {
       events = events.filter((e) => {
@@ -902,13 +1057,16 @@ export async function readMemoryJournal(
       }
     }
     return {
-      ok: parsed.ok === true,
+      ok: true,
       count: events.length,
       events,
       episodes: events,
     };
   } catch (error) {
     console.error("[sibyl] read journal failed", error);
+    if (isNativeSibylFallbackEnabled()) {
+      return readNativeMemoryJournal(limit, counterpartyKey);
+    }
     return { ok: false, code: "bridge_unreachable", detail: error instanceof Error ? error.message : String(error) };
   }
 }

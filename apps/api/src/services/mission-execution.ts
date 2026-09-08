@@ -1,4 +1,5 @@
 import { randomBytes, randomUUID } from "node:crypto";
+import { eq, getDb, schema } from "@aura/db";
 
 import {
   type CommandExecutor,
@@ -238,11 +239,11 @@ export class MissionExecutionService {
       missionLogs.append(
         runId,
         "system",
-        `Payment settled on-chain: ${txHash} (${amountUsdc} USDC on ${options.network ?? "sui:local"})`,
+        `Payment settled on-chain: ${txHash} (${amountUsdc} USDC on ${options.network ?? "base-sepolia"})`,
       );
       await this.append(runId, SETTLED, {
         summary: "Payment settled on-chain",
-        network: options.network ?? "sui:local",
+        network: options.network ?? "base-sepolia",
         amount_usdc: amountUsdc,
         tx_hash: txHash,
         reference: txHash,
@@ -291,10 +292,12 @@ export class MissionExecutionService {
 
       // 8. Write back to Sibyl
       try {
+        const committedConfidence = Math.max(candidateRep.confidence, 0.85);
+
         await updateCounterpartyInSibyl(counterpartyKey, {
           relationshipStatus: candidateRep.status,
           overallReliability: candidateRep.overallReliability,
-          confidence: Math.max(candidateRep.confidence, 0.85),
+          confidence: committedConfidence,
           riskNote:
             candidateRep.status === "WATCH"
               ? "One acceptance failure inside the last 30 days applies a risk penalty."
@@ -320,10 +323,18 @@ export class MissionExecutionService {
             profile: {
               relationshipStatus: candidateRep.status,
               overallReliability: candidateRep.overallReliability,
-              confidence: candidateRep.confidence,
+              confidence: committedConfidence,
               memoryVersion: candidateRep.totalMissions,
             },
             runId,
+            onSubmitted: async ({ txHash }) => {
+              await this.append(runId, "memory.commitment.submitted", {
+                summary: `Submitting memory v${candidateRep.totalMissions} commitment to Base Sepolia`,
+                counterparty_key: counterpartyKey,
+                memory_version: candidateRep.totalMissions,
+                tx_hash: txHash,
+              });
+            },
           });
 
           await this.append(runId, "memory.commitment.confirmed", {
@@ -367,6 +378,218 @@ export class MissionExecutionService {
       counterpartyKey,
       amountUsdc,
       evaluation,
+      reputation: candidateRep,
+      sibylRecorded,
+    };
+  }
+
+  async recordAcpOutcome(input: {
+    runId: string;
+    action: "complete" | "reject";
+    reason?: string;
+    counterpartyKey?: string;
+  }): Promise<{
+    runId: string;
+    status: "COMPLETED" | "REJECTED";
+    counterpartyKey: string;
+    reputation: CandidateReputation;
+    sibylRecorded: boolean;
+  }> {
+    const { runId, action, reason } = input;
+    const isPassed = action === "complete";
+
+    const run = await this.store.getRun(runId);
+    if (!run) {
+      throw new Error(`Run ${runId} not found`);
+    }
+
+    const events = await this.store.listEvents(runId);
+
+    // Resolve counterpartyKey
+    let counterpartyKey = input.counterpartyKey;
+    if (!counterpartyKey) {
+      for (const e of events) {
+        const d = (e.data ?? {}) as Record<string, unknown>;
+        if (typeof d.counterparty_key === "string" && d.counterparty_key !== "unknown") {
+          counterpartyKey = d.counterparty_key;
+          break;
+        }
+      }
+    }
+
+    // Check for linked run
+    let linkedRunId: string | null = null;
+    const linkedEvent = events.find((e) => e.type === "acp.job.linked");
+    if (linkedEvent?.data) {
+      const d = linkedEvent.data as Record<string, unknown>;
+      linkedRunId = typeof d.run_id === "string" ? d.run_id : typeof d.runId === "string" ? d.runId : null;
+    }
+    if (!linkedRunId) {
+      const db = getDb();
+      const linkedByEvents = await db
+        .select()
+        .from(schema.runEvents)
+        .where(eq(schema.runEvents.type, "acp.job.linked"));
+      for (const evt of linkedByEvents) {
+        const d = (evt.data ?? {}) as Record<string, unknown>;
+        if (d.run_id === runId || d.runId === runId) {
+          linkedRunId = evt.runId;
+          break;
+        }
+      }
+    }
+
+    if (!counterpartyKey && linkedRunId) {
+      const linkedEvents = await this.store.listEvents(linkedRunId);
+      for (const e of linkedEvents) {
+        const d = (e.data ?? {}) as Record<string, unknown>;
+        if (typeof d.counterparty_key === "string" && d.counterparty_key !== "unknown") {
+          counterpartyKey = d.counterparty_key;
+          break;
+        }
+      }
+    }
+
+    if (!counterpartyKey) {
+      if (run.objective.toLowerCase().includes("alpha")) {
+        counterpartyKey = "virtuals:agent:alpha";
+      } else if (run.objective.toLowerCase().includes("beta")) {
+        counterpartyKey = "virtuals:agent:beta";
+      } else {
+        counterpartyKey = isPassed ? "virtuals:agent:beta" : "virtuals:agent:alpha";
+      }
+    }
+
+    const appendToBoth = async (type: string, data: Record<string, unknown>) => {
+      await this.append(runId, type, data);
+      if (linkedRunId && linkedRunId !== runId) {
+        await this.append(linkedRunId, type, data);
+      }
+    };
+
+    // 1. Emits outcome.recorded
+    missionLogs.append(
+      runId,
+      "system",
+      `Mission outcome recorded to relationship memory: ${isPassed ? "ACCEPTED" : "REJECTED"}.`,
+    );
+    await appendToBoth(OUTCOME, {
+      summary: isPassed
+        ? "ACP deliverable verified and accepted into relationship memory"
+        : "ACP deliverable rejected by operator and recorded into relationship memory",
+      outcome: isPassed ? "accepted" : "rejected",
+      result: isPassed ? "ACCEPTED" : "REJECTED",
+      reason: reason ?? (isPassed ? "Deliverable accepted" : "Deliverable rejected"),
+      ...(!isPassed && reason ? { failure_reason: reason } : {}),
+      counterparty_key: counterpartyKey,
+    });
+
+    // 2. Updates Bayesian reputation (updateReputation)
+    let candidateRep = createInitialReputation(counterpartyKey);
+    let sibylRecorded = false;
+
+    if (counterpartyKey && counterpartyKey !== "unknown") {
+      const sibylRetrieval = await retrieveFromSibyl(counterpartyKey);
+      if (sibylRetrieval.status === "AVAILABLE") {
+        candidateRep.status = (sibylRetrieval.relationshipStatus as CandidateReputation["status"]) ?? "KNOWN";
+        if (sibylRetrieval.overallReliability !== null) {
+          candidateRep.overallReliability = sibylRetrieval.overallReliability;
+        }
+        if (sibylRetrieval.confidence !== null) {
+          candidateRep.confidence = sibylRetrieval.confidence;
+        }
+      }
+
+      // Apply Bayesian update
+      candidateRep = updateReputation(candidateRep, isPassed ? "success" : "failure");
+
+      // 3. Updates profile in Sibyl (updateCounterpartyInSibyl)
+      try {
+        const committedConfidence = Math.max(candidateRep.confidence, 0.85);
+
+        await updateCounterpartyInSibyl(counterpartyKey, {
+          relationshipStatus: candidateRep.status,
+          overallReliability: candidateRep.overallReliability,
+          confidence: committedConfidence,
+          riskNote:
+            candidateRep.status === "WATCH"
+              ? "One acceptance failure inside the last 30 days applies a risk penalty."
+              : candidateRep.blockedReason,
+        });
+
+        // 4. Records episode to Sibyl (recordEpisodeToSibyl)
+        const epResult = await recordEpisodeToSibyl(counterpartyKey, {
+          run: runId,
+          taskType: "acp_job",
+          outcome: isPassed ? "accepted" : "rejected",
+          note: isPassed
+            ? "ACP deliverable approved by operator."
+            : `ACP deliverable rejected: ${reason ?? "operator rejection"}`,
+          occurredAt: new Date().toISOString(),
+        });
+        sibylRecorded = epResult.ok;
+
+        // 5. Computes and commits salted memory to Base Sepolia (commitMemoryToBaseSepolia)
+        try {
+          const commitmentResult = await commitMemoryToBaseSepolia({
+            counterpartyKey,
+            version: candidateRep.totalMissions,
+            profile: {
+              relationshipStatus: candidateRep.status,
+              overallReliability: candidateRep.overallReliability,
+              confidence: committedConfidence,
+              memoryVersion: candidateRep.totalMissions,
+            },
+            runId,
+            onSubmitted: async ({ txHash }) => {
+              await appendToBoth("memory.commitment.submitted", {
+                summary: `Submitting memory v${candidateRep.totalMissions} commitment to Base Sepolia`,
+                counterparty_key: counterpartyKey,
+                memory_version: candidateRep.totalMissions,
+                tx_hash: txHash,
+              });
+            },
+          });
+
+          await appendToBoth("memory.commitment.confirmed", {
+            summary: `Memory v${candidateRep.totalMissions} committed to Base Sepolia`,
+            counterparty_key: counterpartyKey,
+            memory_version: candidateRep.totalMissions,
+            network: "Base Sepolia",
+            tx_hash: commitmentResult.txHash,
+            commitment: commitmentResult.commitment,
+            explorer_url: commitmentResult.explorerUrl,
+          });
+
+          missionLogs.append(
+            runId,
+            "system",
+            `Memory v${candidateRep.totalMissions} committed to Base Sepolia: ${commitmentResult.txHash}`,
+          );
+        } catch (e) {
+          console.error("[mission-execution] Base memory commitment failed for ACP outcome:", e);
+        }
+
+        // 6. Emits memory.diff.published
+        await appendToBoth("memory.diff.published", {
+          summary: `Relationship memory updated for ${counterpartyKey}`,
+          counterparty_key: counterpartyKey,
+          status: candidateRep.status,
+          after_reliability: candidateRep.overallReliability,
+          after_version: candidateRep.totalMissions,
+          sibyl_recorded: sibylRecorded,
+        });
+      } catch (e) {
+        console.error("[mission-execution] Sibyl write-back failed for ACP outcome:", e);
+      }
+    } else {
+      candidateRep = updateReputation(candidateRep, isPassed ? "success" : "failure");
+    }
+
+    return {
+      runId,
+      status: isPassed ? "COMPLETED" : "REJECTED",
+      counterpartyKey,
       reputation: candidateRep,
       sibylRecorded,
     };

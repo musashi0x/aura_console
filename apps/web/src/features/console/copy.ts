@@ -9,7 +9,7 @@ export const console_ = {
      side navigation as two separate landmarks, and a screen reader lists them
      by name, so an unnamed one reads as a bare "navigation". */
   topNavLabel: "Console context",
-  environment: "NON-MAINNET",
+  environment: "Base Sepolia",
   status: {
     ready: "SYSTEM READY",
     degraded: "SYSTEM DEGRADED",
@@ -224,7 +224,7 @@ export const console_ = {
         approve: "Approve",
         approving: "Approving…",
         /* Said next to the button, not buried in a tooltip. */
-        note: "Approving records your authorization against this Mission. It is non-mainnet and moves no real funds.",
+        note: "Approving records your authorization against this Mission. It operates on Base Sepolia and moves no real funds.",
         failed: "The approval was not recorded, so nothing was authorized.",
         missingCeiling: "This request carries no ceiling, so there is nothing to approve against.",
       },
@@ -445,3 +445,24 @@ export const console_ = {
     },
   },
 } as const;
+
+/**
+ * Formats raw environment strings (e.g. "non-mainnet", "base-sepolia", "Base Sepolia")
+ * into human-readable display values.
+ */
+export function formatEnvironment(env?: string | null): string {
+  if (!env) return "Base Sepolia";
+  const trimmed = env.trim();
+  const lower = trimmed.toLowerCase();
+  if (
+    lower === "non-mainnet" ||
+    lower === "base-sepolia" ||
+    lower === "base sepolia"
+  ) {
+    return "Base Sepolia";
+  }
+  if (lower === "base-sepolia-sandbox") {
+    return "Base Sepolia Sandbox";
+  }
+  return trimmed;
+}

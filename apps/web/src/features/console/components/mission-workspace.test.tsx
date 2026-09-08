@@ -282,7 +282,7 @@ describe("progressive rendering", () => {
 });
 
 describe("theme", () => {
-  it("renders editorial mode with Stone theme active", () => {
+  it("renders operator mode with Stone theme active in dark mode", () => {
     const { container } = workspace();
     const themedRoots = container.querySelectorAll("[data-astryx-theme]");
     expect(themedRoots.length).toBeGreaterThan(0);
@@ -291,7 +291,33 @@ describe("theme", () => {
     );
     expect(stoneRoot).toBeDefined();
     expect(stoneRoot?.getAttribute("data-astryx-theme")).toBe("stone");
-    expect(stoneRoot?.getAttribute("data-theme")).toBe("light");
+    expect(stoneRoot?.getAttribute("data-theme")).toBe("dark");
   });
 });
+
+describe("initial mode and executive overview", () => {
+  it("opens on Board mode when initialMode is set to BOARD", () => {
+    workspace({ initialMode: "BOARD" });
+    expect(screen.getByRole("radio", { name: console_.mission.modes.BOARD })).toBeChecked();
+    expect(
+      screen.getByRole("region", { name: console_.mission.board.label }),
+    ).toBeInTheDocument();
+  });
+
+  it("renders McpExecutiveOverview with tool calls and Sibyl impact metrics when showExecutiveOverview is true", () => {
+    workspace({ showExecutiveOverview: true });
+    expect(screen.getByTestId("mcp-executive-overview")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /Autonomous MCP Agent & Sibyl Memory Protocol/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("memory_recall_counterparty")).toBeInTheDocument();
+    expect(screen.getByText("policy_gate")).toBeInTheDocument();
+    expect(screen.getByText("base_escrow")).toBeInTheDocument();
+    expect(screen.getByText("memory_journal")).toBeInTheDocument();
+    expect(screen.getByText("virtuals:agent:alpha")).toBeInTheDocument();
+    expect(screen.getByText("virtuals:agent:beta")).toBeInTheDocument();
+    expect(screen.getByText(/Treasury Safeguard/i)).toBeInTheDocument();
+  });
+});
+
 

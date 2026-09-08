@@ -3,11 +3,17 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { expectNoAxeViolations } from "@/test-support/axe";
 
 import { ConsoleShell } from "../components/console-shell";
+import {
+  __resetChatSession,
+  getChatTouched,
+  setChatOpen,
+  subscribeChatSession,
+} from "../chat/chat-session";
 import {
   ConsoleEmptyState,
   ConsoleErrorState,
@@ -15,6 +21,10 @@ import {
   ConsoleTransportLabel,
   ConsoleUnavailableMemory,
 } from "../components/console-states";
+
+beforeEach(() => {
+  __resetChatSession();
+});
 
 const shell = (
   readiness: "ready" | "degraded" | "checking" = "ready",
@@ -79,9 +89,9 @@ describe("product boundaries", () => {
     );
   });
 
-  it("declares the environment as non-mainnet", () => {
+  it("declares the environment as Base Sepolia", () => {
     shell();
-    expect(screen.getByText("NON-MAINNET")).toBeInTheDocument();
+    expect(screen.getByText("Base Sepolia")).toBeInTheDocument();
   });
 
   it("reports readiness from the real check rather than asserting it", () => {
@@ -213,5 +223,38 @@ describe("responsive and motion rules", () => {
     expect(css).toMatch(
       /@media \(prefers-reduced-motion: reduce\) {\s*\*,\s*\*::before,\s*\*::after {[^}]*transition-duration: 0\.01ms !important/,
     );
+  });
+
+  it("emits updates when setChatOpen changes touched state even if open is unchanged", () => {
+    let notified = 0;
+    const unsub = subscribeChatSession(() => {
+      notified++;
+    });
+    setChatOpen(true);
+    expect(notified).toBeGreaterThanOrEqual(1);
+    expect(getChatTouched()).toBe(true);
+    unsub();
+  });
+
+  it("renders the chat launcher button on narrow viewports when chat is not docked", () => {
+    const origMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query.includes("max-width: 69.99rem"),
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+
+    render(
+      <ConsoleShell surface="Missions" readiness="ready">
+        <h1>Missions</h1>
+      </ConsoleShell>,
+    );
+    expect(screen.getByRole("button", { name: "Ask the agent" })).toBeInTheDocument();
+    window.matchMedia = origMatchMedia;
   });
 });

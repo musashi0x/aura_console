@@ -42,6 +42,8 @@ export interface ApprovalRequestCardProps {
   onRejected?: () => void;
   /** The counterfactual comparison or rationale. */
   counterfactual?: Counterfactual;
+  /** The environment of the run (e.g. "base-sepolia"). */
+  environment?: string;
 }
 
 export function ApprovalRequestCard({
@@ -50,6 +52,7 @@ export function ApprovalRequestCard({
   onApproved,
   onRejected,
   counterfactual,
+  environment,
 }: ApprovalRequestCardProps) {
   const copy = console_.cards.approval.pending;
   const [busy, setBusy] = useState(false);
@@ -68,6 +71,46 @@ export function ApprovalRequestCard({
     setBusy(true);
     setFailed(false);
     setRejectFailed(false);
+
+    const env = environment ?? text(d, "environment") ?? text(d, "network");
+    const isBaseSepolia =
+      env === "base-sepolia" ||
+      env === "Base Sepolia" ||
+      entry.type.startsWith("acp.") ||
+      d?.chain_id === 84532 ||
+      d?.chainId === 84532;
+
+    if (isBaseSepolia) {
+      const authResult = await apiClient.authorizeAcpFund(runId, {
+        amountUsdc: ceiling,
+      });
+
+      if (authResult.ok) {
+        setBusy(false);
+        onApproved?.();
+        return;
+      }
+
+      // If this run does not have an ACP job, fall back to standard approveRun
+      if (
+        authResult.error &&
+        (authResult.error.code === "not_an_acp_run" || authResult.error.code === "not_found")
+      ) {
+        const fallbackResult = await apiClient.approveRun(runId, ceiling);
+        setBusy(false);
+        if (!fallbackResult.ok) {
+          setFailed(true);
+          return;
+        }
+        onApproved?.();
+        return;
+      }
+
+      setBusy(false);
+      setFailed(true);
+      return;
+    }
+
     const result = await apiClient.approveRun(runId, ceiling);
     setBusy(false);
     if (!result.ok) {

@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { ApiResult, SibylHealth } from "@/lib/api-client";
+import type { AgentHealth, ApiResult, PolicyHealth, SibylHealth } from "@/lib/api-client";
 
 /**
  * The readiness surface is where the product's central rule is most visible:
@@ -17,6 +17,8 @@ import type { ApiResult, SibylHealth } from "@/lib/api-client";
 const state = vi.hoisted(() => ({
   sibyl: null as unknown as ApiResult<SibylHealth>,
   dbOk: true,
+  agent: null as ApiResult<AgentHealth> | null,
+  policy: null as ApiResult<PolicyHealth> | null,
 }));
 
 vi.mock("@/lib/api-client", () => ({
@@ -31,10 +33,11 @@ vi.mock("@/lib/api-client", () => ({
        agent as well as memory. Stubbed unreachable: these tests are about what
        the readiness rows report, and a grounded agent would only add a banner
        they say nothing about. */
-    agentHealth: async () => ({
-      ok: true as const,
-      data: { configured: false, reachable: false, detail: "no agent in this test" },
-    }),
+    agentHealth: async () =>
+      state.agent ?? {
+        ok: true as const,
+        data: { configured: false, reachable: false, detail: "no agent in this test" },
+      },
     baseHealth: async () => ({
       ok: true as const,
       data: {
@@ -56,6 +59,11 @@ vi.mock("@/lib/api-client", () => ({
         detail: "Virtuals ACP gateway connected and responding.",
       },
     }),
+    policyHealth: async () =>
+      state.policy ?? {
+        ok: false as const,
+        error: { code: "policy_endpoint_absent", message: "no policy" },
+      },
   },
 }));
 
@@ -218,4 +226,61 @@ describe("the outside world readiness rows: Virtuals ACP & Base L2", () => {
     expect(base.getByText("42 ms")).toBeInTheDocument();
   });
 });
+
+describe("the verified operator policy & agent identity rows", () => {
+  it("renders verified policy and agent identity rows with live readings", async () => {
+    answering();
+    state.policy = {
+      ok: true as const,
+      data: {
+        configured: true,
+        reachable: true,
+        verified: true,
+        agentId: "agent_buyer_1",
+        policyVersion: 1,
+        autoSpendLimitUsdc: "10.000000",
+        humanApprovalAboveUsdc: "10.000000",
+        minimumReliability: 80,
+        detail: "Operator policy v1 verified from database for agent_buyer_1.",
+      },
+    };
+    state.agent = {
+      ok: true as const,
+      data: {
+        configured: true,
+        reachable: true,
+        agentId: "agent_buyer_1",
+        runtime: "gemini-mcp",
+        apps: ["gemini-agent", "mcp-tools"],
+        detail: "Agent identity agent_buyer_1 verified with Gemini MCP runtime.",
+      },
+    };
+
+    await renderPage();
+
+    // Policy row
+    const policyRow = screen.getByRole("heading", { name: "Operator policy" }).closest("li");
+    expect(policyRow).not.toBeNull();
+    const pol = within(policyRow!);
+    expect(pol.getByText("ACTIVE")).toBeInTheDocument();
+    expect(pol.getByText("v1")).toBeInTheDocument();
+    expect(pol.getByText("$10.000000 USDC")).toBeInTheDocument();
+    expect(pol.getByText(">$10.000000 USDC")).toBeInTheDocument();
+    expect(pol.getByText("80%")).toBeInTheDocument();
+
+    // Agent identity row
+    const agentRow = screen.getByRole("heading", { name: "Agent identity" }).closest("li");
+    expect(agentRow).not.toBeNull();
+    const ag = within(agentRow!);
+    expect(ag.getByText("VERIFIED")).toBeInTheDocument();
+    expect(ag.getByText("agent_buyer_1")).toBeInTheDocument();
+    expect(ag.getByText("gemini-mcp")).toBeInTheDocument();
+    expect(ag.getByText("gemini-agent, mcp-tools")).toBeInTheDocument();
+
+    // Reset state for subsequent tests
+    state.policy = null;
+    state.agent = null;
+  });
+});
+
 

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { app } from "../app.js";
 import type * as AdkAgent from "../services/adk-agent.js";
+import type * as GeminiAgent from "../services/gemini-agent.js";
 
 /**
  * The agent's configured-ness is stubbed rather than read from the environment.
@@ -19,7 +20,7 @@ vi.mock("../services/adk-agent.js", async () => {
 });
 
 vi.mock("../services/gemini-agent.js", async () => {
-  const actual = await vi.importActual<typeof import("../services/gemini-agent.js")>("../services/gemini-agent.js");
+  const actual = await vi.importActual<typeof GeminiAgent>("../services/gemini-agent.js");
   return { ...actual, isGeminiAgentConfigured: vi.fn(() => false) };
 });
 
@@ -27,28 +28,37 @@ const KEY = "virtuals:agent:alpha";
 
 async function seedCounterparty() {
   const db = getDb();
-  await db.insert(schema.counterparties).values({
-    counterpartyKey: KEY,
-    protocol: "virtuals",
-    agentId: "alpha",
-    address: "0xabc",
-    displayName: "Alpha Research",
-    acpLifecycleState: "ACTIVE",
-    relationshipStatus: "PREFERRED",
-    latestMemoryVersion: 13,
-    classifiedAggregates: { completed_jobs: 4 },
-    offerings: [{ offering_id: "research_basic" }],
-  });
-  await db.insert(schema.counterpartySalts).values({ counterpartyKey: KEY, salt: "s3cr3t-salt" });
-  await db.insert(schema.counterpartyEpisodes).values({
-    counterpartyKey: KEY,
-    ownerAgentId: "agent_buyer_1",
-    taskType: "research",
-    outcome: "DELIVERED",
-    amountUsdc: "18.500000",
-    occurredAt: new Date("2026-08-29T10:00:00.000Z"),
-    body: { note: "private episode body" },
-  });
+  await db
+    .insert(schema.counterparties)
+    .values({
+      counterpartyKey: KEY,
+      protocol: "virtuals",
+      agentId: "alpha",
+      address: "0xabc",
+      displayName: "Alpha Research",
+      acpLifecycleState: "ACTIVE",
+      relationshipStatus: "PREFERRED",
+      latestMemoryVersion: 13,
+      classifiedAggregates: { completed_jobs: 4 },
+      offerings: [{ offering_id: "research_basic" }],
+    })
+    .onConflictDoNothing();
+  await db
+    .insert(schema.counterpartySalts)
+    .values({ counterpartyKey: KEY, salt: "s3cr3t-salt" })
+    .onConflictDoNothing();
+  await db
+    .insert(schema.counterpartyEpisodes)
+    .values({
+      counterpartyKey: KEY,
+      ownerAgentId: "agent_buyer_1",
+      taskType: "research",
+      outcome: "DELIVERED",
+      amountUsdc: "18.500000",
+      occurredAt: new Date("2026-08-29T10:00:00.000Z"),
+      body: { note: "private episode body" },
+    })
+    .onConflictDoNothing();
 }
 
 describe("counterparty projection (AD-04)", () => {

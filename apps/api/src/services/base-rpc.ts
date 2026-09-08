@@ -16,11 +16,27 @@ export interface BaseRpcStatus {
  * latest block number, so the Console never claims Base connectivity without
  * a successful response from the network.
  */
+function inferNetwork(rpcUrl: string): string {
+  if (rpcUrl.includes("mainnet") || process.env.ACP_CHAIN_ID === "8453") {
+    return "base:mainnet";
+  }
+  if (rpcUrl.includes("localhost") || rpcUrl.includes("127.0.0.1")) {
+    return "base:local";
+  }
+  return "base:sepolia";
+}
+
 export async function getBaseRpcStatus(
-  rpcUrl = process.env.BASE_RPC_URL ?? "https://sepolia.base.org",
+  rpcUrl?: string,
   timeoutMs = Number(process.env.BASE_TIMEOUT_MS ?? 5000),
 ): Promise<BaseRpcStatus> {
-  if (!rpcUrl) {
+  const resolvedUrl =
+    rpcUrl ??
+    process.env.BASE_RPC_URL ??
+    process.env.ACP_RPC_URL ??
+    "https://sepolia.base.org";
+
+  if (!resolvedUrl || resolvedUrl.trim() === "") {
     return {
       configured: false,
       reachable: false,
@@ -30,9 +46,10 @@ export async function getBaseRpcStatus(
     };
   }
 
+  const network = inferNetwork(resolvedUrl);
   const start = performance.now();
   try {
-    const response = await fetch(rpcUrl, {
+    const response = await fetch(resolvedUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -48,7 +65,7 @@ export async function getBaseRpcStatus(
       return {
         configured: true,
         reachable: false,
-        network: "base:sepolia",
+        network,
         code: "rpc_http_error",
         detail: `Base RPC answered HTTP ${response.status}.`,
       };
@@ -59,7 +76,7 @@ export async function getBaseRpcStatus(
       return {
         configured: true,
         reachable: false,
-        network: "base:sepolia",
+        network,
         code: "rpc_error",
         detail: data.error?.message ?? "Base RPC returned invalid JSON-RPC response.",
       };
@@ -71,7 +88,7 @@ export async function getBaseRpcStatus(
     return {
       configured: true,
       reachable: true,
-      network: "base:sepolia",
+      network,
       blockNumber,
       latencyMs,
       detail: `Base RPC answered block #${blockNumber} in ${latencyMs} ms.`,
@@ -80,7 +97,7 @@ export async function getBaseRpcStatus(
     return {
       configured: true,
       reachable: false,
-      network: "base:sepolia",
+      network,
       code: "rpc_unreachable",
       detail: error instanceof Error ? error.message : "Base RPC is unreachable.",
     };

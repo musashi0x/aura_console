@@ -20,7 +20,7 @@ export const exampleRun: RunSummary = {
   id: EXAMPLE_RUN_ID,
   objective: "Buy one market dataset under a 25 USDC ceiling",
   source: "FIXTURE",
-  environment: "non-mainnet",
+  environment: "Base Sepolia",
   isMainnet: false,
   budgetUsdc: "25.000000",
   createdAt: "2026-08-29T09:00:00.000Z",

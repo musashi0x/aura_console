@@ -67,13 +67,14 @@ export class MissionAgent {
 
   private async open({ runId, budgetUsdc }: OpenMissionInput): Promise<MissionOpening> {
     const memory = await listCounterpartiesFromSibyl();
-
     if (!memory.ok) {
       await this.block(runId, "memory", memory.detail, memory.code !== "not_configured");
       return { status: "BLOCKED", domain: "memory", detail: memory.detail };
     }
 
-    const { ranked, excluded } = scoreCandidates(memory.items);
+    const items = memory.items;
+
+    const { ranked, excluded } = scoreCandidates(items);
     if (ranked.length === 0) {
       const detail =
         excluded.length === 0
@@ -88,9 +89,9 @@ export class MissionAgent {
     await this.append(runId, "memory.retrieved", {
       source: "SIBYL",
       verdict_code: "ok",
-      count: memory.items.length,
+      count: items.length,
       retrieval_status: "AVAILABLE",
-      summary: `Recalled ${memory.items.length} counterparties from Sibyl relationship memory`,
+      summary: `Recalled ${items.length} counterparties from Sibyl relationship memory`,
     });
 
     await this.append(runId, "candidate.scored", {
@@ -102,7 +103,7 @@ export class MissionAgent {
     });
 
     const winner = ranked[0]!;
-    const record = memory.items.find((item) => item.counterpartyKey === winner.key)!;
+    const record = items.find((item) => item.counterpartyKey === winner.key)!;
 
     await this.append(runId, "decision.made", {
       summary: "Selected the highest-ranked counterparty",

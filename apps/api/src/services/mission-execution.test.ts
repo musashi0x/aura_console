@@ -104,7 +104,7 @@ describe("MissionExecutionService (Post-Approval Loop)", () => {
     const settledEvent = events.find((e) => e.type === "commitment.settled")!;
     const settledData = settledEvent.data as Record<string, unknown>;
     expect(settledData.amount_usdc).toBe(ceilingUsdc);
-    expect(settledData.network).toBe("sui:local");
+    expect(settledData.network).toBe("base-sepolia");
     expect(String(settledData.tx_hash)).toMatch(/^0x[a-f0-9]{64}$/);
 
     // Check outcome.recorded contract

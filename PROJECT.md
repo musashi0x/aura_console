@@ -1,113 +1,95 @@
-# Project: Aura Memory Console & Mission Chat UI/UX Phased Roadmap
+# Project: Max Score Hackathon Submission and Verification Kit for Aura Console
 
 ## Architecture
 - **Monorepo Structure**:
-  - `apps/web`: Next.js 16.3.3 operator console application using Astryx Design System (`@astryxdesign/core` v0.5.2) and StyleX/Tailwind tokens.
-  - `apps/api`: Fastify API serving mission runs, SSE chat streaming (`/api/runs/:runId/chat`, `/api/chat`), Sibyl memory retrieval, and AI CLI runners (`claude`, `gemini`).
-  - `packages/`: Shared packages (`@aura/db`, UI primitives).
-- **Data Flow**:
-  1. Operator selects a mission in `ChatConsoleView` or views table in `RunsPage`.
-  2. Missions display live status via `<StatusDot>` (`accent`/`info` pulsing for active, `success` for completed, `error` for failed).
-  3. Filter bar (`<SegmentedControl>`) filters runs dynamically (`All`, `Active`, `Settled`).
-  4. In `ConsoleChat`, assistant messages display inline `<ChatToolCalls>` showing CLI executions, Sibyl queries, and Base Sepolia tx submissions with duration, node tag, and status.
-  5. Expanding tool calls opens `<CodeBlock container="section">` with syntax-highlighted stdout/stderr or JSON.
-  6. Memory citations render as Astryx `<Citation variant="number">` wrapped in `<HoverCard>` previewing counterparty Bayesian reliability, confidence, and recent episodes.
-  7. Technical mission parameters (UUID, Base Sepolia tx hash, budget ceiling/spent, sandbox type) are presented in `<MissionInspector>` via `<MetadataList>`.
-  8. Strict CSS token conformance (`tokens.test.ts`, zero raw hex, WCAG AA contrast) and axe accessibility compliance across all components.
+  - `apps/web`: Next.js 16 operator console and public landing page with Astryx Design System (`@astryxdesign/core`), dark operator theme, WCAG AA compliance, and PMF Waitlist artifact.
+  - `apps/api`: Fastify API serving mission runs, SSE chat streaming, Virtuals ACP agent procurement jobs, Sibyl memory retrieval, and Base Sepolia memory commitment verifier.
+  - `packages/db`: Drizzle ORM schema defining runs, events, counterparties, episodes, ACP jobs, spend intents, and inbox.
+  - `tools/`: Sibyl memory bridge (`tools/sibyl_bridge.py`), seed data (`tools/sibyl_seed.py`), and test runners.
+  - `scripts/`: Load-bearing deletion test (`scripts/demo-deletion-test.ts`), Base Sepolia memory commitment verifier (`scripts/verify-memory-commitment.ts`), and demo restart script (`scripts/demo-restart.sh`).
+- **Data Flow & Partner Integrations**:
+  1. **Sibyl Memory (5 Tiers)**: HOT (`setMissionState`/`getMissionState`), WARM (`listCounterpartiesFromSibyl`/`retrieveFromSibyl`), COLD (`recordEpisodeToSibyl`/`readMemoryJournal`), REFERENCE (`setPolicyReference`/`storeSaltInSibyl`), ARCHIVE (`archiveCounterpartyInSibyl`).
+  2. **Base Sepolia (+15% Multiplier)**: `commitMemoryToBaseSepolia` computes salted Keccak256 hash of counterparty profile and commits on-chain; verified via `pnpm memory:verify`.
+  3. **Virtuals Protocol (+10% Multiplier)**: Virtuals ACP agent procurement jobs funded and settled (`acp.job.funded` -> `outcome.recorded`) with counterparty agents (`virtuals:agent:alpha`, `virtuals:agent:beta`).
+  4. **Multi-Agent MCP Coordination (40/40 Rubric)**: Stdio/HTTP MCP server exposing `memory_recall_counterparty`, `memory_list_counterparties`, and `memory_journal` returning structured Sibyl verdict codes (`ok`, `abstained_on`, `negation_abstain`, `gated`, `empty_store`, `no_match`).
+  5. **Verifiable PMF Bonus (+10 Points)**: Interactive Waitlist & Design Partner section on web console with live counter, named procurement partners, and documented real-world problem statement.
 
 ## Feature Inventory
 | # | Feature | Description | Milestone | Source |
 |---|---------|-------------|-----------|--------|
-| 1 | `StatusDot` Sidebar Indicator | Status indicator with pulsing on active runs in mission selector | M1 | ORIGINAL_REQUEST §R1 |
-| 2 | `StatusDot` Table Indicator | Status indicator in main runs table (`runs/page.tsx`) | M1 | Survey |
-| 3 | `SegmentedControl` Mission Filter | Top filter for `All`, `Active`, `Settled` runs in sidebar and runs table | M1 | ORIGINAL_REQUEST §R1 |
-| 4 | Run Status Derivation | Map run state to `active` vs `settled` and variant (`accent`/`success`/`error`) | M1 | Survey |
-| 5 | Chat Tool Calls Data Model | Extend `ChatMessage` with `toolCalls?: ChatToolCallItem[]` | M2 | ORIGINAL_REQUEST §R2 |
-| 6 | `ChatToolCalls` in Chat Bubbles | Inline tool call visualizer inside assistant bubbles with node tags and duration | M2 | ORIGINAL_REQUEST §R2 |
-| 7 | `CodeBlock` Expandable Section | Expandable stdout/stderr and JSON viewer via `<CodeBlock container="section">` | M2 | ORIGINAL_REQUEST §R2 |
-| 8 | Multi-Tool Grouping & Status | Support single inline call vs collapsible group summary with status spinners/icons | M2 | Survey |
-| 9 | Astryx Native Numbered Citations | Upgrade bare token citations to Astryx `<Citation variant="number">` | M2 | ORIGINAL_REQUEST §R1 |
-| 10 | Rich Memory `HoverCard` | Wrap citations with `<HoverCard>` displaying counterparty Bayesian score & episodes | M2 | ORIGINAL_REQUEST §R3 |
-| 11 | Counterparty Profile Navigation | Citation anchor links directly to `/counterparties?key=...` | M2 | Survey |
-| 12 | `MetadataList` Mission Inspector | Technical parameters list (UUID, Base Sepolia TX, budget, sandbox) | M2 | ORIGINAL_REQUEST §R3 |
-| 13 | Header Inspector Disclosure | Collapsible inspector trigger in `ChatConsoleView` header and `MissionWorkspace` | M2 | ORIGINAL_REQUEST §R3 |
-| 14 | Zero Raw Hex Enforcement | Ensure 100% token usage (`var(--color-*)`, `var(--glow-*)`) with 0 hex in `globals.css` | M2 | ORIGINAL_REQUEST §R4 |
-| 15 | WCAG AA Contrast & Violet Ban | Ensure text contrast >= 4.5:1 against canvas/surface and no violet text ink | M2 | ORIGINAL_REQUEST §R4 |
-| 16 | Axe Accessibility Compliance | `expectNoAxeViolations` on all updated views and interactive elements | M2 | ORIGINAL_REQUEST §R4 |
-| 17 | Lint & Typecheck Cleanliness | Resolve `chat-console-view.tsx` unescaped quote and pass `typecheck` | M2 | Survey |
-| 18 | E2E Test Suite Pass | 100% pass of requirement-driven 4-tier test suite | M3 | ORIGINAL_REQUEST Acceptance Criteria |
-| 19 | Adversarial Coverage Hardening | White-box stress testing and edge-case validation | M3 | Project Pattern |
+| 1 | Quickstart & Port Harmonization | 5-command quickstart in README with port 5436 consistently configured | M1 | ORIGINAL_REQUEST §R1 |
+| 2 | Concrete 5-Tier Memory Map Table | Table mapping HOT, WARM, COLD, REFERENCE, ARCHIVE to exact functions and calling services | M1 | ORIGINAL_REQUEST §R1 |
+| 3 | Verifiable Load-Bearing Deletion Test Guide | Exact terminal output snippet in README showing fail-closed behavior | M1 | ORIGINAL_REQUEST §R1 |
+| 4 | Dual-Partner Disclosures | Full disclosure of Base Sepolia and Virtuals ACP runtimes (removing single-stack fallback posture) | M1 | ORIGINAL_REQUEST §R1, §R3 |
+| 5 | Prior Work Declaration | Comprehensive itemization of pre-existing vs hackathon-created artifacts compliant with rules | M1 | ORIGINAL_REQUEST §R1 |
+| 6 | Interactive Waitlist & Design Partner UI | Verifiable Waitlist & Design Partner component on web console with live counter and named AI agent procurement partners | M2 | ORIGINAL_REQUEST §R2 |
+| 7 | Real-World Problem Statement | Documented problem statement on web: autonomous procurement agents spending treasury without persistent reputation | M2 | ORIGINAL_REQUEST §R2 |
+| 8 | Design Tokens & A11y Conformance for PMF UI | Zero raw hex in globals.css, WCAG AA contrast, and passing axe accessibility audits | M2 | ORIGINAL_REQUEST §R2, Acceptance Criteria |
+| 9 | Tokens Test Path Compatibility | Forwarder test at `apps/web/src/styles/tokens.test.ts` to satisfy exact test runner path | M2 | Acceptance Criteria |
+| 10 | Base Sepolia Verification Audit | Verified `pnpm memory:verify` producing valid Base Sepolia commitment matching Sibyl salt | M3 | ORIGINAL_REQUEST §R3 |
+| 11 | Virtuals ACP Settlement Network Fix | Update `mission-execution.ts:245` fallback network from `"sui:local"` to `"base-sepolia"` | M3 | ORIGINAL_REQUEST §R3 |
+| 12 | MCP Coordination Tools & Tests | Ensure `memory_recall_counterparty`, `memory_list_counterparties`, `memory_journal` pass and add unit tests | M3 | ORIGINAL_REQUEST §R4 |
+| 13 | Topbar Port Fallback Fix | Fix port fallback in `console-topbar.tsx:55` from 3011 to 3001 | M3 | Survey |
+| 14 | ESLint Cleanliness Fix | Fix `apps/api/src/routes/memory.test.ts:22:47` forbidden import type annotation | M3 | Survey |
+| 15 | One-Take Demo Video Script | Minute-by-minute rehearsal script (<5 min) in `docs/demo-video-script.md` | M4 | ORIGINAL_REQUEST §R5 |
+| 16 | Continuous Restart Boundary Guide | Document `scripts/demo-restart.sh` unedited restart proof leaving `~/.sibyl-memory/memory.db` | M4 | ORIGINAL_REQUEST §R5 |
+| 17 | Social Media Ready-to-Copy Posts | Post 1 (X/Discord @sibylcap) and Post 2 (X/Discord @sibylcap, @base, @virtuals_io) | M4 | ORIGINAL_REQUEST §R6 |
+| 18 | Private Build Page Form Submission Pack | Complete copy-pasteable submission pack in `docs/submission-pack.md` and README | M4 | ORIGINAL_REQUEST §R6 |
+| 19 | Comprehensive Acceptance Verification | Verification of deletion test, memory verify, web typecheck, tokens test, and web tests | M5 | Acceptance Criteria |
+| 20 | Forensic Integrity Audit | Independent verification by Forensic Auditor confirming authentic implementations | M5 | Project Pattern |
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| M1 | Live Status Indicators & Mission Filter | `<StatusDot>` with pulsing on active runs, `<SegmentedControl>` filter (`All`, `Active`, `Settled`) in `ChatConsoleView` and `runs/page.tsx` | none | DONE |
-| M2 | Mission Chat & Inspector Interactive UI | `<ChatToolCalls />` & `<CodeBlock container="section" />`, Astryx `<Citation variant="number" />` wrapped in `<HoverCard />`, `<MissionInspector />` with `<MetadataList>`, design token & axe compliance | M1 | DONE |
-| M3 | E2E Verification & Adversarial Hardening | Verify 100% pass of E2E test suite from E2E Track, adversarial coverage audit, typecheck & monorepo tests | M2, TEST_READY | DONE |
+| M1 | README & Judge Evaluation Guide | Update `README.md` with 5-command quickstart, concrete 5-tier memory map, deletion test output, partner disclosures, and prior work | none | DONE |
+| M2 | Publicly Verifiable PMF Bonus Artifact | Create Waitlist & Design Partner section on web, live counter, documented problem statement, token test path forwarder, and web unit tests | none | DONE |
+| M3 | Partner Multipliers & MCP Coordination | Base Sepolia verification, Virtuals ACP network fix, MCP tool unit tests, topbar port fix, and ESLint cleanup | none | DONE |
+| M4 | Demo Video Script & Social Submission Pack | Rehearsal script (<5 min), restart boundary guide, X/Discord posts, and Private Build Page form submission pack | M1 | DONE |
+| M5 | Final Verification & Forensic Audit | End-to-end execution of all verification commands, independent reviewer/challenger gate, and forensic integrity audit | M1, M2, M3, M4 | DONE |
 
 ## Interface Contracts
 
-### Status & Filter Types
+### Waitlist / Design Partner Contract
 ```ts
-export type MissionFilterStatus = "all" | "active" | "settled";
-
-export interface RunStatusInfo {
-  variant: "accent" | "success" | "error" | "warning" | "neutral";
-  label: string;
-  isPulsing: boolean;
-  filterCategory: "active" | "settled";
-}
-```
-
-### Chat Tool Calls
-```ts
-import type { ChatToolCallItem } from "@astryxdesign/core/Chat";
-
-export interface ChatMessage {
+export interface DesignPartner {
   id: string;
-  role: "operator" | "agent" | "console";
-  text: string;
-  complete: boolean;
-  citations: MemoryCitation[];
-  toolCalls?: ChatToolCallItem[];
+  name: string;
+  category: "Autonomous Treasury" | "Agent Procurement" | "On-Chain Execution" | "Risk Engine";
+  agentCount: string;
+  status: "Active Pilot" | "Production Design Partner";
+  description: string;
+}
+
+export interface WaitlistState {
+  totalWaitlistCount: number;
+  registeredAgentsCount: number;
+  designPartners: DesignPartner[];
 }
 ```
 
-### Memory HoverCard Payload
+### MCP Tool Contracts
 ```ts
-export interface CounterpartyMemorySummary {
-  counterpartyKey: string;
-  displayName: string;
-  status: "PREFERRED" | "KNOWN" | "WATCH" | "BLOCKED" | "NEW";
-  overallReliability: number;
-  confidence: number;
-  episodesUsed: number;
-  latestOutcome?: string;
-  timestamp?: string;
-}
-```
+// memory_recall_counterparty
+// Input: { key: string }
+// Output: CounterpartyProfile with verdict code: "ok" | "abstained_on" | "negation_abstain" | "gated" | "empty_store" | "no_match"
 
-### Mission Inspector Props
-```ts
-export interface MissionInspectorProps {
-  runId: string;
-  environment: string;
-  budgetUsdc?: string;
-  spentUsdc?: string;
-  txHash?: string;
-  txHashes?: string[];
-  isCollapsible?: boolean;
-}
+// memory_list_counterparties
+// Input: { limit?: number }
+// Output: CounterpartyProfileSummary[]
+
+// memory_journal
+// Input: { limit?: number }
+// Output: JournalEntry[]
 ```
 
 ## Code Layout
-- `apps/web/src/features/console/components/chat-console-view.tsx`: Mission selector sidebar, filter, header inspector
-- `apps/web/src/features/console/components/console-chat.tsx`: Assistant bubbles with `ChatToolCalls`, `CodeBlock`, `Citation`, `HoverCard`
-- `apps/web/src/features/console/components/mission-inspector.tsx`: New component with `MetadataList`
-- `apps/web/src/features/console/components/mission-workspace.tsx`: Integration of `MissionInspector`
-- `apps/web/src/features/console/chat/chat-types.ts`: Extended `ChatMessage` definition
-- `apps/web/src/app/runs/page.tsx`: StatusDot and SegmentedControl in main missions list
-- `apps/web/src/app/globals.css`: Dark operator token styling without raw hex
-- `apps/web/src/features/console/components/chat-console-view.test.tsx`: Unit & axe tests for sidebar & filter
-- `apps/web/src/features/console/components/console-chat.test.tsx`: Unit & axe tests for chat, citations, tool calls
-- `apps/web/src/features/console/components/mission-inspector.test.tsx`: Unit & axe tests for mission inspector
+- `README.md`: 2-minute judge evaluation guide, 5-tier memory map, quickstart, deletion test, partner disclosures, prior work
+- `apps/web/src/features/landing/components/waitlist-section.tsx`: PMF waitlist and design partner UI
+- `apps/web/src/features/landing/components/waitlist-section.test.tsx`: Unit tests and a11y tests for waitlist
+- `apps/web/src/styles/tokens.test.ts`: Forwarder test ensuring compatibility with exact test path
+- `apps/web/src/features/console/components/console-topbar.tsx`: API URL fallback port fix (3001)
+- `apps/api/src/services/mission-execution.ts`: Network fallback fix to `"base-sepolia"`
+- `apps/api/src/mcp/tools.test.ts`: Extended tests for all MCP memory tools
+- `apps/api/src/routes/memory.test.ts`: ESLint fix
+- `docs/demo-video-script.md`: Rehearsal teleprompter script under 5 minutes
+- `docs/submission-pack.md`: Form submission pack for Private Build Page and social posts

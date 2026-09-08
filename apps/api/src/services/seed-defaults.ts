@@ -1,4 +1,6 @@
-import { getDb, schema, sql } from "@aura/db";
+import { eq, getDb, schema, sql } from "@aura/db";
+
+import { env } from "../env.js";
 
 /**
  * Seeds the Alpha and Beta counterparty fixture into Postgres if the table is empty.
@@ -11,11 +13,8 @@ export async function ensureDatabaseSeeded(): Promise<void> {
       .select({ count: sql<number>`count(*)::int` })
       .from(schema.counterparties);
 
-    if (countRow && countRow.count > 0) {
-      return;
-    }
-
-    console.log("[db] seeding initial counterparties fixture (Alpha Research & Beta Labs)...");
+    if (!countRow || countRow.count === 0) {
+      console.log("[db] seeding initial counterparties fixture (Alpha Research & Beta Labs)...");
 
     // Insert Alpha Research
     await db
@@ -172,8 +171,37 @@ export async function ensureDatabaseSeeded(): Promise<void> {
       ])
       .onConflictDoNothing();
 
-    console.log("[db] initial counterparties fixture seeded successfully.");
+      console.log("[db] initial counterparties fixture seeded successfully.");
+    }
+
+    // Seed default operator policy for target agent if not present
+    const targetAgentId = env.AGENT_ID || "agent_buyer_1";
+    const [policyCount] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(schema.agentPolicies)
+      .where(eq(schema.agentPolicies.agentId, targetAgentId));
+
+    if (!policyCount || policyCount.count === 0) {
+      await db
+        .insert(schema.agentPolicies)
+        .values({
+          agentId: targetAgentId,
+          policyVersion: 1,
+          autoSpendLimitUsdc: "10.000000",
+          absoluteSpendLimitUsdc: "50.000000",
+          dailySpendLimitUsdc: "100.000000",
+          humanApprovalAboveUsdc: "10.000000",
+          minimumReliability: 80,
+          preferredProviderPremiumLimit: "1.2500",
+          blockAfterRecentFailures: 2,
+          preferPreviousSuccess: true,
+          requireVerifiedCommitment: false,
+          memoryErrorOverrideAllowed: false,
+        })
+        .onConflictDoNothing();
+      console.log(`[db] initial operator policy seeded for ${targetAgentId}.`);
+    }
   } catch (err) {
-    console.warn("[db] could not seed initial counterparties:", err);
+    console.warn("[db] could not seed initial defaults:", err);
   }
 }

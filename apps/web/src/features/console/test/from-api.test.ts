@@ -4,12 +4,13 @@ import type { RunEvent, RunSummary } from "@/lib/api-client";
 
 import { eventsFromApi, seedFromRun } from "../model/from-api";
 import { foldRun } from "../projection/fold-run";
+import { formatEnvironment } from "../copy";
 
 const run: RunSummary = {
   id: "run-1",
   objective: "Buy one dataset under budget",
   source: "CONSOLE",
-  environment: "non-mainnet",
+  environment: "base-sepolia",
   isMainnet: false,
   budgetUsdc: "25.000000",
   createdAt: "2026-08-29T10:00:00.000Z",
@@ -32,7 +33,7 @@ describe("the API seed", () => {
       runId: "run-1",
       objective: "Buy one dataset under budget",
       source: "CONSOLE",
-      environment: "non-mainnet",
+      environment: "base-sepolia",
       budgetUsdc: "25.000000",
     });
   });
@@ -83,3 +84,21 @@ describe("the API events", () => {
     expect(unknown?.support).toBe("UNSUPPORTED_TYPE");
   });
 });
+
+describe("formatEnvironment", () => {
+  it("formats non-mainnet, base-sepolia, and Base Sepolia to Base Sepolia", () => {
+    expect(formatEnvironment("non-mainnet")).toBe("Base Sepolia");
+    expect(formatEnvironment("NON-MAINNET")).toBe("Base Sepolia");
+    expect(formatEnvironment("base-sepolia")).toBe("Base Sepolia");
+    expect(formatEnvironment("Base Sepolia")).toBe("Base Sepolia");
+  });
+
+  it("formats sandbox and fallback environments gracefully", () => {
+    expect(formatEnvironment("base-sepolia-sandbox")).toBe("Base Sepolia Sandbox");
+    expect(formatEnvironment("docker-local")).toBe("docker-local");
+    expect(formatEnvironment(null)).toBe("Base Sepolia");
+    expect(formatEnvironment(undefined)).toBe("Base Sepolia");
+    expect(formatEnvironment("")).toBe("Base Sepolia");
+  });
+});
+

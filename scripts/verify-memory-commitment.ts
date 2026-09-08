@@ -22,8 +22,40 @@ import { retrieveFromSibyl } from "../apps/api/src/services/sibyl.js";
 async function main() {
   const args = process.argv.slice(2);
   const counterpartyKey = args[0] || "virtuals:agent:beta";
-  const version = Number(args[1] || 1);
-  const expectedCommitment = args[2];
+
+  let version: number | undefined;
+  let expectedCommitment: string | undefined;
+
+  if (args[1]) {
+    if (args[1].startsWith("0x") && args[1].length > 10) {
+      expectedCommitment = args[1];
+    } else {
+      const parsed = Number(args[1]);
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        version = parsed;
+      }
+      if (args[2]) {
+        expectedCommitment = args[2];
+      }
+    }
+  }
+
+  // Auto-detect version from Sibyl WARM tier if not specified
+  if (version === undefined) {
+    console.log(`--> Auto-detecting memory version for ${counterpartyKey} from Sibyl WARM tier...`);
+    const retrieval = await retrieveFromSibyl(counterpartyKey);
+    if (
+      retrieval.status === "AVAILABLE" &&
+      typeof retrieval.memoryVersion === "number" &&
+      retrieval.memoryVersion > 0
+    ) {
+      version = retrieval.memoryVersion;
+      console.log(`    ✓ Auto-detected memory version: v${version}`);
+    } else {
+      version = 1;
+      console.log(`    ℹ Defaulting to memory version: v${version}`);
+    }
+  }
 
   console.log("\n=======================================================");
   console.log("  AURA MEMORY — BASE SEPOLIA COMMITMENT VERIFICATION  ");

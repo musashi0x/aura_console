@@ -47,6 +47,9 @@ const envSchema = z.object({
   /** Sibyl's own default location. */
   SIBYL_DB_PATH: z.string().min(1).default("~/.sibyl-memory/memory.db"),
   SIBYL_TIMEOUT_MS: z.coerce.number().int().min(500).max(30_000).default(5_000),
+  /** Base network JSON-RPC endpoint (Base Sepolia by default). */
+  BASE_RPC_URL: z.string().url().default("https://sepolia.base.org"),
+  BASE_TIMEOUT_MS: z.coerce.number().int().min(500).max(30_000).default(5_000),
   CORS_ORIGINS: z
     .string()
     .default(

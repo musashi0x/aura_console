@@ -7,6 +7,7 @@ import { errorBody } from "./errors.js";
 import { requestLogger } from "./middleware/request-logger.js";
 import { approvals } from "./routes/approvals.js";
 import { chat, globalChat } from "./routes/chat.js";
+import { commitments } from "./routes/commitments.js";
 import { counterparties } from "./routes/counterparties.js";
 import { counterpartyMemory, memory } from "./routes/memory.js";
 import { health } from "./routes/health.js";
@@ -58,6 +59,7 @@ app.route("/api/counterparties", counterpartyMemory);
 // it answers "who does this operator remember", not "what about this one".
 app.route("/api/memory", memory);
 app.route("/api/policies", policies);
+app.route("/api/commitments", commitments);
 
 app.notFound((c) =>
   c.json(errorBody("not_found", `No route for ${c.req.method} ${c.req.path}`), 404),

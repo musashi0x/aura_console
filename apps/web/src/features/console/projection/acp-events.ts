@@ -34,6 +34,7 @@ export const ACP_STAGE_PREFIXES: [string, CanonicalStage][] = [
   ["acp.job.completed", "EVALUATE"],
   ["acp.job.rejected", "EVALUATE"],
   ["acp.job.funded", "FUND"],
+  ["acp.job.linked", "COMMIT"],
   ["acp.job.created", "COMMIT"],
   ["acp.job.described", "COMMIT"],
   ["acp.budget.set", "FUND"],
@@ -119,6 +120,10 @@ export function acpSummary(event: CanonicalEvent): string | null {
     case "acp.job.completed":
     case "acp.job.rejected":
       return str(event.data?.reason);
+    case "acp.job.linked": {
+      const target = str(event.data?.run_id) ?? str(event.data?.job_id);
+      return target ? `Linked to ACP job run ${target}` : "Linked to ACP job";
+    }
     case "acp.message":
       return str(event.data?.content);
     default:

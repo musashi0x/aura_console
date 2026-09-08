@@ -38,7 +38,7 @@ async function append(runId: string, body: Record<string, unknown>) {
 describe("creating a Run", () => {
   it("persists the seed and its first event in one step", async () => {
     const run = await createRun();
-    expect(run).toMatchObject({ source: "CONSOLE", environment: "non-mainnet", isMainnet: false });
+    expect(run).toMatchObject({ source: "CONSOLE", environment: "base-sepolia", isMainnet: false });
 
     const res = await app.request(`/api/runs/${run.id}/events`);
     const body = (await res.json()) as { events: { type: string; sequence: number }[] };

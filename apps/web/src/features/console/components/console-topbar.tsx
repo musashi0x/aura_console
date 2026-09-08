@@ -52,7 +52,11 @@ export function ConsoleTopbar({
   }, []);
 
   useEffect(() => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3011";
+    const apiUrl =
+      process.env.NEXT_PUBLIC_API_URL ||
+      (typeof window !== "undefined" && window.location.port === "3010"
+        ? "http://localhost:3011"
+        : "http://localhost:3001");
     fetch(`${apiUrl}/health`)
       .then((r) => r.json())
       .then((data) => {
@@ -81,7 +85,7 @@ export function ConsoleTopbar({
         </>
       }
       endContent={
-        <>
+        <div className="cs__topbar-end flex items-center gap-2 max-w-full">
           {actions}
           <ConnectWalletButton />
           {/* The palette lives in the bar so its keyboard hint is discoverable
@@ -97,9 +101,14 @@ export function ConsoleTopbar({
               {telemetry.commit.slice(0, 7)}
             </code>
           ) : null}
-          <span className="cs__env">{console_.environment}</span>
+          <span
+            className="cs__env"
+            title="Base Sepolia Network: Aura Console operates on Base Sepolia testnet and local simulation. Testing agent missions and spend approvals never moves real mainnet funds while executing real cryptographic signatures and testnet contract transactions."
+          >
+            {console_.environment}
+          </span>
           <ConsoleStatus state={readiness} />
-        </>
+        </div>
       }
     />
   );

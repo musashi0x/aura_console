@@ -18,6 +18,7 @@ import {
   ExternalLink,
   ShieldCheck,
   Sparkles,
+  Zap,
 } from "lucide-react";
 
 import { console_ } from "../copy";
@@ -148,6 +149,63 @@ function extractEntities(entries: TimelineEntry[]): StepEntities {
   return res;
 }
 
+const STEP_MCP_ROLES: Record<MissionStep, string> = {
+  UNDERSTAND: "MCP · Discovery",
+  REMEMBER: "MCP · Sibyl Recall",
+  DECIDE: "MCP · Policy Gate",
+  ACT: "MCP · Base Sepolia Escrow",
+  VERIFY: "MCP · Delivery Verification",
+  LEARN: "MCP · Reputation Commit",
+};
+
+export const STEP_MCP_TOOLS: Record<MissionStep, string> = {
+  UNDERSTAND: "provider_discovered",
+  REMEMBER: "memory_recall_counterparty",
+  DECIDE: "policy_gate",
+  ACT: "base_escrow",
+  VERIFY: "delivery_verify",
+  LEARN: "memory_journal",
+};
+
+export interface StepMcpHighlight {
+  tool: string;
+  action: string;
+  detail: string;
+}
+
+export const STEP_MCP_HIGHLIGHTS: Record<MissionStep, StepMcpHighlight> = {
+  UNDERSTAND: {
+    tool: "provider_discovered",
+    action: "Market Discovery",
+    detail: "Queried candidate agent registry (3 counterparties discovered)",
+  },
+  REMEMBER: {
+    tool: "memory_recall_counterparty",
+    action: "Sibyl Memory Lookup",
+    detail: "SQLite store queried · alpha (score 28) blocked · beta (score 94) verified",
+  },
+  DECIDE: {
+    tool: "policy_gate",
+    action: "Policy & Spend Gate",
+    detail: "18.50 USDC quote approved inside 25.00 USDC ceiling ($6.50 treasury saved)",
+  },
+  ACT: {
+    tool: "base_escrow",
+    action: "Base Sepolia Escrow",
+    detail: "18.50 USDC locked in L2 smart contract escrow (84532)",
+  },
+  VERIFY: {
+    tool: "delivery_verify",
+    action: "Delivery Verification",
+    detail: "Cryptographic delivery receipt verified: ACCEPTED against SLA",
+  },
+  LEARN: {
+    tool: "memory_journal",
+    action: "Reputation Diff Root",
+    detail: "Salted Keccak256 memory diff published on Base Sepolia (v12 → v13, +5 Pts)",
+  },
+};
+
 export function MissionStepCard({
   node,
   runId,
@@ -189,7 +247,7 @@ export function MissionStepCard({
   // Check if this step has an approval request that needs human action
   const approvalEntry =
     node.column === "NEEDS_YOU"
-      ? node.entries.find((e) => e.type.includes("approval") || e.type.includes("blocked"))
+      ? node.entries.find((e) => e.type.includes("approval") || e.type.includes("blocked") || e.type === "acp.budget.set")
       : undefined;
 
   const handleToggleExpand = () => {
@@ -217,9 +275,19 @@ export function MissionStepCard({
           <span className="mw__step-card-icon" aria-hidden="true">
             <StepIcon size={16} />
           </span>
-          <Text as="h3" size="sm" weight="semibold" className="mw__step-card-title">
-            {label}
-          </Text>
+          <VStack gap={0}>
+            <Text as="h3" size="sm" weight="semibold" className="mw__step-card-title">
+              {label}
+            </Text>
+            <HStack gap={1} align="center" wrap="wrap">
+              <span className="mw__step-card-mcp-role">
+                {STEP_MCP_ROLES[node.step]}
+              </span>
+              <code className="mw__step-card-mcp-tool">
+                {STEP_MCP_TOOLS[node.step]}
+              </code>
+            </HStack>
+          </VStack>
         </HStack>
 
         <HStack gap={2} align="center">
@@ -239,6 +307,30 @@ export function MissionStepCard({
       <Text as="p" size="sm" color="primary" className="mw__step-card-narrative">
         {narrative}
       </Text>
+
+      {/* Prominent MCP Tool Call Highlight */}
+      {STEP_MCP_HIGHLIGHTS[node.step] ? (
+        <div
+          className="mw__step-card-mcp-highlight"
+          data-testid={`mcp-step-highlight-${node.step.toLowerCase()}`}
+        >
+          <div className="mw__step-card-mcp-highlight-top">
+            <span className="mw__step-card-mcp-highlight-badge">
+              <Zap size={11} className="mw__step-card-mcp-highlight-icon" />
+              <code className="mw__step-card-mcp-highlight-tool">
+                {STEP_MCP_HIGHLIGHTS[node.step].tool}
+              </code>
+            </span>
+            <span className="mw__step-card-mcp-highlight-action">
+              {STEP_MCP_HIGHLIGHTS[node.step].action}
+            </span>
+          </div>
+          <div className="mw__step-card-mcp-highlight-detail">
+            <span className="mw__step-card-mcp-highlight-check">✓</span>
+            <span>{STEP_MCP_HIGHLIGHTS[node.step].detail}</span>
+          </div>
+        </div>
+      ) : null}
 
       {/* Entity Tokens */}
       <HStack gap={1} wrap="wrap" className="mw__step-card-tokens">
@@ -354,63 +446,75 @@ export function MissionStepCard({
         ) : null}
       </HStack>
 
-      {/* Collapsible Micro-Event List */}
+      {/* Collapsible Micro-Event List with Progressive Disclosure */}
       {isExpanded && node.entries.length > 0 && (
-        <VStack gap={1} className="mw__step-event-list">
-          {node.entries.map((entry) => {
-            const isJsonOpen = viewJsonId === entry.eventId;
-            const tx =
-              typeof entry.data?.tx_hash === "string" && entry.data.tx_hash.startsWith("0x")
-                ? entry.data.tx_hash
-                : null;
+        <div className="mw__step-event-list">
+          <div className="mw__step-event-list-header">
+            <span className="mw__step-event-list-title">
+              Audit Events ({node.entries.length})
+            </span>
+          </div>
+          <div className="mw__step-event-timeline">
+            {node.entries.map((entry) => {
+              const isJsonOpen = viewJsonId === entry.eventId;
+              const tx =
+                typeof entry.data?.tx_hash === "string" && entry.data.tx_hash.startsWith("0x")
+                  ? entry.data.tx_hash
+                  : null;
 
-            return (
-              <div key={entry.eventId} className="mw__step-event-row">
-                <HStack justify="between" align="start" gap={2}>
-                  <VStack gap={0} className="mw__step-event-info">
-                    <HStack gap={1} align="center" wrap="wrap">
-                      <Token size="sm" color="gray" label={entry.type} />
-                      <Text as="span" size="xsm" color="secondary">
-                        <time dateTime={entry.eventTime}>{entry.eventTime.slice(11, 19)}</time>
+              return (
+                <div key={entry.eventId} className="mw__step-event-row">
+                  <HStack justify="between" align="start" gap={2} className="w-full">
+                    <VStack gap={0} className="mw__step-event-info">
+                      <HStack gap={1} align="center" wrap="wrap">
+                        <Token size="sm" color="gray" label={entry.type} />
+                        <Text as="span" size="xsm" color="secondary">
+                          <time dateTime={entry.eventTime}>
+                            {entry.eventTime && entry.eventTime.length >= 19
+                              ? entry.eventTime.slice(11, 19)
+                              : entry.eventTime}
+                          </time>
+                        </Text>
+                      </HStack>
+                      <Text as="p" size="xsm" color="primary" className="mw__step-event-summary">
+                        {entry.summary}
                       </Text>
+                    </VStack>
+
+                    <HStack gap={1} align="center">
+                      {tx && (
+                        <Link
+                          href={`https://sepolia.basescan.org/tx/${tx}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mw__step-event-link"
+                          aria-label={`View transaction ${tx.slice(0, 10)} on BaseScan`}
+                        >
+                          <ExternalLink size={12} />
+                        </Link>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        label={isJsonOpen ? "Close" : "JSON"}
+                        onClick={() => {
+                          playInteractionSound("tick");
+                          setViewJsonId(isJsonOpen ? null : entry.eventId);
+                        }}
+                      />
                     </HStack>
-                    <Text as="p" size="xsm" color="primary" className="mw__step-event-summary">
-                      {entry.summary}
-                    </Text>
-                  </VStack>
-
-                  <HStack gap={1} align="center">
-                    {tx && (
-                      <Link
-                        href={`https://sepolia.basescan.org/tx/${tx}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mw__step-event-link"
-                      >
-                        <ExternalLink size={12} />
-                      </Link>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      label={isJsonOpen ? "Close" : "JSON"}
-                      onClick={() => {
-                        playInteractionSound("tick");
-                        setViewJsonId(isJsonOpen ? null : entry.eventId);
-                      }}
-                    />
                   </HStack>
-                </HStack>
 
-                {isJsonOpen && (
-                  <pre className="mw__step-event-payload" tabIndex={0}>
-                    {JSON.stringify(entry.data, null, 2)}
-                  </pre>
-                )}
-              </div>
-            );
-          })}
-        </VStack>
+                  {isJsonOpen && (
+                    <pre className="mw__step-event-payload" tabIndex={0}>
+                      {JSON.stringify(entry.data, null, 2)}
+                    </pre>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
       )}
     </article>
   );

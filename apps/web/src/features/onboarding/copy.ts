@@ -9,7 +9,7 @@ export const copy = {
     lead: "Understand what your agent is ready to do, how private relationship memory works, and start your first Run.",
     body: "Aura is an economic decision layer for autonomous agents. The Console is where you give an agent an objective, see which provider it chose and why, approve anything your policy gates, and inspect what it learned afterwards.",
     noSignIn:
-      "There is no sign-in. v0.1 is a single-operator demo console running against a non-mainnet environment.",
+      "There is no sign-in. v0.1 is a single-operator demo console running against a Base Sepolia environment.",
     primary: "Check readiness",
     secondary: "Skip for now",
   },

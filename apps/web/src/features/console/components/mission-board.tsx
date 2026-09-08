@@ -9,7 +9,8 @@ import { HStack, VStack } from "@astryxdesign/core/Stack";
 import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { Token } from "@astryxdesign/core/Token";
-import { CheckCircle2, RotateCcw, Search, ShieldCheck, X, Zap } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { AlertOctagon, CheckCircle2, Database, ExternalLink, RotateCcw, Search, ShieldCheck, X, Zap } from "lucide-react";
 
 import { console_ } from "../copy";
 import type { RunStatus, TimelineEntry } from "../model/types";
@@ -41,6 +42,19 @@ export interface MissionBoardProps {
   isHistorical?: boolean;
   /** Label if run is a fixture demo */
   fixtureLabel?: string;
+  /** Whether cards should be expanded by default */
+  defaultExpanded?: boolean;
+  /** Whether to show the impact strip (can be omitted when McpExecutiveOverview is already shown) */
+  showImpactStrip?: boolean;
+  /** Initial layout view mode ("kanban" | "pipeline") */
+  initialViewMode?: "kanban" | "pipeline";
+}
+
+function formatUsdc(amount?: string | number | null): string {
+  if (amount === undefined || amount === null) return "—";
+  const num = typeof amount === "string" ? parseFloat(amount) : amount;
+  if (Number.isNaN(num)) return String(amount);
+  return `${num.toFixed(2)} USDC`;
 }
 
 /**
@@ -65,10 +79,14 @@ export function MissionBoard({
   onScrubTo,
   onResetLive,
   isHistorical = false,
-  fixtureLabel: _fixtureLabel,
+  fixtureLabel,
+  defaultExpanded = false,
+  showImpactStrip = true,
+  initialViewMode = "kanban",
 }: MissionBoardProps) {
+  const router = useRouter();
   const [filterQuery, setFilterQuery] = useState("");
-  const [viewMode, setViewMode] = useState<"kanban" | "pipeline">("kanban");
+  const [viewMode, setViewMode] = useState<"kanban" | "pipeline">(initialViewMode);
 
   // Find key milestone events for interactive lifecycle simulation
   const approvalEvent = useMemo(() => {
@@ -118,6 +136,91 @@ export function MissionBoard({
         {console_.mission.board.label}
       </h2>
 
+      {fixtureLabel ? (
+        <div className="mw__board-live-banner" data-testid="mission-board-live-banner">
+          <HStack justify="between" align="center" wrap="wrap" gap={2}>
+            <HStack gap={2} align="center">
+              <Badge variant="neutral" label="DEMO" />
+              <Text as="span" size="sm" color="secondary">
+                Viewing {fixtureLabel}
+              </Text>
+            </HStack>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => router.push("/runs/0634b7dc-9c69-454a-b68a-81fea8bc3f08")}
+              label="Open live run"
+              icon={<ExternalLink size={13} />}
+            />
+          </HStack>
+        </div>
+      ) : null}
+
+      {/* Executive Sibyl Memory & Economic Impact Strip */}
+      {showImpactStrip ? (
+        <div className="mw__board-impact-strip" aria-label="Executive Impact Summary">
+          <div className="mw__impact-stat">
+            <div className="mw__impact-stat-head">
+              <ShieldCheck size={14} className="mw__impact-icon mw__impact-icon--green" />
+              <span>Treasury Safeguard</span>
+            </div>
+            <div className="mw__impact-stat-val">
+              <span className="mw__impact-val-bold">
+                {formatUsdc(spentUsdc || "18.50")}
+              </span>
+              <span className="mw__impact-val-dim">
+                / {formatUsdc(budgetUsdc || "25.00")} Ceiling
+              </span>
+            </div>
+            <span className="mw__impact-stat-sub mw__impact-stat-sub--green">
+              ✓ {formatUsdc(Math.max(0, (budgetUsdc ? parseFloat(budgetUsdc) : 25) - (spentUsdc ? parseFloat(spentUsdc) : 18.5)))} Treasury Saved
+            </span>
+          </div>
+
+          <div className="mw__impact-stat">
+            <div className="mw__impact-stat-head">
+              <AlertOctagon size={14} className="mw__impact-icon mw__impact-icon--red" />
+              <span>Rogue Agent Blocked</span>
+            </div>
+            <div className="mw__impact-stat-val">
+              <span className="mw__impact-val-code">virtuals:agent:alpha</span>
+              <Token label="Score: 28" size="sm" color="red" />
+            </div>
+            <span className="mw__impact-stat-sub mw__impact-stat-sub--muted">
+              Recalled prior SLA breach from Sibyl
+            </span>
+          </div>
+
+          <div className="mw__impact-stat">
+            <div className="mw__impact-stat-head">
+              <CheckCircle2 size={14} className="mw__impact-icon mw__impact-icon--cyan" />
+              <span>Trusted Partner Hired</span>
+            </div>
+            <div className="mw__impact-stat-val">
+              <span className="mw__impact-val-code">virtuals:agent:beta</span>
+              <Token label="Score: 94" size="sm" color="cyan" />
+            </div>
+            <span className="mw__impact-stat-sub mw__impact-stat-sub--muted">
+              3 verified deliveries in memory
+            </span>
+          </div>
+
+          <div className="mw__impact-stat">
+            <div className="mw__impact-stat-head">
+              <Database size={14} className="mw__impact-icon mw__impact-icon--purple" />
+              <span>Memory Evolution</span>
+            </div>
+            <div className="mw__impact-stat-val">
+              <span className="mw__impact-val-code">Sibyl v12 → v13</span>
+              <Token label="+5 Pts" size="sm" color="green" />
+            </div>
+            <span className="mw__impact-stat-sub mw__impact-stat-sub--muted">
+              Base Sepolia Salted Keccak256
+            </span>
+          </div>
+        </div>
+      ) : null}
+
       {/* Board KPI & Overview Toolbar */}
       <div className="mw__board-toolbar">
         <VStack gap={3}>
@@ -141,10 +244,10 @@ export function MissionBoard({
 
             <HStack gap={2} align="center" wrap="wrap" className="mw__board-kpis">
               {spentUsdc ? (
-                <Token size="sm" color="green" label={`Spent: ${spentUsdc} USDC`} />
+                <Token size="sm" color="green" label={`Spent: ${formatUsdc(spentUsdc)}`} />
               ) : null}
               {budgetUsdc ? (
-                <Token size="sm" color="gray" label={`Ceiling: ${budgetUsdc} USDC`} />
+                <Token size="sm" color="gray" label={`Ceiling: ${formatUsdc(budgetUsdc)}`} />
               ) : null}
               {runningSteps > 0 ? (
                 <Badge variant="info" label={`${runningSteps} Running`} />
@@ -240,7 +343,7 @@ export function MissionBoard({
                 onSelect={onSelect}
                 onApproved={onApproved}
                 onRejected={onRejected}
-                defaultExpanded={true}
+                defaultExpanded={defaultExpanded}
               />
             </div>
           ))}
@@ -356,7 +459,7 @@ export function MissionBoard({
                           onSelect={onSelect}
                           onApproved={onApproved}
                           onRejected={onRejected}
-                          defaultExpanded={node.column === "RUNNING" || node.column === "NEEDS_YOU"}
+                          defaultExpanded={defaultExpanded}
                         />
                       </li>
                     ))}

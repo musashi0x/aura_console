@@ -1,7 +1,3 @@
-"use client";
-
-import { DrawablyUnderline } from "drawably/react";
-
 import { landing } from "../copy";
 
 /**
@@ -10,8 +6,6 @@ import { landing } from "../copy";
  * and every action it could offer appears later once the story has been told.
  */
 export function OpeningWindow() {
-  const [before, after] = landing.opening.statement.split("decided");
-
   return (
     <section className="lp-opening" aria-labelledby="opening-heading">
       <div className="lp-window lp-window--light">
@@ -22,9 +16,7 @@ export function OpeningWindow() {
           <i />
         </span>
         <h1 id="opening-heading" className="lp-opening__statement">
-          {before}
-          <DrawablyUnderline>decided</DrawablyUnderline>
-          {after}
+          {landing.opening.statement}
         </h1>
       </div>
     </section>

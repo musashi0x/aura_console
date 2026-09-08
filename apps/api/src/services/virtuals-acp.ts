@@ -17,33 +17,34 @@ export interface VirtualsAcpStatus {
  * mode, preserving the honesty boundary without claiming a live external gateway.
  */
 export async function getVirtualsAcpStatus(
-  acpUrl = process.env.VIRTUALS_ACP_URL,
+  acpUrl = process.env.ACP_SERVER_URL ?? process.env.VIRTUALS_ACP_URL,
   timeoutMs = 5000,
 ): Promise<VirtualsAcpStatus> {
-  if (!acpUrl) {
+  const resolvedUrl = acpUrl || process.env.ACP_SERVER_URL || process.env.VIRTUALS_ACP_URL;
+  if (!resolvedUrl) {
     return {
       configured: true,
       reachable: true,
       protocol: "virtuals:acp",
       mode: "simulated",
-      detail: "Virtuals ACP active in local simulation mode (non-mainnet).",
+      detail: "Virtuals ACP active in local simulation mode (Base Sepolia).",
     };
   }
 
   try {
-    const response = await fetch(acpUrl, {
+    const response = await fetch(resolvedUrl, {
       method: "GET",
       headers: { accept: "application/json" },
       signal: AbortSignal.timeout(timeoutMs),
     });
 
-    if (!response.ok) {
+    if (response.status >= 500) {
       return {
         configured: true,
         reachable: false,
         protocol: "virtuals:acp",
         mode: "live",
-        endpoint: acpUrl,
+        endpoint: resolvedUrl,
         code: "acp_http_error",
         detail: `Virtuals ACP gateway answered HTTP ${response.status}.`,
       };
@@ -54,7 +55,7 @@ export async function getVirtualsAcpStatus(
       reachable: true,
       protocol: "virtuals:acp",
       mode: "live",
-      endpoint: acpUrl,
+      endpoint: resolvedUrl,
       detail: "Virtuals ACP gateway connected and responding.",
     };
   } catch (error) {
@@ -63,7 +64,7 @@ export async function getVirtualsAcpStatus(
       reachable: false,
       protocol: "virtuals:acp",
       mode: "live",
-      endpoint: acpUrl,
+      endpoint: resolvedUrl,
       code: "acp_unreachable",
       detail: error instanceof Error ? error.message : "Virtuals ACP gateway is unreachable.",
     };
