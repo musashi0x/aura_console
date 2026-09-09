@@ -203,12 +203,15 @@ describe("MCP Console Tools", () => {
     expect(example.isDemo).toBe(true);
   });
 
-  it("reads guardrails policies", async () => {
+  it("reads guardrails policies with dynamic spend and remaining allowance", async () => {
     const result = await guardrailsGetPoliciesTool.execute({});
     expect(result.policy).toBeDefined();
+    expect(typeof result.dailySpentUsdc).toBe("string");
+    expect(typeof result.remainingDailyGuardrailUsdc).toBe("string");
+    expect(Number.parseFloat(result.remainingDailyGuardrailUsdc)).toBeGreaterThanOrEqual(0);
   });
 
-  it("executes mission_propose_approval without runId", async () => {
+  it("executes mission_propose_approval without runId and evaluates dynamic daily guardrails", async () => {
     const result = await missionProposeApprovalTool.execute({
       counterpartyKey: "virtuals:agent:alpha",
       amountUsdc: "10.000000",
@@ -219,6 +222,10 @@ describe("MCP Console Tools", () => {
     expect(result.amountUsdc).toBe("10.000000");
     expect(result.status).toBe("AWAITING_APPROVAL");
     expect(result.policyEvaluation).toBeDefined();
+    expect(result.guardrailEvaluation).toBeDefined();
+    expect(result.guardrailEvaluation?.dailyLimitUsdc).toBeDefined();
+    expect(result.guardrailEvaluation?.remainingDailyGuardrailUsdc).toBeDefined();
+    expect(result.guardrailEvaluation?.newRemainingDailyGuardrailUsdc).toBeDefined();
     expect(result.memoryRetrieval).toBeDefined();
     expect(typeof result.counterfactualRationale).toBe("string");
     expect(result.eventId).toBeUndefined();

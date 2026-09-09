@@ -4,6 +4,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import { stoneTheme } from "@/themes/stone/stone.js";
 import { expectNoAxeViolations } from "@/test-support/axe";
 import AIChatPage from "./page";
+import { apiClient } from "@/lib/api-client";
 
 vi.mock("@/lib/env", () => ({
   env: {
@@ -318,6 +319,71 @@ describe("AIChatPage — Stone Theme & Conversational Workspace", () => {
     expect(screen.queryByTestId("wallet-gate-overlay")).not.toBeInTheDocument();
     const workspace = screen.getByTestId("ai-chat-workspace-container");
     expect(workspace.style.filter).toBe("none");
+  });
+
+  it("renders Remaining Daily Guardrail in diff table and commits state mutations on apply", async () => {
+    const createRunSpy = vi.spyOn(apiClient, "createRun").mockResolvedValue({
+      ok: true,
+      data: {
+        run: {
+          id: "test-run-123",
+          objective: "test",
+          status: "PENDING",
+          source: "CONSOLE",
+          environment: "test",
+          isMainnet: false,
+          budgetUsdc: null,
+          createdAt: "",
+          updatedAt: "",
+        },
+      },
+    });
+    const appendRunEventSpy = vi.spyOn(apiClient, "appendRunEvent").mockResolvedValue({
+      ok: true,
+      data: {
+        event: {
+          eventId: "test-ev-123",
+          runId: "test-run-123",
+          type: "commitment.settled",
+          eventTime: "",
+          data: {},
+          sequence: 1,
+        },
+      },
+    });
+
+    render(<AIChatPage />);
+    const diffsTabs = screen.getAllByRole("button", { name: "Memory Diffs" });
+    fireEvent.click(diffsTabs[0]!);
+
+    // Verify the diff table shows Remaining Daily Guardrail
+    expect(screen.getAllByText("Remaining Daily Guardrail").length).toBeGreaterThanOrEqual(1);
+
+    // Verify initial values and click apply
+    const applyBtns = screen.getAllByRole("button", { name: /Apply 4 Diffs/i });
+    expect(applyBtns.length).toBeGreaterThanOrEqual(1);
+
+    // Click Apply 4 Diffs
+    fireEvent.click(applyBtns[0]!);
+
+    // Verify committed confirmation is displayed
+    expect(
+      (await screen.findAllByText(/4 state mutations committed to Base Sepolia memory log/i)).length
+    ).toBeGreaterThanOrEqual(1);
+
+    // Verify genuine API commitment
+    expect(createRunSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        budgetUsdc: "10.000000",
+        source: "CONSOLE",
+      })
+    );
+    expect(appendRunEventSpy).toHaveBeenCalledWith(
+      "test-run-123",
+      expect.objectContaining({
+        type: "commitment.settled",
+      })
+    );
   });
 
   it("passes axe accessibility audits", async () => {

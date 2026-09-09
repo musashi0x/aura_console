@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   archiveNativeCounterpartyInSibyl,
+  closeNativeSibylDatabase,
   getNativeEntity,
   getNativeMissionState,
   getNativePolicyReference,
@@ -10,6 +11,7 @@ import {
   readNativeMemoryJournal,
   recallNativeEntities,
   recordEpisodeToNativeSibyl,
+  resetNativeSibylStorage,
   retrieveNativeFromSibyl,
   setNativeMissionState,
   setNativePolicyReference,
@@ -17,6 +19,10 @@ import {
 } from "./native-sibyl.js";
 
 describe("embedded native Sibyl memory store", () => {
+  beforeEach(() => {
+    resetNativeSibylStorage({ seedFixtures: true });
+  });
+
   it("reports healthy status with embedded tier and schema version 4", () => {
     const status = getNativeSibylStatus();
     expect(status.configured).toBe(true);
@@ -154,5 +160,67 @@ describe("embedded native Sibyl memory store", () => {
     expect(journal.ok).toBe(true);
     expect(journal.count).toBeGreaterThanOrEqual(1);
     expect(journal.events.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("persists state across database connection close and reopen", () => {
+    updateNativeCounterpartyInSibyl("virtuals:agent:alpha", {
+      relationshipStatus: "PREFERRED",
+      overallReliability: 0.95,
+    });
+    closeNativeSibylDatabase();
+
+    const reloaded = retrieveNativeFromSibyl("virtuals:agent:alpha");
+    expect(reloaded.status).toBe("AVAILABLE");
+    if (reloaded.status === "AVAILABLE") {
+      expect(reloaded.relationshipStatus).toBe("PREFERRED");
+      expect(reloaded.overallReliability).toBe(0.95);
+    }
+  });
+
+  it("persists and rehydrates extended Bayesian reputation state", () => {
+    const updateRes = updateNativeCounterpartyInSibyl("virtuals:agent:alpha", {
+      alpha: 7.5,
+      beta: 2.5,
+      consecutiveFailures: 3,
+      totalMissions: 10,
+      blockedReason: "Repeated verification timeouts",
+    });
+    expect(updateRes.ok).toBe(true);
+
+    const reloaded = retrieveNativeFromSibyl("virtuals:agent:alpha");
+    expect(reloaded.status).toBe("AVAILABLE");
+    if (reloaded.status === "AVAILABLE") {
+      expect(reloaded.alpha).toBe(7.5);
+      expect(reloaded.beta).toBe(2.5);
+      expect(reloaded.consecutiveFailures).toBe(3);
+      expect(reloaded.totalMissions).toBe(10);
+      expect(reloaded.blockedReason).toBe("Repeated verification timeouts");
+    }
+
+    const listed = listNativeCounterpartiesFromSibyl();
+    expect(listed.ok).toBe(true);
+    if (listed.ok) {
+      const alphaItem = listed.items.find((i) => i.counterpartyKey === "virtuals:agent:alpha");
+      expect(alphaItem?.alpha).toBe(7.5);
+      expect(alphaItem?.beta).toBe(2.5);
+      expect(alphaItem?.consecutiveFailures).toBe(3);
+      expect(alphaItem?.totalMissions).toBe(10);
+      expect(alphaItem?.blockedReason).toBe("Repeated verification timeouts");
+    }
+  });
+
+  it("returns NO_HISTORY when store is reset with seedFixtures: false", () => {
+    const resetRes = resetNativeSibylStorage({ seedFixtures: false });
+    expect(resetRes.ok).toBe(true);
+    expect(resetRes.entityCount).toBe(0);
+
+    const retrieval = retrieveNativeFromSibyl("virtuals:agent:alpha");
+    expect(retrieval.status).toBe("NO_HISTORY");
+    if (retrieval.status === "NO_HISTORY") {
+      expect(retrieval.counterpartyKey).toBe("virtuals:agent:alpha");
+      expect(retrieval.overallReliability).toBe(0.5);
+      expect(retrieval.confidence).toBe(0.0);
+      expect(retrieval.episodesUsed).toBe(0);
+    }
   });
 });

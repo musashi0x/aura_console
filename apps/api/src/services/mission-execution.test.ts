@@ -1,4 +1,7 @@
 import { randomUUID } from "node:crypto";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import type { CommandExecutor } from "./cli-runner.js";
@@ -211,7 +214,7 @@ describe("MissionExecutionService (Post-Approval Loop)", () => {
       if (command === "git" && args[0] === "diff") {
         return { exitCode: 0, stdout: "diff --git a/work.ts b/work.ts\n+export const done = true;", stderr: "", timedOut: false };
       }
-      if (command === "echo") {
+      if (command === "pnpm" || command === "echo") {
         return { exitCode: 0, stdout: "tests passed", stderr: "", timedOut: false };
       }
       return { exitCode: 0, stdout: "", stderr: "", timedOut: false };
@@ -247,5 +250,88 @@ describe("MissionExecutionService (Post-Approval Loop)", () => {
     await expect(service.execute({ runId: nonExistentId })).rejects.toThrow(
       /Run .* not found/,
     );
+  });
+
+  it("authentically verifies valid competitor report deliverable without synthetic overrides", async () => {
+    const run = await createRun("Research three competitors, ceiling 25 USDC");
+    const counterpartyKey = "virtuals:agent:beta";
+    const ceilingUsdc = "20.000000";
+
+    await appendEvent(run.id, "approval.granted", {
+      ceiling_usdc: ceilingUsdc,
+      counterparty_key: counterpartyKey,
+    });
+
+    const worktreeDir = fs.mkdtempSync(path.join(os.tmpdir(), "aura-mission-success-"));
+    try {
+      // Provider generates valid competitor deliverable
+      const validReport = {
+        competitors: [
+          { name: "Comp A", website: "https://compa.io", sources: ["https://compa.io/about"] },
+          { name: "Comp B", website: "https://compb.io", sources: ["https://compb.io/about"] },
+          { name: "Comp C", website: "https://compc.io", sources: ["https://compc.io/about"] },
+        ],
+      };
+      fs.writeFileSync(path.join(worktreeDir, "competitor-report.json"), JSON.stringify(validReport));
+
+      const result = await service.execute({
+        runId: run.id,
+        worktreePath: worktreeDir,
+      });
+
+      expect(result.status).toBe("COMPLETED");
+      expect(result.evaluation.tests_passed).toBe(true);
+      expect(result.evaluation.score).toBe(1.0);
+
+      const events = await store.listEvents(run.id);
+      expect(events.some((e) => e.type === "commitment.settled")).toBe(true);
+      expect(events.some((e) => e.type === "outcome.recorded")).toBe(true);
+    } finally {
+      fs.rmSync(worktreeDir, { recursive: true, force: true });
+    }
+  });
+
+  it("authentically rejects defective deliverable (missing citations) and records failure without identity check", async () => {
+    // Note: counterpartyKey is arbitrary; rejection is purely deliverable-based!
+    const run = await createRun("Research three competitors, ceiling 25 USDC");
+    const counterpartyKey = "virtuals:agent:arbitrary-vendor";
+    const ceilingUsdc = "20.000000";
+
+    await appendEvent(run.id, "approval.granted", {
+      ceiling_usdc: ceilingUsdc,
+      counterparty_key: counterpartyKey,
+    });
+
+    const worktreeDir = fs.mkdtempSync(path.join(os.tmpdir(), "aura-mission-fail-"));
+    try {
+      // Provider generates defective deliverable: only 2 competitors, missing citations
+      const defectiveReport = {
+        competitors: [
+          { name: "Comp A", website: "https://compa.io", sources: [] },
+          { name: "Comp B", website: "not-a-url", sources: [] },
+        ],
+      };
+      fs.writeFileSync(path.join(worktreeDir, "competitor-report.json"), JSON.stringify(defectiveReport));
+
+      const result = await service.execute({
+        runId: run.id,
+        worktreePath: worktreeDir,
+      });
+
+      expect(result.status).toBe("REJECTED");
+      expect(result.evaluation.tests_passed).toBe(false);
+      expect(result.evaluation.score).toBe(0.0);
+      expect(result.evaluation.failure_reason).toBeDefined();
+
+      const events = await store.listEvents(run.id);
+      // Invariant: commitment.settled is NEVER emitted on rejected deliverable
+      expect(events.some((e) => e.type === "commitment.settled")).toBe(false);
+      expect(events.some((e) => e.type === "outcome.recorded")).toBe(true);
+
+      const outcomeEvent = events.find((e) => e.type === "outcome.recorded")!;
+      expect((outcomeEvent.data as any).result).toBe("REJECTED");
+    } finally {
+      fs.rmSync(worktreeDir, { recursive: true, force: true });
+    }
   });
 });

@@ -1,6 +1,12 @@
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+
+import {
+  getSibylStatus,
+  listCounterpartiesFromSibyl,
+  retrieveFromSibyl,
+} from "./sibyl.js";
 
 const BRIDGE = new URL("../../../../tools/sibyl_bridge.py", import.meta.url).pathname;
 
@@ -132,3 +138,79 @@ describe.skipIf(!hasRuntime)("retrieval keeps its three outcomes apart", () => {
     expect(result.code).toBe("db_absent");
   });
 });
+
+describe("Sibyl diagnostic reporting & fallback transparency", () => {
+  const originalEnv = { ...process.env };
+
+  afterEach(() => {
+    process.env = { ...originalEnv };
+  });
+
+  it("reports native_durable fallback diagnostics when SIBYL_PYTHON is unset", async () => {
+    delete process.env.SIBYL_PYTHON;
+    delete process.env.SIBYL_DISABLE_NATIVE;
+
+    const status = await getSibylStatus();
+    expect(status.backend).toBe("native_durable");
+    expect(status.fallback_active).toBe(true);
+    expect(status.code).toBe("native_durable_active");
+    expect(status.bridgeFailure?.code).toBe("not_configured");
+    expect(status.reachable).toBe(true);
+    expect(status.configured).toBe(true);
+  });
+
+  it("fails closed when SIBYL_PYTHON is unset and SIBYL_DISABLE_NATIVE is 'true'", async () => {
+    delete process.env.SIBYL_PYTHON;
+    process.env.SIBYL_DISABLE_NATIVE = "true";
+
+    const status = await getSibylStatus();
+    expect(status.backend).toBe("python_bridge");
+    expect(status.fallback_active).toBe(false);
+    expect(status.reachable).toBe(false);
+    expect(status.configured).toBe(false);
+    expect(status.code).toBe("not_configured");
+  });
+
+  it("reports bridgeFailure.code 'db_absent' when database path does not exist on disk", async () => {
+    if (!hasRuntime) return;
+    process.env.SIBYL_DB_PATH = "/tmp/aura-nonexistent-db-" + Date.now() + ".db";
+    delete process.env.SIBYL_DISABLE_NATIVE;
+
+    const status = await getSibylStatus();
+    expect(status.fallback_active).toBe(true);
+    expect(status.backend).toBe("native_durable");
+    expect(status.bridgeFailure?.code).toBe("db_absent");
+  });
+
+  it("attaches backend: 'native_durable' and fallback_active: true to retrieveFromSibyl during fallback", async () => {
+    delete process.env.SIBYL_PYTHON;
+    delete process.env.SIBYL_DISABLE_NATIVE;
+
+    const retrieval = await retrieveFromSibyl("virtuals:agent:alpha");
+    expect(retrieval.backend).toBe("native_durable");
+    expect(retrieval.fallback_active).toBe(true);
+  });
+
+  it("attaches backend: 'native_durable' and fallback_active: true to listCounterpartiesFromSibyl during fallback", async () => {
+    delete process.env.SIBYL_PYTHON;
+    delete process.env.SIBYL_DISABLE_NATIVE;
+
+    const listing = await listCounterpartiesFromSibyl();
+    expect(listing.backend).toBe("native_durable");
+    expect(listing.fallback_active).toBe(true);
+  });
+
+  it("reports python_bridge backend and code 'ok' when bridge is healthy", async () => {
+    if (!hasRuntime) return;
+    const dbPath = process.env.SIBYL_DB_PATH;
+    if (!dbPath || !existsSync(dbPath.replace("~", process.env.HOME ?? ""))) return;
+
+    const status = await getSibylStatus();
+    expect(status.backend).toBe("python_bridge");
+    expect(status.fallback_active).toBe(false);
+    expect(status.code).toBe("ok");
+    expect(status.reachable).toBe(true);
+    expect(status.configured).toBe(true);
+  });
+});
+

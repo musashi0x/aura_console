@@ -9,10 +9,12 @@ import { getBaseRpcStatus } from "../services/base-rpc.js";
 import { getSibylStatus } from "../services/sibyl.js";
 import { getVirtualsAcpStatus } from "../services/virtuals-acp.js";
 import { PolicyStore } from "../services/policy-store.js";
+import { RunStore } from "../services/run-store.js";
 
 export const health = new Hono();
 
 const policyStore = new PolicyStore();
+const runStore = new RunStore();
 
 import { execSync } from "node:child_process";
 
@@ -108,6 +110,11 @@ health.get("/acp", async (c) => c.json(await getVirtualsAcpStatus()));
 health.get("/policy", async (c) => {
   try {
     const policy = await policyStore.get(env.AGENT_ID);
+    const dailySpend = await runStore.get24HourSpend();
+    const dailyLimit = parseFloat(policy?.daily_spend_limit_usdc ?? "100.000000");
+    const spentToday = parseFloat(dailySpend.spentUsdc);
+    const remainingDaily = Math.max(0, dailyLimit - spentToday).toFixed(2);
+
     if (policy) {
       return c.json({
         configured: true,
@@ -117,8 +124,11 @@ health.get("/policy", async (c) => {
         policyVersion: policy.policy_version,
         autoSpendLimitUsdc: policy.auto_spend_limit_usdc,
         absoluteSpendLimitUsdc: policy.absolute_spend_limit_usdc,
+        dailySpendLimitUsdc: policy.daily_spend_limit_usdc ?? "100.000000",
         humanApprovalAboveUsdc: policy.human_approval_above_usdc,
         minimumReliability: policy.minimum_reliability,
+        dailySpentUsdc: dailySpend.spentUsdc,
+        remainingDailyGuardrailUsdc: remainingDaily,
         detail: `Operator policy v${policy.policy_version} verified from database for ${env.AGENT_ID}.`,
       });
     }
@@ -130,8 +140,11 @@ health.get("/policy", async (c) => {
       policyVersion: null,
       autoSpendLimitUsdc: null,
       absoluteSpendLimitUsdc: null,
+      dailySpendLimitUsdc: "100.000000",
       humanApprovalAboveUsdc: null,
       minimumReliability: null,
+      dailySpentUsdc: dailySpend.spentUsdc,
+      remainingDailyGuardrailUsdc: remainingDaily,
       detail: `Default operator guardrails active for ${env.AGENT_ID}: manual approval required for all spends.`,
     });
   } catch (error) {

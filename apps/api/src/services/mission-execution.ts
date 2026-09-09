@@ -12,6 +12,8 @@ import {
   updateReputation,
 } from "./reputation-fsm.js";
 import { commitMemoryToBaseSepolia } from "./memory-commitment.js";
+import fs from "node:fs";
+import path from "node:path";
 import { RunStore } from "./run-store.js";
 import {
   recordEpisodeToSibyl,
@@ -22,6 +24,8 @@ import { missionLogs } from "./mission-logs.js";
 import {
   type VerifierEvaluation,
   verifyWorktree,
+  verifyCompetitorReportDeliverable,
+  DEFAULT_DELIVERABLE_FILENAMES,
 } from "./verifier-agent.js";
 
 export interface ExecuteMissionOptions {
@@ -32,6 +36,12 @@ export interface ExecuteMissionOptions {
   network?: string;
   /** Explicit verification override for testing or dry-runs */
   evaluationOverride?: Partial<VerifierEvaluation>;
+  /** Optional relative or absolute path to deliverable file (e.g. 'competitor-report.json') */
+  deliverablePath?: string;
+  /** Optional custom test command */
+  testCommand?: string;
+  /** If true, explicitly verify competitor research deliverable */
+  verifyDeliverable?: boolean;
 }
 
 export interface MissionExecutionResult {
@@ -126,6 +136,7 @@ export class MissionExecutionService {
         summary: options.evaluationOverride.summary ?? "Delivery verified against the objective",
         diff: options.evaluationOverride.diff ?? "diff --git a/pkg b/pkg",
         failure_reason: options.evaluationOverride.failure_reason,
+        errors: options.evaluationOverride.errors,
       };
       missionLogs.append(runId, "system", `Execution override applied: ${evaluation.summary}`);
     } else if (isCliWorker) {
@@ -150,23 +161,22 @@ export class MissionExecutionService {
             onStderr: (data) => missionLogs.append(runId, "stderr", data),
           });
 
-          missionLogs.append(runId, "system", "Executing Verifier Agent tests in sandbox worktree...");
+          missionLogs.append(runId, "system", "Executing Verifier Agent in sandbox worktree...");
+
+          const hasDeliverable = DEFAULT_DELIVERABLE_FILENAMES.some((f) =>
+            fs.existsSync(path.resolve(worktreePath, f)),
+          );
+
+          if (hasDeliverable || options.deliverablePath || options.verifyDeliverable || run.objective.toLowerCase().includes("competitor")) {
+            return verifyCompetitorReportDeliverable(worktreePath, options.deliverablePath);
+          }
 
           return verifyWorktree({
             worktreePath,
             executor: options.executor,
-            testCommand: "echo 'tests passed'",
+            testCommand: options.testCommand ?? "pnpm test",
           });
         });
-
-        if (!evaluation.tests_passed && !options.executor) {
-          evaluation = {
-            score: 1.0,
-            tests_passed: true,
-            summary: "Delivery verified against objective in isolated worktree",
-            diff: "worktree_verified_diff",
-          };
-        }
       } catch (err) {
         evaluation = {
           score: 0.0,
@@ -180,29 +190,19 @@ export class MissionExecutionService {
       // Run deterministic verifier
       try {
         missionLogs.append(runId, "system", "Running deterministic verifier...");
-        evaluation = await verifyWorktree({
-          worktreePath: options.worktreePath ?? process.cwd(),
-          executor: options.executor,
-          testCommand: "echo 'tests passed'",
-        });
-        if (!options.executor) {
-          if (counterpartyKey.includes("alpha")) {
-            evaluation = {
-              score: 0.0,
-              tests_passed: false,
-              summary: "Deliverable rejected: missing required JSON fields",
-              failure_reason: "Provider deliverable missing required JSON schema fields",
-              diff: "simulated_failed_diff",
-            };
-          } else {
-            // Default to accepted delivery for mock execution if no real diff in cwd
-            evaluation = {
-              score: 1.0,
-              tests_passed: true,
-              summary: "Delivery verified against the objective",
-              diff: "simulated_diff",
-            };
-          }
+        const targetPath = options.worktreePath ?? process.cwd();
+        const hasDeliverable = DEFAULT_DELIVERABLE_FILENAMES.some((f) =>
+          fs.existsSync(path.resolve(targetPath, f)),
+        );
+
+        if (hasDeliverable || options.deliverablePath || options.verifyDeliverable || run.objective.toLowerCase().includes("competitor")) {
+          evaluation = await verifyCompetitorReportDeliverable(targetPath, options.deliverablePath);
+        } else {
+          evaluation = await verifyWorktree({
+            worktreePath: targetPath,
+            executor: options.executor,
+            testCommand: options.testCommand ?? "pnpm test",
+          });
         }
       } catch (err) {
         evaluation = {
@@ -224,13 +224,15 @@ export class MissionExecutionService {
     );
 
     await this.append(runId, EVALUATED, {
-      summary: isPassed
-        ? "Delivery verified against the objective"
-        : "Delivery failed verification",
+      summary: evaluation.summary || (isPassed ? "Delivery verified against the objective" : "Delivery failed verification"),
       result: isPassed ? "ACCEPTED" : "REJECTED",
       evaluated_by: "verifier_agent",
       score: evaluation.score,
       ...(evaluation.failure_reason ? { failure_reason: evaluation.failure_reason } : {}),
+      ...(evaluation.diff ? { diff: evaluation.diff } : {}),
+      ...(evaluation.errors && evaluation.errors.length > 0 ? { errors: evaluation.errors } : {}),
+      ...(evaluation.competitorsCount !== undefined ? { competitors_count: evaluation.competitorsCount } : {}),
+      ...(evaluation.deliverablePath ? { deliverable_path: evaluation.deliverablePath } : {}),
     });
 
     // 5. If passed, settle commitment
@@ -264,11 +266,15 @@ export class MissionExecutionService {
     );
     await this.append(runId, OUTCOME, {
       summary: isPassed
-        ? "Mission outcome recorded to relationship memory"
-        : "Mission failure recorded to relationship memory",
+        ? (evaluation.summary || "Mission outcome recorded to relationship memory")
+        : `Mission failure recorded to relationship memory: ${evaluation.failure_reason ?? evaluation.summary ?? "failed verification"}`,
       outcome: isPassed ? "accepted" : "rejected",
       result: isPassed ? "ACCEPTED" : "REJECTED",
-      ...(evaluation.failure_reason ? { failure_reason: evaluation.failure_reason } : {}),
+      score: evaluation.score,
+      counterparty_key: counterpartyKey,
+      ...(evaluation.failure_reason ? { failure_reason: evaluation.failure_reason, reason: evaluation.failure_reason } : {}),
+      ...(evaluation.diff ? { diff: evaluation.diff } : {}),
+      ...(evaluation.errors && evaluation.errors.length > 0 ? { errors: evaluation.errors } : {}),
     });
 
     // 7. Update Bayesian reputation & FSM
@@ -309,8 +315,8 @@ export class MissionExecutionService {
           taskType: "mission",
           outcome: isPassed ? "accepted" : "rejected",
           note: isPassed
-            ? "Delivered on time and verified against objective."
-            : `Failed verification: ${evaluation.failure_reason ?? "tests failed"}`,
+            ? (evaluation.summary || "Delivered on time and verified against objective.")
+            : `Failed verification: ${evaluation.failure_reason ?? evaluation.summary ?? "deliverable rejected"}`,
           occurredAt: new Date().toISOString(),
         });
         sibylRecorded = epResult.ok;
@@ -451,13 +457,7 @@ export class MissionExecutionService {
     }
 
     if (!counterpartyKey) {
-      if (run.objective.toLowerCase().includes("alpha")) {
-        counterpartyKey = "virtuals:agent:alpha";
-      } else if (run.objective.toLowerCase().includes("beta")) {
-        counterpartyKey = "virtuals:agent:beta";
-      } else {
-        counterpartyKey = isPassed ? "virtuals:agent:beta" : "virtuals:agent:alpha";
-      }
+      counterpartyKey = "unknown";
     }
 
     const appendToBoth = async (type: string, data: Record<string, unknown>) => {

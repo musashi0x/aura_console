@@ -1,4 +1,8 @@
 import { randomUUID } from "node:crypto";
+import { existsSync, mkdirSync, statSync, unlinkSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
 
 import type {
   RecordEpisodeOutcome,
@@ -22,7 +26,36 @@ export interface NativeEntity {
   updatedAt: string;
 }
 
-const INITIAL_FIXTURE_ENTITIES: NativeEntity[] = [
+interface EntityRow {
+  key: string;
+  id: string;
+  category: string;
+  name: string;
+  status: string | null;
+  body: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NativeCounterpartyUpdate {
+  relationshipStatus?: string;
+  overallReliability?: number;
+  confidence?: number;
+  riskNote?: string;
+  alpha?: number;
+  beta?: number;
+  consecutiveFailures?: number;
+  totalMissions?: number;
+  blockedReason?: string;
+}
+
+export const DEFAULT_UNOBSERVED_PRIORS = {
+  overallReliability: 0.5,
+  confidence: 0.0,
+  episodesUsed: 0,
+} as const;
+
+export const INITIAL_FIXTURE_ENTITIES: NativeEntity[] = [
   {
     id: "entity_alpha_fixture",
     category: "counterparty",
@@ -93,9 +126,207 @@ const INITIAL_FIXTURE_ENTITIES: NativeEntity[] = [
   },
 ];
 
-const nativeEntities = new Map<string, NativeEntity>(
-  INITIAL_FIXTURE_ENTITIES.map((e) => [`${e.category}:${e.name}`, e]),
-);
+let currentDb: DatabaseSync | null = null;
+let currentDbPath: string | null = null;
+
+export function getNativeStoragePath(): string {
+  const envPath = process.env.SIBYL_STORAGE_PATH || process.env.AURA_NATIVE_STORAGE_PATH;
+  if (envPath && envPath.trim().length > 0) {
+    const trimmed = envPath.trim();
+    if (trimmed === ":memory:") return ":memory:";
+    if (trimmed.startsWith("~/") || trimmed === "~") {
+      return path.join(os.homedir(), trimmed.replace(/^~[\\/]?/, ""));
+    }
+    return path.resolve(trimmed);
+  }
+  return path.join(os.homedir(), ".sibyl-memory", "native-storage.db");
+}
+
+export function closeNativeSibylDatabase(): void {
+  if (currentDb) {
+    try {
+      currentDb.close();
+    } catch {
+      // ignore
+    }
+    currentDb = null;
+    currentDbPath = null;
+  }
+}
+
+function seedFixtures(db: DatabaseSync): void {
+  const insert = db.prepare(`
+    INSERT OR REPLACE INTO entities (key, id, category, name, status, body, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  for (const entity of INITIAL_FIXTURE_ENTITIES) {
+    insert.run(
+      `${entity.category}:${entity.name}`,
+      entity.id,
+      entity.category,
+      entity.name,
+      entity.status,
+      JSON.stringify(entity.body),
+      entity.createdAt,
+      entity.updatedAt,
+    );
+  }
+}
+
+export interface ResetStoreOptions {
+  seedFixtures?: boolean;
+}
+
+export function resetNativeSibylStorage(options: ResetStoreOptions = {}): {
+  ok: boolean;
+  entityCount: number;
+} {
+  return resetNativeSibylStore(options);
+}
+
+export function resetNativeSibylStore(options: ResetStoreOptions = {}): {
+  ok: boolean;
+  entityCount: number;
+} {
+  closeNativeSibylDatabase();
+  const targetPath = getNativeStoragePath();
+  if (targetPath !== ":memory:") {
+    for (const ext of ["", "-wal", "-shm", "-journal"]) {
+      const f = targetPath + ext;
+      if (existsSync(f)) {
+        try {
+          unlinkSync(f);
+        } catch {
+          // ignore
+        }
+      }
+    }
+  }
+  if (options.seedFixtures) {
+    const db = getDb(true);
+    if (db) {
+      seedFixtures(db);
+      const countRow = db.prepare("SELECT count(*) as count FROM entities").get() as
+        | { count: number | bigint }
+        | undefined;
+      return { ok: true, entityCount: Number(countRow?.count ?? 0) };
+    }
+  }
+  return { ok: true, entityCount: 0 };
+}
+
+function getDb(forWrite = false): DatabaseSync | null {
+  const targetPath = getNativeStoragePath();
+
+  if (currentDb && currentDbPath !== targetPath) {
+    closeNativeSibylDatabase();
+  }
+
+  if (targetPath !== ":memory:") {
+    const exists = existsSync(targetPath);
+    if (!exists) {
+      if (currentDb) {
+        closeNativeSibylDatabase();
+      }
+      if (!forWrite) {
+        return null;
+      }
+    }
+  }
+
+  if (currentDb) {
+    return currentDb;
+  }
+
+  if (targetPath !== ":memory:") {
+    const dir = path.dirname(targetPath);
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true });
+    }
+  }
+
+  const maxRetries = forWrite ? 20 : 5;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const db = new DatabaseSync(targetPath);
+      db.exec("PRAGMA busy_timeout = 10000;");
+      db.exec("PRAGMA journal_mode = WAL;");
+      db.exec("PRAGMA synchronous = NORMAL;");
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS entities (
+          key TEXT PRIMARY KEY,
+          id TEXT NOT NULL,
+          category TEXT NOT NULL,
+          name TEXT NOT NULL,
+          status TEXT,
+          body TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_entities_category ON entities(category);
+        CREATE INDEX IF NOT EXISTS idx_entities_category_name ON entities(category, name);
+      `);
+
+      const countRow = db.prepare("SELECT count(*) as count FROM entities").get() as
+        | { count: number | bigint }
+        | undefined;
+      const count = Number(countRow?.count ?? 0);
+      if (
+        count === 0 &&
+        process.env.SIBYL_SEED_FIXTURES !== "false" &&
+        process.env.AURA_NATIVE_AUTO_SEED !== "false" &&
+        !forWrite
+      ) {
+        seedFixtures(db);
+      }
+
+      currentDb = db;
+      currentDbPath = targetPath;
+      return db;
+    } catch (err) {
+      const msg = (err as Error).message;
+      if (attempt < maxRetries - 1 && (msg.includes("locked") || msg.includes("busy"))) {
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50 + Math.floor(Math.random() * 50));
+        continue;
+      }
+      console.warn("[native-sibyl] Database initialization/access error:", msg);
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
+ * Executes a synchronous operation inside a SQLite `BEGIN IMMEDIATE` transaction.
+ *
+ * Guarantees:
+ * 1. Immediate exclusive write reservation preventing concurrent read-modify-write lost updates.
+ * 2. If BEGIN IMMEDIATE fails (e.g. lock timeout / busy), no ROLLBACK is attempted, preventing
+ *    secondary "cannot rollback - no transaction is active" unhandled exceptions.
+ * 3. If the callback or COMMIT throws while transaction is active, ROLLBACK is executed.
+ * 4. Any secondary failure during ROLLBACK itself is safely suppressed to ensure the root cause is returned.
+ * 5. Preserves synchronous function contracts without async/await or event-loop overhead.
+ */
+function withImmediateTransaction<T>(db: DatabaseSync, action: () => T): T {
+  let inTx = false;
+  try {
+    db.exec("BEGIN IMMEDIATE;");
+    inTx = true;
+    const result = action();
+    db.exec("COMMIT;");
+    inTx = false;
+    return result;
+  } catch (err) {
+    if (inTx) {
+      try {
+        db.exec("ROLLBACK;");
+      } catch {
+        // Suppress secondary rollback failures if transaction already auto-aborted
+      }
+    }
+    throw err;
+  }
+}
 
 function num(body: Record<string, unknown>, key: string): number | null {
   const value = body[key];
@@ -137,27 +368,76 @@ function episodesFrom(body: Record<string, unknown>): SibylEpisode[] {
 }
 
 export function getNativeSibylStatus(): SibylStatus {
-  return {
-    configured: true,
-    reachable: true,
-    tier: "embedded",
-    schemaVersion: 4,
-    dbSizeBytes: 16384,
-    softCapBytes: 104857600,
-    atOrAboveCap: false,
-    entityCount: nativeEntities.size,
-  };
+  try {
+    const db = getDb(false);
+    if (!db) {
+      return {
+        configured: true,
+        reachable: true,
+        backend: "native_durable",
+        fallback_active: false,
+        code: "native_durable_active",
+        detail: "Native durable storage active. Store file is empty or absent on disk.",
+        tier: "embedded",
+        schemaVersion: 4,
+        dbSizeBytes: 0,
+        softCapBytes: 104857600,
+        atOrAboveCap: false,
+        entityCount: 0,
+      };
+    }
+    const countRow = db.prepare("SELECT count(*) as count FROM entities").get() as
+      | { count: number | bigint }
+      | undefined;
+    const count = Number(countRow?.count ?? 0);
+    const dbPath = getNativeStoragePath();
+    let dbSizeBytes = 16384;
+    if (dbPath !== ":memory:" && existsSync(dbPath)) {
+      try {
+        dbSizeBytes = statSync(dbPath).size;
+      } catch {
+        dbSizeBytes = 16384;
+      }
+    }
+    return {
+      configured: true,
+      reachable: true,
+      backend: "native_durable",
+      fallback_active: false,
+      code: "native_durable_active",
+      detail: "Native durable storage active.",
+      tier: "embedded",
+      schemaVersion: 4,
+      dbSizeBytes,
+      softCapBytes: 104857600,
+      atOrAboveCap: false,
+      entityCount: count,
+      dbPath,
+    };
+  } catch (err) {
+    return {
+      configured: true,
+      reachable: false,
+      backend: "native_durable",
+      fallback_active: false,
+      code: "storage_error",
+      detail: `Native durable storage error: ${(err as Error).message}`,
+      tier: "embedded",
+      schemaVersion: 4,
+      dbSizeBytes: 0,
+      softCapBytes: 104857600,
+      atOrAboveCap: false,
+      entityCount: 0,
+    };
+  }
 }
 
 export function recallNativeEntities(
   query: string,
   opts: { category?: string; limit?: number } = {},
 ): SibylRecall {
-  const category = opts.category ?? "counterparty";
-  const categoryEntities = Array.from(nativeEntities.values()).filter(
-    (e) => e.category === category,
-  );
-  if (categoryEntities.length === 0) {
+  const db = getDb(false);
+  if (!db) {
     return {
       reachable: true,
       verdict: {
@@ -168,107 +448,235 @@ export function recallNativeEntities(
       records: [],
     };
   }
+  try {
+    const category = opts.category ?? "counterparty";
+    const rows = db.prepare("SELECT * FROM entities WHERE category = ?").all(category) as unknown as EntityRow[];
+    if (rows.length === 0) {
+      return {
+        reachable: true,
+        verdict: {
+          code: "empty_store",
+          detail: "Sibyl looked, and the store holds nothing yet.",
+          returned: 0,
+        },
+        records: [],
+      };
+    }
 
-  const norm = query.trim().toLowerCase();
-  const matches: SibylRecord[] = categoryEntities
-    .filter((e) => {
-      if (!norm) return true;
-      if (e.name.toLowerCase().includes(norm)) return true;
-      const dName = typeof e.body.display_name === "string" ? e.body.display_name.toLowerCase() : "";
-      if (dName.includes(norm)) return true;
-      return JSON.stringify(e.body).toLowerCase().includes(norm);
-    })
-    .map((e) => ({
-      id: e.id,
-      category: e.category,
-      name: e.name,
-      status: e.status,
-      body: e.body,
-      createdAt: e.createdAt,
-      updatedAt: e.updatedAt,
-    }));
+    const norm = query.trim().toLowerCase();
+    const matches: SibylRecord[] = [];
 
-  const limit = opts.limit ?? 20;
-  const sliced = matches.slice(0, limit);
-  if (sliced.length === 0) {
+    for (const row of rows) {
+      let body: Record<string, unknown> = {};
+      try {
+        body = JSON.parse(row.body) as Record<string, unknown>;
+      } catch {
+        continue;
+      }
+
+      let isMatch = false;
+      if (!norm) {
+        isMatch = true;
+      } else if (row.name.toLowerCase().includes(norm)) {
+        isMatch = true;
+      } else {
+        const dName = typeof body.display_name === "string" ? body.display_name.toLowerCase() : "";
+        if (dName.includes(norm)) {
+          isMatch = true;
+        } else if (JSON.stringify(body).toLowerCase().includes(norm)) {
+          isMatch = true;
+        }
+      }
+
+      if (isMatch) {
+        matches.push({
+          id: row.id,
+          category: row.category,
+          name: row.name,
+          status: row.status,
+          body,
+          createdAt: row.created_at,
+          updatedAt: row.updated_at,
+        });
+      }
+    }
+
+    const limit = opts.limit ?? 20;
+    const sliced = matches.slice(0, limit);
+    if (sliced.length === 0) {
+      return {
+        reachable: true,
+        verdict: {
+          code: "no_match",
+          detail: "Sibyl looked, and nothing in the store matched this query.",
+          returned: 0,
+        },
+        records: [],
+      };
+    }
+
     return {
       reachable: true,
       verdict: {
-        code: "no_match",
-        detail: "Sibyl looked, and nothing in the store matched this query.",
+        code: "ok",
+        detail: "Sibyl returned matching records.",
+        returned: sliced.length,
+      },
+      records: sliced,
+    };
+  } catch (err) {
+    console.warn("[native-sibyl] recallNativeEntities error:", (err as Error).message);
+    return {
+      reachable: true,
+      verdict: {
+        code: "empty_store",
+        detail: "Sibyl looked, and the store holds nothing yet.",
         returned: 0,
       },
       records: [],
     };
   }
-
-  return {
-    reachable: true,
-    verdict: {
-      code: "ok",
-      detail: "Sibyl returned matching records.",
-      returned: sliced.length,
-    },
-    records: sliced,
-  };
 }
 
 export function getNativeEntity(category: string, name: string): SibylEntityLookup {
-  const key = `${category}:${name}`;
-  const entity = nativeEntities.get(key);
-  if (!entity) {
+  const db = getDb(false);
+  if (!db) {
     return {
       reachable: true,
       code: "entity_absent",
       detail: `No Sibyl entity at ${category}/${name}`,
     };
   }
-  return {
-    reachable: true,
-    record: {
-      id: entity.id,
-      category: entity.category,
-      name: entity.name,
-      status: entity.status,
-      body: entity.body,
-      createdAt: entity.createdAt,
-      updatedAt: entity.updatedAt,
-    },
-  };
+  try {
+    const row = db.prepare("SELECT * FROM entities WHERE category = ? AND name = ?").get(category, name) as unknown as EntityRow | undefined;
+    if (!row) {
+      return {
+        reachable: true,
+        code: "entity_absent",
+        detail: `No Sibyl entity at ${category}/${name}`,
+      };
+    }
+    let body: Record<string, unknown> = {};
+    try {
+      body = JSON.parse(row.body) as Record<string, unknown>;
+    } catch {
+      body = {};
+    }
+    return {
+      reachable: true,
+      record: {
+        id: row.id,
+        category: row.category,
+        name: row.name,
+        status: row.status,
+        body,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      },
+    };
+  } catch (err) {
+    console.warn("[native-sibyl] getNativeEntity error:", (err as Error).message);
+    return {
+      reachable: true,
+      code: "entity_absent",
+      detail: `No Sibyl entity at ${category}/${name}`,
+    };
+  }
 }
 
 export function retrieveNativeFromSibyl(counterpartyKey: string): SibylRetrieval {
-  const key = `counterparty:${counterpartyKey}`;
-  const entity = nativeEntities.get(key);
-  if (!entity) {
-    return { status: "NO_HISTORY", counterpartyKey };
+  const db = getDb(false);
+  if (!db) {
+    return {
+      status: "NO_HISTORY",
+      counterpartyKey,
+      overallReliability: DEFAULT_UNOBSERVED_PRIORS.overallReliability,
+      confidence: DEFAULT_UNOBSERVED_PRIORS.confidence,
+      episodesUsed: DEFAULT_UNOBSERVED_PRIORS.episodesUsed,
+    };
   }
-  const body = entity.body;
-  if (!hasProfileBody(body)) {
-    return { status: "NO_HISTORY", counterpartyKey };
+  try {
+    const row = db
+      .prepare("SELECT * FROM entities WHERE category = 'counterparty' AND name = ?")
+      .get(counterpartyKey) as unknown as EntityRow | undefined;
+    if (!row) {
+      return {
+        status: "NO_HISTORY",
+        counterpartyKey,
+        overallReliability: DEFAULT_UNOBSERVED_PRIORS.overallReliability,
+        confidence: DEFAULT_UNOBSERVED_PRIORS.confidence,
+        episodesUsed: DEFAULT_UNOBSERVED_PRIORS.episodesUsed,
+      };
+    }
+    let body: Record<string, unknown>;
+    try {
+      body = JSON.parse(row.body) as Record<string, unknown>;
+    } catch {
+      return {
+        status: "NO_HISTORY",
+        counterpartyKey,
+        overallReliability: DEFAULT_UNOBSERVED_PRIORS.overallReliability,
+        confidence: DEFAULT_UNOBSERVED_PRIORS.confidence,
+        episodesUsed: DEFAULT_UNOBSERVED_PRIORS.episodesUsed,
+      };
+    }
+    if (!hasProfileBody(body)) {
+      return {
+        status: "NO_HISTORY",
+        counterpartyKey,
+        overallReliability: DEFAULT_UNOBSERVED_PRIORS.overallReliability,
+        confidence: DEFAULT_UNOBSERVED_PRIORS.confidence,
+        episodesUsed: DEFAULT_UNOBSERVED_PRIORS.episodesUsed,
+      };
+    }
+    return {
+      status: "AVAILABLE",
+      counterpartyKey,
+      displayName: str(body, "display_name"),
+      memoryVersion: num(body, "memory_version"),
+      episodesUsed: episodeCount(body),
+      relationshipStatus: str(body, "relationship_status") ?? "KNOWN",
+      overallReliability: num(body, "overall_reliability"),
+      taskFit: num(body, "task_fit"),
+      confidence: num(body, "confidence"),
+      riskNote: str(body, "risk_note"),
+      isFixture: str(body, "source") === "fixture",
+      alpha: num(body, "alpha") ?? undefined,
+      beta: num(body, "beta") ?? undefined,
+      consecutiveFailures: num(body, "consecutive_failures") ?? undefined,
+      totalMissions: num(body, "total_missions") ?? undefined,
+      blockedReason: str(body, "blocked_reason") ?? undefined,
+    };
+  } catch (err) {
+    console.warn("[native-sibyl] retrieveNativeFromSibyl error:", (err as Error).message);
+    return {
+      status: "NO_HISTORY",
+      counterpartyKey,
+      overallReliability: DEFAULT_UNOBSERVED_PRIORS.overallReliability,
+      confidence: DEFAULT_UNOBSERVED_PRIORS.confidence,
+      episodesUsed: DEFAULT_UNOBSERVED_PRIORS.episodesUsed,
+    };
   }
-  return {
-    status: "AVAILABLE",
-    counterpartyKey,
-    displayName: str(body, "display_name"),
-    memoryVersion: num(body, "memory_version"),
-    episodesUsed: episodeCount(body),
-    relationshipStatus: str(body, "relationship_status") ?? "KNOWN",
-    overallReliability: num(body, "overall_reliability"),
-    taskFit: num(body, "task_fit"),
-    confidence: num(body, "confidence"),
-    riskNote: str(body, "risk_note"),
-    isFixture: str(body, "source") === "fixture",
-  };
 }
 
 export function listNativeCounterpartiesFromSibyl(): SibylCounterparties {
-  const items = Array.from(nativeEntities.values())
-    .filter((e) => e.category === "counterparty")
-    .map((entity): SibylCounterparty => {
-      const body = entity.body;
+  const db = getDb(false);
+  if (!db) {
+    return { ok: true, items: [] };
+  }
+  try {
+    const rows = db
+      .prepare("SELECT * FROM entities WHERE category = 'counterparty'")
+      .all() as unknown as EntityRow[];
+    const items: SibylCounterparty[] = rows.map((row) => {
+      let body: Record<string, unknown> = {};
+      try {
+        body = JSON.parse(row.body) as Record<string, unknown>;
+      } catch {
+        body = {};
+      }
       return {
-        counterpartyKey: entity.name,
+        counterpartyKey: row.name,
         displayName: str(body, "display_name"),
         hasProfile: hasProfileBody(body),
         isFixture: str(body, "source") === "fixture",
@@ -280,10 +688,19 @@ export function listNativeCounterpartiesFromSibyl(): SibylCounterparties {
         observedPriceUsdc: str(body, "observed_price_usdc"),
         riskNote: str(body, "risk_note"),
         episodes: episodesFrom(body),
-        updatedAt: entity.updatedAt,
+        updatedAt: row.updated_at,
+        alpha: num(body, "alpha") ?? undefined,
+        beta: num(body, "beta") ?? undefined,
+        consecutiveFailures: num(body, "consecutive_failures") ?? undefined,
+        totalMissions: num(body, "total_missions") ?? undefined,
+        blockedReason: str(body, "blocked_reason") ?? undefined,
       };
     });
-  return { ok: true, items };
+    return { ok: true, items };
+  } catch (err) {
+    console.warn("[native-sibyl] listNativeCounterpartiesFromSibyl error:", (err as Error).message);
+    return { ok: true, items: [] };
+  }
 }
 
 export function recordEpisodeToNativeSibyl(
@@ -296,144 +713,275 @@ export function recordEpisodeToNativeSibyl(
     occurredAt?: string;
   },
 ): RecordEpisodeOutcome {
-  const key = `counterparty:${counterpartyKey}`;
-  let entity = nativeEntities.get(key);
-  if (!entity) {
-    entity = {
-      id: randomUUID(),
-      category: "counterparty",
-      name: counterpartyKey,
-      status: "active",
-      body: {
-        display_name: counterpartyKey,
-        relationship_status: "KNOWN",
-        episodes: [],
-      },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    nativeEntities.set(key, entity);
+  const db = getDb(true);
+  if (!db) {
+    return { ok: false, code: "storage_unavailable", detail: "Could not open native SQLite database" };
   }
-  const episodes = Array.isArray(entity.body.episodes)
-    ? (entity.body.episodes as Record<string, unknown>[])
-    : [];
-  const eventId = randomUUID();
-  episodes.push({
-    run: episode.run,
-    task_type: episode.taskType ?? "mission",
-    outcome: episode.outcome,
-    note: episode.note ?? "",
-    occurred_at: episode.occurredAt ?? new Date().toISOString(),
-  });
-  entity.body.episodes = episodes;
-  entity.updatedAt = new Date().toISOString();
-  return { ok: true, eventId, episodesCount: episodes.length };
+  try {
+    return withImmediateTransaction(db, () => {
+      const key = `counterparty:${counterpartyKey}`;
+      const row = db.prepare("SELECT * FROM entities WHERE key = ?").get(key) as unknown as EntityRow | undefined;
+      const now = new Date().toISOString();
+      let id: string;
+      let createdAt: string;
+      let body: Record<string, unknown>;
+
+      if (!row) {
+        id = randomUUID();
+        createdAt = now;
+        body = {
+          display_name: counterpartyKey,
+          relationship_status: "KNOWN",
+          episodes: [],
+        };
+      } else {
+        id = row.id;
+        createdAt = row.created_at;
+        try {
+          body = JSON.parse(row.body) as Record<string, unknown>;
+        } catch {
+          body = { episodes: [] };
+        }
+      }
+
+      const episodes = Array.isArray(body.episodes)
+        ? (body.episodes as Record<string, unknown>[])
+        : [];
+      const eventId = randomUUID();
+      episodes.push({
+        run: episode.run,
+        task_type: episode.taskType ?? "mission",
+        outcome: episode.outcome,
+        note: episode.note ?? "",
+        occurred_at: episode.occurredAt ?? now,
+      });
+      body.episodes = episodes;
+
+      const upsert = db.prepare(`
+        INSERT INTO entities (key, id, category, name, status, body, created_at, updated_at)
+        VALUES (?, ?, 'counterparty', ?, 'active', ?, ?, ?)
+        ON CONFLICT(key) DO UPDATE SET
+          body = excluded.body,
+          updated_at = excluded.updated_at
+      `);
+      upsert.run(key, id, counterpartyKey, JSON.stringify(body), createdAt, now);
+
+      return { ok: true, eventId, episodesCount: episodes.length };
+    });
+  } catch (err) {
+    console.warn("[native-sibyl] recordEpisodeToNativeSibyl error:", (err as Error).message);
+    return { ok: false, code: "storage_error", detail: (err as Error).message };
+  }
 }
 
 export function updateNativeCounterpartyInSibyl(
   counterpartyKey: string,
-  update: {
-    relationshipStatus?: string;
-    overallReliability?: number;
-    confidence?: number;
-    riskNote?: string;
-  },
+  update: NativeCounterpartyUpdate,
 ): { ok: boolean; code?: string; detail?: string } {
-  const key = `counterparty:${counterpartyKey}`;
-  let entity = nativeEntities.get(key);
-  if (!entity) {
-    entity = {
-      id: randomUUID(),
-      category: "counterparty",
-      name: counterpartyKey,
-      status: "active",
-      body: {
-        display_name: counterpartyKey,
-        relationship_status: update.relationshipStatus ?? "KNOWN",
-        overall_reliability: update.overallReliability,
-        confidence: update.confidence,
-        risk_note: update.riskNote,
-        episodes: [],
-      },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    nativeEntities.set(key, entity);
-    return { ok: true };
+  const db = getDb(true);
+  if (!db) {
+    return { ok: false, code: "storage_unavailable", detail: "Could not open native SQLite database" };
   }
-  if (update.relationshipStatus !== undefined)
-    entity.body.relationship_status = update.relationshipStatus;
-  if (update.overallReliability !== undefined)
-    entity.body.overall_reliability = update.overallReliability;
-  if (update.confidence !== undefined) entity.body.confidence = update.confidence;
-  if (update.riskNote !== undefined) entity.body.risk_note = update.riskNote;
-  entity.updatedAt = new Date().toISOString();
-  return { ok: true };
+  try {
+    return withImmediateTransaction(db, () => {
+      const key = `counterparty:${counterpartyKey}`;
+      const row = db.prepare("SELECT * FROM entities WHERE key = ?").get(key) as unknown as EntityRow | undefined;
+      const now = new Date().toISOString();
+      let id: string;
+      let createdAt: string;
+      let body: Record<string, unknown>;
+
+      if (!row) {
+        id = randomUUID();
+        createdAt = now;
+        body = {
+          display_name: counterpartyKey,
+          relationship_status: update.relationshipStatus ?? "KNOWN",
+          overall_reliability: update.overallReliability,
+          confidence: update.confidence,
+          risk_note: update.riskNote,
+          episodes: [],
+        };
+      } else {
+        id = row.id;
+        createdAt = row.created_at;
+        try {
+          body = JSON.parse(row.body) as Record<string, unknown>;
+        } catch {
+          body = { episodes: [] };
+        }
+        if (update.relationshipStatus !== undefined) body.relationship_status = update.relationshipStatus;
+        if (update.overallReliability !== undefined) body.overall_reliability = update.overallReliability;
+        if (update.confidence !== undefined) body.confidence = update.confidence;
+        if (update.riskNote !== undefined) body.risk_note = update.riskNote;
+      }
+
+      if (update.alpha !== undefined) body.alpha = update.alpha;
+      if (update.beta !== undefined) body.beta = update.beta;
+      if (update.consecutiveFailures !== undefined)
+        body.consecutive_failures = update.consecutiveFailures;
+      if (update.totalMissions !== undefined) body.total_missions = update.totalMissions;
+      if (update.blockedReason !== undefined) body.blocked_reason = update.blockedReason;
+
+      const upsert = db.prepare(`
+        INSERT INTO entities (key, id, category, name, status, body, created_at, updated_at)
+        VALUES (?, ?, 'counterparty', ?, 'active', ?, ?, ?)
+        ON CONFLICT(key) DO UPDATE SET
+          body = excluded.body,
+          updated_at = excluded.updated_at
+      `);
+      upsert.run(key, id, counterpartyKey, JSON.stringify(body), createdAt, now);
+
+      return { ok: true };
+    });
+  } catch (err) {
+    console.warn("[native-sibyl] updateNativeCounterpartyInSibyl error:", (err as Error).message);
+    return { ok: false, code: "storage_error", detail: (err as Error).message };
+  }
 }
 
 export function setNativeMissionState(
   key: string,
   state: Record<string, unknown>,
 ): { ok: boolean; code?: string; detail?: string } {
-  const entityKey = `hot_state:${key}`;
-  nativeEntities.set(entityKey, {
-    id: randomUUID(),
-    category: "hot_state",
-    name: key,
-    status: "active",
-    body: state,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  });
-  return { ok: true };
+  const db = getDb(true);
+  if (!db) {
+    return { ok: false, code: "storage_unavailable", detail: "Could not open native SQLite database" };
+  }
+  try {
+    const entityKey = `hot_state:${key}`;
+    const now = new Date().toISOString();
+    const id = randomUUID();
+    const upsert = db.prepare(`
+      INSERT INTO entities (key, id, category, name, status, body, created_at, updated_at)
+      VALUES (?, ?, 'hot_state', ?, 'active', ?, ?, ?)
+      ON CONFLICT(key) DO UPDATE SET
+        body = excluded.body,
+        updated_at = excluded.updated_at
+    `);
+    upsert.run(entityKey, id, key, JSON.stringify(state), now, now);
+    return { ok: true };
+  } catch (err) {
+    console.warn("[native-sibyl] setNativeMissionState error:", (err as Error).message);
+    return { ok: false, code: "storage_error", detail: (err as Error).message };
+  }
 }
 
 export function getNativeMissionState(
   key: string,
 ): { ok: boolean; state?: Record<string, unknown>; code?: string; detail?: string } {
-  const entityKey = `hot_state:${key}`;
-  const entity = nativeEntities.get(entityKey);
-  return { ok: true, state: (entity?.body as Record<string, unknown>) ?? undefined };
+  const db = getDb(false);
+  if (!db) {
+    return { ok: true, state: undefined };
+  }
+  try {
+    const entityKey = `hot_state:${key}`;
+    const row = db.prepare("SELECT body FROM entities WHERE key = ?").get(entityKey) as
+      | { body: string }
+      | undefined;
+    let state: Record<string, unknown> | undefined = undefined;
+    if (row) {
+      try {
+        state = JSON.parse(row.body) as Record<string, unknown>;
+      } catch {
+        state = undefined;
+      }
+    }
+    return { ok: true, state };
+  } catch (err) {
+    console.warn("[native-sibyl] getNativeMissionState error:", (err as Error).message);
+    return { ok: true, state: undefined };
+  }
 }
 
 export function setNativePolicyReference(
   key: string,
   reference: Record<string, unknown>,
 ): { ok: boolean; code?: string; detail?: string } {
-  const entityKey = `reference:${key}`;
-  nativeEntities.set(entityKey, {
-    id: randomUUID(),
-    category: "reference",
-    name: key,
-    status: "active",
-    body: reference,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  });
-  return { ok: true };
+  const db = getDb(true);
+  if (!db) {
+    return { ok: false, code: "storage_unavailable", detail: "Could not open native SQLite database" };
+  }
+  try {
+    const entityKey = `reference:${key}`;
+    const now = new Date().toISOString();
+    const id = randomUUID();
+    const upsert = db.prepare(`
+      INSERT INTO entities (key, id, category, name, status, body, created_at, updated_at)
+      VALUES (?, ?, 'reference', ?, 'active', ?, ?, ?)
+      ON CONFLICT(key) DO UPDATE SET
+        body = excluded.body,
+        updated_at = excluded.updated_at
+    `);
+    upsert.run(entityKey, id, key, JSON.stringify(reference), now, now);
+    return { ok: true };
+  } catch (err) {
+    console.warn("[native-sibyl] setNativePolicyReference error:", (err as Error).message);
+    return { ok: false, code: "storage_error", detail: (err as Error).message };
+  }
 }
 
 export function getNativePolicyReference(
   key: string,
 ): { ok: boolean; reference?: unknown; code?: string; detail?: string } {
-  const entityKey = `reference:${key}`;
-  const entity = nativeEntities.get(entityKey);
-  return { ok: true, reference: entity?.body ?? null };
+  const db = getDb(false);
+  if (!db) {
+    return { ok: true, reference: null };
+  }
+  try {
+    const entityKey = `reference:${key}`;
+    const row = db.prepare("SELECT body FROM entities WHERE key = ?").get(entityKey) as
+      | { body: string }
+      | undefined;
+    let ref: unknown = null;
+    if (row) {
+      try {
+        ref = JSON.parse(row.body);
+      } catch {
+        ref = null;
+      }
+    }
+    return { ok: true, reference: ref };
+  } catch (err) {
+    console.warn("[native-sibyl] getNativePolicyReference error:", (err as Error).message);
+    return { ok: true, reference: null };
+  }
 }
 
 export function archiveNativeCounterpartyInSibyl(
   counterpartyKey: string,
   reason = "operator_archived",
 ): { ok: boolean; code?: string; detail?: string } {
-  const key = `counterparty:${counterpartyKey}`;
-  const entity = nativeEntities.get(key);
-  if (entity) {
-    entity.status = "ARCHIVED";
-    entity.body.archive_reason = reason;
-    entity.body.status = "ARCHIVED";
-    entity.updatedAt = new Date().toISOString();
+  const db = getDb(true);
+  if (!db) {
+    return { ok: false, code: "storage_unavailable", detail: "Could not open native SQLite database" };
   }
-  return { ok: true };
+  try {
+    return withImmediateTransaction(db, () => {
+      const key = `counterparty:${counterpartyKey}`;
+      const row = db.prepare("SELECT * FROM entities WHERE key = ?").get(key) as unknown as EntityRow | undefined;
+      if (row) {
+        const now = new Date().toISOString();
+        let body: Record<string, unknown> = {};
+        try {
+          body = JSON.parse(row.body) as Record<string, unknown>;
+        } catch {
+          body = {};
+        }
+        body.archive_reason = reason;
+        body.status = "ARCHIVED";
+        db.prepare(`
+          UPDATE entities
+          SET status = 'ARCHIVED', body = ?, updated_at = ?
+          WHERE key = ?
+        `).run(JSON.stringify(body), now, key);
+      }
+      return { ok: true };
+    });
+  } catch (err) {
+    console.warn("[native-sibyl] archiveNativeCounterpartyInSibyl error:", (err as Error).message);
+    return { ok: false, code: "storage_error", detail: (err as Error).message };
+  }
 }
 
 export function readNativeMemoryJournal(
@@ -447,43 +995,78 @@ export function readNativeMemoryJournal(
   code?: string;
   detail?: string;
 } {
-  const allEpisodes: Record<string, unknown>[] = [];
-  for (const entity of nativeEntities.values()) {
-    if (entity.category !== "counterparty") continue;
-    if (counterpartyKey && entity.name !== counterpartyKey) continue;
-    const episodes = Array.isArray(entity.body.episodes) ? entity.body.episodes : [];
-    for (const ep of episodes) {
-      const episode = (ep ?? {}) as Record<string, unknown>;
-      allEpisodes.push({
-        run: episode.run,
-        counterpartyKey: entity.name,
-        counterparty_key: entity.name,
-        taskType: episode.task_type ?? episode.taskType ?? "mission",
-        task_type: episode.task_type ?? episode.taskType ?? "mission",
-        outcome: episode.outcome,
-        note: episode.note,
-        occurredAt: episode.occurred_at ?? episode.occurredAt ?? entity.updatedAt,
-        occurred_at: episode.occurred_at ?? episode.occurredAt ?? entity.updatedAt,
-        evaluated: {
-          counterpartyKey: entity.name,
-          run: episode.run,
-          outcome: episode.outcome,
-        },
-      });
-    }
+  const db = getDb(false);
+  if (!db) {
+    return {
+      ok: true,
+      count: 0,
+      events: [],
+      episodes: [],
+    };
   }
+  try {
+    let rows: EntityRow[];
+    if (counterpartyKey) {
+      rows = db
+        .prepare("SELECT * FROM entities WHERE category = 'counterparty' AND name = ?")
+        .all(counterpartyKey) as unknown as EntityRow[];
+    } else {
+      rows = db
+        .prepare("SELECT * FROM entities WHERE category = 'counterparty'")
+        .all() as unknown as EntityRow[];
+    }
 
-  allEpisodes.sort((a, b) => {
-    const timeA = typeof a.occurred_at === "string" ? new Date(a.occurred_at).getTime() : 0;
-    const timeB = typeof b.occurred_at === "string" ? new Date(b.occurred_at).getTime() : 0;
-    return timeB - timeA;
-  });
+    const allEpisodes: Record<string, unknown>[] = [];
+    for (const row of rows) {
+      let body: Record<string, unknown>;
+      try {
+        body = JSON.parse(row.body) as Record<string, unknown>;
+      } catch {
+        continue;
+      }
+      const episodes = Array.isArray(body.episodes) ? body.episodes : [];
+      for (const ep of episodes) {
+        const episode = (ep ?? {}) as Record<string, unknown>;
+        allEpisodes.push({
+          run: episode.run,
+          counterpartyKey: row.name,
+          counterparty_key: row.name,
+          taskType: episode.task_type ?? episode.taskType ?? "mission",
+          task_type: episode.task_type ?? episode.taskType ?? "mission",
+          outcome: episode.outcome,
+          note: episode.note,
+          occurredAt: episode.occurred_at ?? episode.occurredAt ?? row.updated_at,
+          occurred_at: episode.occurred_at ?? episode.occurredAt ?? row.updated_at,
+          evaluated: {
+            counterpartyKey: row.name,
+            run: episode.run,
+            outcome: episode.outcome,
+          },
+        });
+      }
+    }
 
-  const sliced = allEpisodes.slice(0, limit);
-  return {
-    ok: true,
-    count: sliced.length,
-    events: sliced,
-    episodes: sliced,
-  };
+    allEpisodes.sort((a, b) => {
+      const timeA = typeof a.occurred_at === "string" ? new Date(a.occurred_at).getTime() : 0;
+      const timeB = typeof b.occurred_at === "string" ? new Date(b.occurred_at).getTime() : 0;
+      return timeB - timeA;
+    });
+
+    const sliced = allEpisodes.slice(0, limit);
+    return {
+      ok: true,
+      count: sliced.length,
+      events: sliced,
+      episodes: sliced,
+    };
+  } catch (err) {
+    console.warn("[native-sibyl] readNativeMemoryJournal error:", (err as Error).message);
+    return {
+      ok: true,
+      count: 0,
+      events: [],
+      episodes: [],
+    };
+  }
 }
+

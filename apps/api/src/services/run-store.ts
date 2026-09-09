@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, getDb, gt, max, schema, type Database } from "@aura/db";
+import { and, asc, desc, eq, getDb, gt, max, schema, sql, type Database } from "@aura/db";
 
 import { httpError } from "../errors.js";
 
@@ -118,6 +118,58 @@ export class RunStore {
       .from(schema.runEvents)
       .where(and(eq(schema.runEvents.runId, runId), gt(schema.runEvents.sequence, afterSequence)))
       .orderBy(bySequence);
+  }
+
+  /**
+   * Calculates total dynamic spend across all runs in the rolling 24-hour window.
+   * Looks for settled, funded, or approved spend events and sums them by run.
+   */
+  async get24HourSpend(since?: Date): Promise<{ spentUsdc: string; runCount: number }> {
+    const windowStart = since ?? new Date(Date.now() - 24 * 60 * 60 * 1000);
+    try {
+      const events = await this.db
+        .select({
+          runId: schema.runEvents.runId,
+          type: schema.runEvents.type,
+          data: schema.runEvents.data,
+        })
+        .from(schema.runEvents)
+        .where(
+          and(
+            gt(schema.runEvents.eventTime, windowStart),
+            sql`${schema.runEvents.type} in ('commitment.settled', 'acp.job.funded', 'approval.granted')`
+          )
+        )
+        .orderBy(asc(schema.runEvents.sequence));
+
+      const spendByRun = new Map<string, number>();
+      for (const ev of events) {
+        const data = (ev.data ?? {}) as Record<string, unknown>;
+        const rawAmount =
+          data.amount_usdc ??
+          data.ceiling_usdc ??
+          data.amount ??
+          data.settled_amount_usdc;
+        if (typeof rawAmount === "string" || typeof rawAmount === "number") {
+          const num = typeof rawAmount === "number" ? rawAmount : parseFloat(String(rawAmount));
+          if (!Number.isNaN(num) && num > 0) {
+            if (ev.type === "commitment.settled" || ev.type === "acp.job.funded") {
+              spendByRun.set(ev.runId, num);
+            } else if (!spendByRun.has(ev.runId)) {
+              spendByRun.set(ev.runId, num);
+            }
+          }
+        }
+      }
+
+      let total = 0;
+      for (const amount of spendByRun.values()) {
+        total += amount;
+      }
+      return { spentUsdc: total.toFixed(2), runCount: spendByRun.size };
+    } catch {
+      return { spentUsdc: "0.00", runCount: 0 };
+    }
   }
 
   /**

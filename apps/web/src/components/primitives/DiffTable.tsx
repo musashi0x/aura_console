@@ -46,7 +46,7 @@ const DEFAULT_DIFF_ROWS: DiffRow[] = [
 export interface DiffTableProps {
   title?: string;
   rows?: DiffRow[];
-  onApply?: (selectedKeys: string[]) => void;
+  onApply?: (selectedKeys: string[]) => void | Promise<void>;
   className?: string;
 }
 
@@ -56,25 +56,46 @@ export function DiffTable({
   onApply,
   className = "",
 }: DiffTableProps) {
-  const [selectedEdits, setSelectedEdits] = useState<Record<string, boolean>>(() =>
-    rows.reduce((acc, r) => ({ ...acc, [r.key]: true }), {})
-  );
+  const [userSelection, setUserSelection] = useState<Record<string, boolean>>({});
   const [applied, setApplied] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [prevRows, setPrevRows] = useState(rows);
+
+  if (rows !== prevRows) {
+    setPrevRows(rows);
+    setUserSelection({});
+    const hasPendingChanges = rows.some(
+      (r) => r.status !== "unchanged" && r.previousValue !== r.newValue
+    );
+    if (hasPendingChanges && applied) {
+      setApplied(false);
+    }
+  }
 
   const toggleRow = (key: string) => {
     if (applied) return;
     playInteractionSound("tick");
-    setSelectedEdits((curr) => ({ ...curr, [key]: !curr[key] }));
+    setUserSelection((curr) => ({ ...curr, [key]: !(curr[key] ?? true) }));
   };
 
-  const handleApply = () => {
+  const handleApply = async () => {
     playInteractionSound("pulse");
-    setApplied(true);
-    const keys = Object.keys(selectedEdits).filter((k) => selectedEdits[k]);
-    onApply?.(keys);
+    const keys = rows
+      .filter((r) => userSelection[r.key] ?? true)
+      .map((r) => r.key);
+    if (keys.length === 0) return;
+    setApplying(true);
+    try {
+      if (onApply) {
+        await onApply(keys);
+      }
+      setApplied(true);
+    } finally {
+      setApplying(false);
+    }
   };
 
-  const selectedCount = Object.values(selectedEdits).filter(Boolean).length;
+  const selectedCount = rows.filter((r) => userSelection[r.key] ?? true).length;
 
   return (
     <div
@@ -107,7 +128,7 @@ export function DiffTable({
           </thead>
           <tbody className="divide-y divide-[rgba(216,216,219,0.08)]">
             {rows.map((row) => {
-              const isIncluded = selectedEdits[row.key];
+              const isIncluded = userSelection[row.key] ?? true;
               return (
                 <tr
                   key={row.key}
@@ -168,13 +189,13 @@ export function DiffTable({
             </span>
             <button
               type="button"
-              disabled={selectedCount === 0}
+              disabled={selectedCount === 0 || applying}
               onClick={handleApply}
               data-sound="pulse"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] bg-[#f3f3f5] text-[#111015] text-[12px] font-semibold hover:bg-white transition-colors disabled:opacity-30"
             >
               <Check size={12} strokeWidth={2.5} />
-              <span>Apply {selectedCount} {selectedCount === 1 ? "Diff" : "Diffs"}</span>
+              <span>{applying ? "Applying..." : `Apply ${selectedCount} ${selectedCount === 1 ? "Diff" : "Diffs"}`}</span>
             </button>
           </>
         )}

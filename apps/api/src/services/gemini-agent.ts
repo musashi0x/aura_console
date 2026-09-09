@@ -162,10 +162,13 @@ interface ReadinessResponse {
 
 interface PolicyResponse {
   agentId?: string;
+  dailySpentUsdc?: string;
+  remainingDailyGuardrailUsdc?: string;
   policy?: {
-    auto_spend_limit_usdc?: string;
-    human_approval_above_usdc?: string;
-    minimum_reliability?: number;
+    auto_spend_limit_usdc?: string | null;
+    human_approval_above_usdc?: string | null;
+    daily_spend_limit_usdc?: string | null;
+    minimum_reliability?: number | null;
     prefer_previous_success?: boolean;
   };
 }
@@ -349,12 +352,18 @@ function planDeterministicTurn(
     const approvalLimit = pol?.human_approval_above_usdc
       ? `$${pol.human_approval_above_usdc} USDC`
       : "None";
+    const dailyLimit = pol?.daily_spend_limit_usdc
+      ? `$${pol.daily_spend_limit_usdc} USDC`
+      : "$100.00 USDC";
+    const remainingBudget = res?.remainingDailyGuardrailUsdc
+      ? `$${res.remainingDailyGuardrailUsdc} USDC`
+      : dailyLimit;
     const minRel = pol?.minimum_reliability ? `${pol.minimum_reliability}%` : "Not enforced";
     return {
       thought: `Policy rules retrieved. Synthesizing governance limits for operator.`,
       parts: [
         {
-          text: `Active Guardrail Policies for agent ${res?.agentId ?? "aura"}:\n- Auto-Spend Limit: ${autoLimit}\n- Human Approval Required Above: ${approvalLimit}\n- Minimum Reliability Threshold: ${minRel}\n- Prefer Previous Success: ${pol?.prefer_previous_success ? "Enabled" : "Disabled"}`,
+          text: `Active Guardrail Policies for agent ${res?.agentId ?? "aura"}:\n- Daily Spend Guardrail: ${dailyLimit} (${remainingBudget} remaining today)\n- Auto-Spend Limit: ${autoLimit}\n- Human Approval Required Above: ${approvalLimit}\n- Minimum Reliability Threshold: ${minRel}\n- Prefer Previous Success: ${pol?.prefer_previous_success ? "Enabled" : "Disabled"}`,
         },
       ],
     };

@@ -44,4 +44,5 @@ export interface Web3ContextValue extends WalletState {
   switchToBaseSepolia: () => Promise<void>;
   refreshBalances: () => Promise<void>;
   simulateConnect?: (address?: string) => void;
+  deductUsdcBalance?: (amount: number | string) => void;
 }

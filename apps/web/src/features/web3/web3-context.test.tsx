@@ -202,4 +202,28 @@ describe("Web3WalletContext", () => {
     expect(result.current.ethBalance).toBeNull();
     expect(result.current.usdcBalance).toBeNull();
   });
+
+  it("deducts spent USDC dynamically via deductUsdcBalance", async () => {
+    const { result } = renderHook(() => useWeb3Wallet(), {
+      wrapper: ({ children }) => <Web3WalletProvider>{children}</Web3WalletProvider>,
+    });
+
+    await act(async () => {
+      await result.current.connect();
+    });
+
+    expect(result.current.usdcBalance).toBe("250.00");
+
+    act(() => {
+      result.current.deductUsdcBalance?.(10);
+    });
+
+    expect(result.current.usdcBalance).toBe("240.00");
+
+    act(() => {
+      result.current.deductUsdcBalance?.("40.00");
+    });
+
+    expect(result.current.usdcBalance).toBe("200.00");
+  });
 });

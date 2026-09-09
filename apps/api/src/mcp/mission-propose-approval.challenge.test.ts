@@ -236,6 +236,41 @@ describe("Adversarial Challenge: mission_propose_approval", () => {
       expect(res.policyEvaluation.reason).toContain("human approval threshold (15.000000 USDC)");
       expect(res.policyEvaluation.reason).not.toContain("exceeds auto-spend threshold (25.000000 USDC)");
     });
+
+    it("2.3 Exceeding remaining daily guardrail requires operator approval even under high auto-spend limit", async () => {
+      await policyStore.put(env.AGENT_ID, {
+        auto_spend_limit_usdc: "50.000000",
+        human_approval_above_usdc: "50.000000",
+        daily_spend_limit_usdc: "30.000000",
+        absolute_spend_limit_usdc: "100.000000",
+      });
+
+      // Commit a prior run with 25 USDC spend
+      const priorRun = await createTestRun("Prior daily spend run");
+      await runStore.appendEvent({
+        runId: priorRun.id,
+        eventId: "33333333-3333-4333-8333-333333333333",
+        type: "commitment.settled",
+        eventTime: new Date(),
+        data: { amount_usdc: "25.000000" },
+      });
+
+      const spend = await runStore.get24HourSpend();
+      expect(parseFloat(spend.spentUsdc)).toBeGreaterThanOrEqual(25);
+
+      // Now propose 10 USDC (which is below auto_spend_limit 50, but exceeds remaining daily budget 5 USDC)
+      const res = await missionProposeApprovalTool.execute({
+        counterpartyKey: "virtuals:agent:alpha",
+        amountUsdc: "10.000000",
+        reason: "Test exceeding remaining daily allowance",
+      });
+
+      expect(res.status).toBe("AWAITING_APPROVAL");
+      expect(res.policyEvaluation.mode).toBe("REQUIRE_APPROVAL");
+      expect(res.policyEvaluation.reason).toContain("exceeds remaining daily guardrail");
+      expect(res.guardrailEvaluation?.dailySpentUsdc).toBeDefined();
+      expect(parseFloat(res.guardrailEvaluation!.remainingDailyGuardrailUsdc)).toBeLessThanOrEqual(5);
+    });
   });
 
   describe("3. Event Log Integrity", () => {

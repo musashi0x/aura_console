@@ -1,7 +1,15 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import type { CommandExecutor } from "./cli-runner.js";
-import { VerifierAgent, verifyWorktree } from "./verifier-agent.js";
+import {
+  VerifierAgent,
+  verifyWorktree,
+  validateCompetitorReport,
+  verifyCompetitorReportDeliverable,
+} from "./verifier-agent.js";
 
 describe("Verifier Agent (verifier-agent)", () => {
   it("verifies successfully when tests pass and diff is present", async () => {

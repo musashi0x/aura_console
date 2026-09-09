@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Shield,
   ShieldCheck,
@@ -14,6 +14,7 @@ import {
   Scale,
 } from "lucide-react";
 import { playInteractionSound } from "@/components/primitives";
+import { apiClient, type PolicyHealth } from "@/lib/api-client";
 
 interface PolicyRule {
   id: string;
@@ -24,64 +25,96 @@ interface PolicyRule {
   description: string;
 }
 
-const ACTIVE_POLICIES: PolicyRule[] = [
-  {
-    id: "tx-ceiling",
-    name: "Maximum Single Transaction Ceiling",
-    category: "spend",
-    status: "ENFORCED",
-    value: "25.00 USDC",
-    description: "Hard barrier: Any mission proposing a spend above 25 USDC is blocked at runtime.",
-  },
-  {
-    id: "daily-budget",
-    name: "24-Hour Rolling Budget Ceiling",
-    category: "spend",
-    status: "ENFORCED",
-    value: "100.00 USDC",
-    description: "Aggregated 24h spending window across all autonomous missions and agent hires.",
-  },
-  {
-    id: "approval-gate",
-    name: "Operator Approval Threshold",
-    category: "spend",
-    status: "ENFORCED",
-    value: "10.00 USDC",
-    description: "Transactions >= 10 USDC generate an inline ApprovalCard requiring operator signature.",
-  },
-  {
-    id: "min-reliability",
-    name: "Minimum Counterparty Trust Score",
-    category: "reputation",
-    status: "ENFORCED",
-    value: "0.80 Reliability",
-    description: "Counterparties with reliability below 0.80 in Sibyl Memory cannot be hired without manual override.",
-  },
-  {
-    id: "sandbox-boundary",
-    name: "CLI Execution Container Isolation",
-    category: "sandbox",
-    status: "ENFORCED",
-    value: "Read-only RootFS",
-    description: "Sandbox execution runs isolated with no external network access except Base Sepolia RPC.",
-  },
-  {
-    id: "eip-712",
-    name: "Cryptographic Commitment Signer",
-    category: "crypto",
-    status: "ENFORCED",
-    value: "EIP-712 Typed Data",
-    description: "All state changes and memory diffs are cryptographically signed before ledger commit.",
-  },
-];
-
 export function GuardrailsDashboard() {
+  const [policyHealth, setPolicyHealth] = useState<PolicyHealth | null>(null);
   const [simAmount, setSimAmount] = useState("12.00");
   const [simAgent, setSimAgent] = useState("Beta Labs (0.91 Rep)");
   const [simResult, setSimResult] = useState<{
     status: "PASS" | "WARN" | "BLOCK";
     reasons: string[];
   } | null>(null);
+
+  useEffect(() => {
+    apiClient
+      .policyHealth()
+      .then((res) => {
+        if (res.ok && res.data.reachable) {
+          setPolicyHealth(res.data);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const dailyLimitStr = policyHealth?.dailySpendLimitUsdc
+    ? parseFloat(policyHealth.dailySpendLimitUsdc).toFixed(2)
+    : "100.00";
+  const dailySpentStr = policyHealth?.dailySpentUsdc
+    ? parseFloat(policyHealth.dailySpentUsdc).toFixed(2)
+    : "0.00";
+  const remainingAllowanceStr = policyHealth?.remainingDailyGuardrailUsdc
+    ? parseFloat(policyHealth.remainingDailyGuardrailUsdc).toFixed(2)
+    : Math.max(0, parseFloat(dailyLimitStr) - parseFloat(dailySpentStr)).toFixed(2);
+  const approvalGateStr = policyHealth?.humanApprovalAboveUsdc
+    ? parseFloat(policyHealth.humanApprovalAboveUsdc).toFixed(2)
+    : "10.00";
+  const absoluteLimitStr = policyHealth?.absoluteSpendLimitUsdc
+    ? parseFloat(policyHealth.absoluteSpendLimitUsdc).toFixed(2)
+    : "25.00";
+  const minReliabilityVal =
+    policyHealth?.minimumReliability !== undefined && policyHealth?.minimumReliability !== null
+      ? (policyHealth.minimumReliability > 1 ? policyHealth.minimumReliability / 100 : policyHealth.minimumReliability).toFixed(2)
+      : "0.80";
+
+  const dynamicPolicies: PolicyRule[] = [
+    {
+      id: "tx-ceiling",
+      name: "Maximum Single Transaction Ceiling",
+      category: "spend",
+      status: "ENFORCED",
+      value: `${absoluteLimitStr} USDC`,
+      description: `Hard barrier: Any mission proposing a spend above ${absoluteLimitStr} USDC is blocked at runtime.`,
+    },
+    {
+      id: "daily-budget",
+      name: "24-Hour Rolling Budget Ceiling",
+      category: "spend",
+      status: "ENFORCED",
+      value: `${dailyLimitStr} USDC`,
+      description: `Aggregated 24h spending window across all autonomous missions and agent hires. Remaining allowance: ${remainingAllowanceStr} USDC.`,
+    },
+    {
+      id: "approval-gate",
+      name: "Operator Approval Threshold",
+      category: "spend",
+      status: "ENFORCED",
+      value: `${approvalGateStr} USDC`,
+      description: `Transactions >= ${approvalGateStr} USDC generate an inline ApprovalCard requiring operator signature.`,
+    },
+    {
+      id: "min-reliability",
+      name: "Minimum Counterparty Trust Score",
+      category: "reputation",
+      status: "ENFORCED",
+      value: `${minReliabilityVal} Reliability`,
+      description: `Counterparties with reliability below ${minReliabilityVal} in Sibyl Memory cannot be hired without manual override.`,
+    },
+    {
+      id: "sandbox-boundary",
+      name: "CLI Execution Container Isolation",
+      category: "sandbox",
+      status: "ENFORCED",
+      value: "Read-only RootFS",
+      description: "Sandbox execution runs isolated with no external network access except Base Sepolia RPC.",
+    },
+    {
+      id: "eip-712",
+      name: "Cryptographic Commitment Signer",
+      category: "crypto",
+      status: "ENFORCED",
+      value: "EIP-712 Typed Data",
+      description: "All state changes and memory diffs are cryptographically signed before ledger commit.",
+    },
+  ];
 
   const evaluateSimulator = () => {
     playInteractionSound("pulse");
@@ -91,19 +124,28 @@ export function GuardrailsDashboard() {
     const reasons: string[] = [];
     let status: "PASS" | "WARN" | "BLOCK" = "PASS";
 
-    if (amt > 25.0) {
+    const ceiling = parseFloat(absoluteLimitStr) || 25.0;
+    const approvalThreshold = parseFloat(approvalGateStr) || 10.0;
+    const remainingNum = parseFloat(remainingAllowanceStr) || 100.0;
+
+    if (amt > ceiling) {
       status = "BLOCK";
-      reasons.push("Exceeds maximum single transaction ceiling of 25.00 USDC.");
+      reasons.push(`Exceeds maximum single transaction ceiling of ${ceiling.toFixed(2)} USDC.`);
+    }
+
+    if (amt > remainingNum) {
+      status = "BLOCK";
+      reasons.push(`Exceeds remaining daily guardrail allowance of ${remainingNum.toFixed(2)} USDC.`);
     }
 
     if (isUnknown) {
       status = "BLOCK";
-      reasons.push("Counterparty has no verified Sibyl profile or trust score < 0.80.");
+      reasons.push(`Counterparty has no verified Sibyl profile or trust score < ${minReliabilityVal}.`);
     }
 
-    if (status !== "BLOCK" && amt >= 10.0) {
+    if (status !== "BLOCK" && amt >= approvalThreshold) {
       status = "WARN";
-      reasons.push("Spend >= 10.00 USDC requires operator approval via inline approval card.");
+      reasons.push(`Spend >= ${approvalThreshold.toFixed(2)} USDC requires operator approval via inline approval card.`);
     }
 
     if (reasons.length === 0) {
@@ -128,10 +170,10 @@ export function GuardrailsDashboard() {
             </span>
           </div>
           <span className="text-xl font-semibold text-[var(--color-text,#f4f7fb)]">
-            100.00 USDC <span className="text-xs font-normal text-[var(--color-text-muted)]">/ 24h</span>
+            {dailyLimitStr} USDC <span className="text-xs font-normal text-[var(--color-text-muted)]">/ 24h</span>
           </span>
           <span className="text-xs text-[var(--color-text-muted,#8d9aaf)]">
-            Remaining allowance: <strong className="text-[var(--color-accent)]">88.00 USDC</strong>
+            Remaining allowance: <strong className="text-[var(--color-accent)]">{remainingAllowanceStr} USDC</strong>
           </span>
         </div>
 
@@ -146,7 +188,7 @@ export function GuardrailsDashboard() {
             </span>
           </div>
           <span className="text-xl font-semibold text-[var(--color-text,#f4f7fb)]">
-            0.80 <span className="text-xs font-normal text-[var(--color-text-muted)]">Reliability</span>
+            {minReliabilityVal} <span className="text-xs font-normal text-[var(--color-text-muted)]">Reliability</span>
           </span>
           <span className="text-xs text-[var(--color-text-muted,#8d9aaf)]">
             Source: Sibyl Relationship Memory
@@ -180,7 +222,7 @@ export function GuardrailsDashboard() {
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {ACTIVE_POLICIES.map((rule) => (
+          {dynamicPolicies.map((rule) => (
             <div
               key={rule.id}
               className="p-4 rounded-xl bg-[var(--color-surface-raised,#1b1b1f)] border border-[var(--color-border)] hover:border-[var(--color-accent)] transition-all flex flex-col gap-2"

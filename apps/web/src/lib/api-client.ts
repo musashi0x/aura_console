@@ -55,8 +55,11 @@ export interface PolicyHealth {
   policyVersion?: number | null;
   autoSpendLimitUsdc?: string | null;
   absoluteSpendLimitUsdc?: string | null;
+  dailySpendLimitUsdc?: string | null;
   humanApprovalAboveUsdc?: string | null;
   minimumReliability?: number | null;
+  dailySpentUsdc?: string | null;
+  remainingDailyGuardrailUsdc?: string | null;
   detail?: string;
 }
 
@@ -295,6 +298,16 @@ export const apiClient = {
   baseHealth: () => request<BaseHealth>("/health/base"),
   acpHealth: () => request<VirtualsAcpHealth>("/health/acp"),
   policyHealth: () => request<PolicyHealth>("/health/policy"),
+  getPolicyGuardrail: (agentId = "aura") =>
+    request<{
+      agent_id: string;
+      daily_spend_limit_usdc: string;
+      daily_spent_usdc: string;
+      remaining_daily_guardrail_usdc: string;
+      auto_spend_limit_usdc: string;
+      absolute_spend_limit_usdc: string;
+      human_approval_above_usdc: string;
+    }>(`/api/policies/${encodeURIComponent(agentId)}/guardrail`),
   /* 503 when Sibyl cannot be read, never an empty list: "we could not look" and
      "we looked and there is nobody" are different answers. */
   /* The console's only authorization path, and its second write of any kind.
@@ -398,6 +411,35 @@ export const apiClient = {
     request<{ runId: string; events: RunEvent[] }>(
       `/api/runs/${encodeURIComponent(runId)}/events`,
     ),
+  createRun: (input: { objective: string; budgetUsdc?: string; source?: string }) =>
+    request<{ run: RunSummary }>("/api/runs", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    }),
+  appendRunEvent: (
+    runId: string,
+    event: {
+      eventId?: string;
+      type: string;
+      data?: Record<string, unknown>;
+      eventTime?: string;
+    }
+  ) =>
+    request<{ event: RunEvent }>(`/api/runs/${encodeURIComponent(runId)}/events`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        eventId:
+          event.eventId ??
+          (typeof crypto !== "undefined" && crypto.randomUUID
+            ? crypto.randomUUID()
+            : "22222222-2222-4222-8222-222222222222"),
+        type: event.type,
+        data: event.data ?? {},
+        eventTime: event.eventTime ?? new Date().toISOString(),
+      }),
+    }),
 
   // ── Counterparty memory ─────────────────────────────────────────────────
   //

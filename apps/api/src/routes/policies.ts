@@ -3,8 +3,10 @@ import { z } from "zod";
 
 import { httpError } from "../errors.js";
 import { PolicyStore } from "../services/policy-store.js";
+import { RunStore } from "../services/run-store.js";
 
 const store = new PolicyStore();
+const runStore = new RunStore();
 
 const money = z
   .string()
@@ -32,6 +34,26 @@ const policySchema = z.object({
 });
 
 export const policies = new Hono();
+
+policies.get("/:agentId/guardrail", async (c) => {
+  const agentId = c.req.param("agentId");
+  const policy = await store.get(agentId);
+  const dailySpend = await runStore.get24HourSpend();
+  const dailyLimit = parseFloat(policy?.daily_spend_limit_usdc ?? "100.000000");
+  const spentToday = parseFloat(dailySpend.spentUsdc);
+  const remainingDaily = Math.max(0, dailyLimit - spentToday).toFixed(2);
+
+  return c.json({
+    agent_id: agentId,
+    currency: "USDC",
+    daily_spend_limit_usdc: policy?.daily_spend_limit_usdc ?? "100.000000",
+    daily_spent_usdc: dailySpend.spentUsdc,
+    remaining_daily_guardrail_usdc: remainingDaily,
+    auto_spend_limit_usdc: policy?.auto_spend_limit_usdc ?? "10.000000",
+    absolute_spend_limit_usdc: policy?.absolute_spend_limit_usdc ?? "50.000000",
+    human_approval_above_usdc: policy?.human_approval_above_usdc ?? "10.000000",
+  });
+});
 
 policies.get("/:agentId", async (c) => {
   const agentId = c.req.param("agentId");

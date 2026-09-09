@@ -37,6 +37,55 @@ from __future__ import annotations
 import json
 import os
 import sys
+from typing import Any
+
+
+def load_credentials(expanded_db_path: str) -> dict[str, Any]:
+    """Discover credentials from SIBYL_CREDENTIALS_PATH, ~/.sibyl-memory/credentials.json, or env vars."""
+    creds_path = os.environ.get("SIBYL_CREDENTIALS_PATH")
+    if not creds_path:
+        db_dir = os.path.dirname(expanded_db_path)
+        creds_path = os.path.join(db_dir, "credentials.json")
+
+    file_creds: dict[str, Any] = {}
+    expanded_creds = os.path.expanduser(creds_path)
+    if os.path.exists(expanded_creds):
+        try:
+            with open(expanded_creds, "r", encoding="utf-8") as f:
+                parsed = json.load(f)
+                if isinstance(parsed, dict):
+                    file_creds = parsed
+        except Exception:
+            pass
+
+    account_id = os.environ.get("SIBYL_ACCOUNT_ID") or file_creds.get("account_id") or file_creds.get("accountId")
+    session_token = os.environ.get("SIBYL_SESSION_TOKEN") or file_creds.get("session_token") or file_creds.get("sessionToken")
+    tier = os.environ.get("SIBYL_TIER") or file_creds.get("tier") or "free"
+
+    claim = file_creds.get("credentials_claim") or file_creds.get("credentialsClaim") or file_creds.get("claim")
+    if not claim and os.environ.get("SIBYL_CREDENTIALS_CLAIM"):
+        try:
+            claim = json.loads(os.environ["SIBYL_CREDENTIALS_CLAIM"])
+        except Exception:
+            claim = None
+
+    signature = (
+        os.environ.get("SIBYL_CREDENTIALS_SIGNATURE")
+        or file_creds.get("credentials_signature")
+        or file_creds.get("credentialsSignature")
+        or file_creds.get("signature")
+    )
+
+    source = "file" if os.path.exists(expanded_creds) else ("env" if account_id else "none")
+    return {
+        "account_id": account_id,
+        "session_token": session_token,
+        "tier": tier,
+        "credentials_claim": claim,
+        "credentials_signature": signature,
+        "source": source,
+    }
+
 
 # One sentence per verdict cause, so a surface can say why memory came back
 # empty without re-deriving meaning from the code string. These are the only
@@ -193,11 +242,18 @@ def main() -> None:
     # version stops exporting it, this tuple is empty and absence degrades to a
     # reported failure — never to a silent empty answer.
     try:
-        from sibyl_memory_client import NotFoundError
+        from sibyl_memory_client import CapExceededError, NotFoundError, TierGateError, TierVerificationError
 
         absent_errors: tuple[type[BaseException], ...] = (NotFoundError,)
+        cap_errors: tuple[type[BaseException], ...] = (CapExceededError, TierGateError, TierVerificationError)
     except ImportError:
-        absent_errors = ()
+        try:
+            from sibyl_memory_client import NotFoundError
+
+            absent_errors = (NotFoundError,)
+        except ImportError:
+            absent_errors = ()
+        cap_errors = ()
 
     db_path = os.environ.get("SIBYL_DB_PATH", "~/.sibyl-memory/memory.db")
     expanded = os.path.expanduser(db_path)
@@ -221,14 +277,26 @@ def main() -> None:
             "sends its AGENT_ID; set it by hand to run this bridge directly.",
         )
 
+    creds = load_credentials(expanded)
     try:
-        client = MemoryClient.local(expanded, tenant_id=tenant)
+        client = MemoryClient.local(
+            expanded,
+            tenant_id=tenant,
+            tier=creds.get("tier") or "free",
+            account_id=creds.get("account_id"),
+            session_token=creds.get("session_token"),
+            credentials_claim=creds.get("credentials_claim"),
+            credentials_signature=creds.get("credentials_signature"),
+        )
+    except cap_errors as err:
+        fail("cap_exceeded", f"Storage cap exceeded on client initialization: {err}")
     except Exception as error:  # noqa: BLE001 - reported, never swallowed
         fail("client_error", f"{type(error).__name__}: {error}")
 
     try:
         if command == "status":
             status = client.free_tier_status()
+            at_or_above_cap = bool(status.get("at_or_above_cap"))
             payload = {
                 "ok": True,
                 "dbPath": expanded,
@@ -236,8 +304,11 @@ def main() -> None:
                 "schemaVersion": client.schema_version(),
                 "dbSizeBytes": status.get("db_size_bytes"),
                 "softCapBytes": status.get("soft_cap_bytes"),
-                "atOrAboveCap": status.get("at_or_above_cap"),
+                "atOrAboveCap": at_or_above_cap,
+                "atOrAboveWarning": bool(status.get("at_or_above_warning")),
                 "entityCount": len(client.list_entities()),
+                "credentialsConfigured": creds.get("account_id") is not None,
+                "credentialsSource": creds.get("source"),
             }
         elif command == "retrieve":
             # One counterparty's relationship profile.
@@ -436,6 +507,8 @@ def main() -> None:
             payload = {"ok": True, "events": client.read_events(limit=int_flag(flags, "limit", 50))}
         else:
             fail("unknown_command", f"{command} is not a bridge command")
+    except cap_errors as err:
+        fail("cap_exceeded", f"Storage cap exceeded: {err}")
     except Exception as error:  # noqa: BLE001
         fail("call_failed", f"{type(error).__name__}: {error}")
 

@@ -656,11 +656,19 @@ export const guardrailsGetPoliciesTool: McpToolDefinition<Record<string, never>>
   parameters: z.object({}),
   execute: async () => {
     const policy = await policies.get(env.AGENT_ID);
+    const dailySpend = await runs.get24HourSpend();
+    const dailyLimit = parseFloat(policy?.daily_spend_limit_usdc ?? "100.000000");
+    const spentToday = parseFloat(dailySpend.spentUsdc);
+    const remainingDaily = Math.max(0, dailyLimit - spentToday).toFixed(2);
+
     return {
       agentId: env.AGENT_ID,
+      dailySpentUsdc: dailySpend.spentUsdc,
+      remainingDailyGuardrailUsdc: remainingDaily,
       policy: policy ?? {
         auto_spend_limit_usdc: "25.000000",
         human_approval_above_usdc: "15.000000",
+        daily_spend_limit_usdc: "100.000000",
         blocked_counterparties: [],
       },
     };
@@ -709,6 +717,20 @@ export const missionProposeApprovalTool: McpToolDefinition<{
 
     const policy = await policies.get(env.AGENT_ID);
     const memoryResult = await retrieveFromSibyl(cleanCounterpartyKey);
+    const dailySpend = await runs.get24HourSpend();
+
+    const dailyLimit = parseFloat(policy?.daily_spend_limit_usdc ?? "100.000000");
+    const spentToday = parseFloat(dailySpend.spentUsdc);
+    const prevRemaining = Math.max(0, dailyLimit - spentToday);
+    const newRemaining = Math.max(0, prevRemaining - num);
+
+    const guardrailEvaluation = {
+      dailyLimitUsdc: dailyLimit.toFixed(2),
+      dailySpentUsdc: spentToday.toFixed(2),
+      remainingDailyGuardrailUsdc: prevRemaining.toFixed(2),
+      newRemainingDailyGuardrailUsdc: newRemaining.toFixed(2),
+      proposedSpendUsdc: num.toFixed(2),
+    };
 
     const authOutcome = authorizeFromRetrieval(memoryResult as unknown as RetrievalResult, policy);
     const autoSpendLimit = policy?.auto_spend_limit_usdc ?? "25.000000";
@@ -725,6 +747,9 @@ export const missionProposeApprovalTool: McpToolDefinition<{
       mode = "DENY";
       allowedByPolicy = false;
       evalReason = `Proposed spend of ${formattedAmount} USDC exceeds absolute spend limit of ${policy.absolute_spend_limit_usdc} USDC.`;
+    } else if (num > prevRemaining) {
+      mode = "REQUIRE_APPROVAL";
+      evalReason = `Proposed spend of ${formattedAmount} USDC exceeds remaining daily guardrail (${prevRemaining.toFixed(2)} USDC of ${dailyLimit.toFixed(2)} USDC limit).`;
     } else {
       const autoLimitNum = parseFloat(autoSpendLimit);
       const humanApprovalAboveNum = parseFloat(humanApprovalAbove);
@@ -785,6 +810,7 @@ export const missionProposeApprovalTool: McpToolDefinition<{
               memoryResult.status === "AVAILABLE" ? memoryResult.relationshipStatus : null,
           },
           counterfactualRationale,
+          guardrailEvaluation,
         };
       }
     }
@@ -811,6 +837,7 @@ export const missionProposeApprovalTool: McpToolDefinition<{
             memoryResult.status === "AVAILABLE" ? memoryResult.relationshipStatus : null,
         },
         counterfactualRationale,
+        guardrailEvaluation,
       };
     }
 
@@ -855,6 +882,7 @@ export const missionProposeApprovalTool: McpToolDefinition<{
           memoryResult.status === "AVAILABLE" ? memoryResult.relationshipStatus : null,
       },
       counterfactualRationale,
+      guardrailEvaluation,
       ...(eventId ? { eventId } : {}),
     };
   },

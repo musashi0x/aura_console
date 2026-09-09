@@ -200,6 +200,45 @@ describe("DiffTable", () => {
       expect(firstCheckbox).toHaveAttribute("aria-checked", "false");
     }
   });
+
+  it("calls onApply with only selected keys and updates to applied state", async () => {
+    const onApply = vi.fn();
+    render(<DiffTable onApply={onApply} />);
+
+    // Toggle off the first checkbox
+    const checkboxes = screen.getAllByRole("checkbox");
+    fireEvent.click(checkboxes[0]!);
+    expect(checkboxes[0]).toHaveAttribute("aria-checked", "false");
+
+    // Click apply
+    const applyBtn = screen.getByRole("button", { name: /Apply 3 Diffs/i });
+    fireEvent.click(applyBtn);
+
+    expect(onApply).toHaveBeenCalledWith(["status", "commitment", "spend_limit"]);
+  });
+
+  it("resets user selection when rows prop changes", () => {
+    const { rerender } = render(<DiffTable />);
+    const checkboxes = screen.getAllByRole("checkbox");
+    fireEvent.click(checkboxes[0]!);
+    expect(checkboxes[0]).toHaveAttribute("aria-checked", "false");
+
+    // Pass new rows
+    const newRows = [
+      {
+        key: "new_key",
+        field: "New Field",
+        previousValue: "1",
+        newValue: "2",
+        status: "modified" as const,
+      },
+    ];
+    rerender(<DiffTable rows={newRows} />);
+
+    const newCheckboxes = screen.getAllByRole("checkbox");
+    expect(newCheckboxes).toHaveLength(1);
+    expect(newCheckboxes[0]).toHaveAttribute("aria-checked", "true");
+  });
 });
 
 describe("RecordsTable", () => {
