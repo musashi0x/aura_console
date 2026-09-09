@@ -400,7 +400,7 @@ const MENTION_TOKENS = [
   { value: '@agent', label: '@Agent', variant: 'neutral' as const },
 ];
 
-export interface ArtifactData {
+interface ArtifactData {
   id: string;
   title: string;
   subtitle: string;
@@ -409,13 +409,13 @@ export interface ArtifactData {
   v1Content?: string;
 }
 
-export interface SidebarMission {
+interface SidebarMission {
   id: string;
   title: string;
   active: boolean;
 }
 
-export const ARTIFACT_BETA: ArtifactData = {
+const ARTIFACT_BETA: ArtifactData = {
   id: 'artifact-beta',
   title: 'Beta Labs: Memory Dossier & Spend Proposal',
   subtitle: 'Sibyl Reputation Dossier · Status: ESTABLISHED · Base Sepolia',
@@ -466,7 +466,7 @@ Initial evaluation of Beta Labs (\`virtuals:agent:beta\`) for dataset procuremen
 - Note: Preliminary observation before final Base Sepolia settlement verification.`,
 };
 
-export const ARTIFACT_ALPHA: ArtifactData = {
+const ARTIFACT_ALPHA: ArtifactData = {
   id: 'artifact-alpha',
   title: 'Alpha Studio: Risk Assessment & Probationary Dossier',
   subtitle: 'Sibyl Reputation Dossier · Status: PROBATIONARY · Base Sepolia',
@@ -501,7 +501,7 @@ Alpha Studio incurred an automated score degradation following failure to delive
 - Note: High incident frequency logged during stress execution tests.`,
 };
 
-export const ARTIFACT_GAMMA: ArtifactData = {
+const ARTIFACT_GAMMA: ArtifactData = {
   id: 'artifact-gamma',
   title: 'Gamma Research: Intelligence & Onboarding Dossier',
   subtitle: 'Sibyl Reputation Dossier · Status: PROBATIONARY · Base Sepolia',
