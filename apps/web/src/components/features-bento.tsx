@@ -439,6 +439,19 @@ function McpCard(): ReactNode {
           </div>
         </div>
       </div>
+
+      <div className="border-border text-muted-foreground mt-4 flex w-full flex-wrap items-center justify-between gap-3 border-t pt-3 font-mono text-xs">
+        <span className="flex items-center gap-1.5">
+          <Sparkles className="text-purple-400 h-3.5 w-3.5" />
+          Connects to Claude Code, Codex &amp; Hermes in ~2 mins
+        </span>
+        <Link
+          href="/docs/installation"
+          className="text-accent hover:underline font-semibold flex items-center gap-1"
+        >
+          <span>2-Min Setup Walkthrough &rarr;</span>
+        </Link>
+      </div>
     </motion.div>
   );
 }

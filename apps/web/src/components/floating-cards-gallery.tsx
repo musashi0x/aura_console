@@ -371,9 +371,9 @@ export function FloatingCardsGallery({
           setZoomed(i);
         };
 
-        const cardPart = partsRef.current[i];
-        const cardWidth = cardPart ? cardPart.w : 360;
-        const cardHeight = cardPart ? cardPart.h : 380;
+        const slot = CARD_LAYOUT[i % CARD_LAYOUT.length];
+        const cardWidth = slot?.w ?? 360;
+        const cardHeight = slot?.h ?? 380;
 
         return (
           <div
