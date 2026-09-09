@@ -84,11 +84,13 @@ const NARROW = "(max-width: 69.99rem)";
  */
 function ConsoleChatRegion({
   runId,
+  surface,
   grounding,
   isExpanded = false,
   onToggleExpand,
 }: {
   runId?: string;
+  surface?: string;
   grounding?: ChatGrounding;
   isExpanded?: boolean;
   onToggleExpand?: () => void;
@@ -123,7 +125,7 @@ function ConsoleChatRegion({
           <ConsoleChatCloseButton />
         </div>
       </div>
-      <ConsoleChatPanel runId={runId} grounding={grounding} />
+      <ConsoleChatPanel runId={runId} surface={surface} grounding={grounding} />
     </div>
   );
 }
@@ -193,6 +195,7 @@ function ConsoleShellInner({
               >
                 <ConsoleChatRegion
                   runId={runRef}
+                  surface={surface}
                   grounding={grounding}
                   isExpanded={chatExpanded}
                   onToggleExpand={() => setChatExpanded((prev) => !prev)}
@@ -217,6 +220,7 @@ function ConsoleShellInner({
           >
             <ConsoleChatRegion
               runId={runRef}
+              surface={surface}
               grounding={grounding}
               isExpanded={chatExpanded}
               onToggleExpand={() => setChatExpanded(false)}
@@ -232,7 +236,7 @@ function ConsoleShellInner({
           height="tall"
           label={console_.chat.dock.label}
         >
-          <ConsoleChatRegion runId={runRef} grounding={grounding} />
+          <ConsoleChatRegion runId={runRef} surface={surface} grounding={grounding} />
         </BottomSheet>
       ) : null}
       {!hostsConversation && !chatDocked && !chatAsSheet && !showOverlayDrawer ? (

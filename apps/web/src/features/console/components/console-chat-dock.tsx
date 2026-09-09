@@ -45,14 +45,16 @@ export function useChatTouched(): boolean {
  */
 export function ConsoleChatPanel({
   runId,
+  surface,
   grounding,
 }: {
   runId?: string;
+  surface?: string;
   grounding?: ChatGrounding;
 }) {
   return (
     <>
-      <ConsoleChat runId={runId} grounding={grounding} />
+      <ConsoleChat runId={runId} surface={surface} grounding={grounding} />
 
       {/* What the chat can actually do, listed rather than discovered by
           trial. The same registry the palette runs, so this cannot drift into

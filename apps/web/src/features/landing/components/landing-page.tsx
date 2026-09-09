@@ -13,10 +13,12 @@ import { Providers } from "@/components/providers";
 import { ThemeSwitch } from "@/components/theme-switch";
 import { SkipLink } from "@/components/skip-link";
 import Ravine from "@/components/ravine";
+import { LandingPreloader } from "./landing-preloader";
 
 export function LandingPage({ ready }: { ready: boolean }) {
   return (
     <Providers>
+      <LandingPreloader />
       <div className="landing-shell relative min-h-screen bg-background text-foreground selection:bg-accent selection:text-black">
         {/* Fixed site frame */}
         <div className="site-frame site-frame--top" aria-hidden="true" />

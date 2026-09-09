@@ -15,6 +15,7 @@ import {
 import { motion, useMotionValue, useSpring } from "motion/react";
 import Link from "next/link";
 import { useRef, useState, type ReactNode, type MouseEvent } from "react";
+import { DecryptReveal } from "@/components/canvasui/decrypt-reveal";
 
 const ease = [0.23, 1, 0.32, 1] as const;
 
@@ -276,7 +277,25 @@ export function Hero(): ReactNode {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, ease }}
       >
-        <div className="relative mx-auto max-w-5xl overflow-hidden rounded-3xl border border-neutral-800 bg-[#0d0d12] font-sans text-neutral-100 shadow-2xl">
+        <DecryptReveal
+          radius={340}
+          softness={0.48}
+          cell={11}
+          aspect={0.68}
+          color="#10b981"
+          brightness={1.2}
+          scramble={0.16}
+          scrambleSpeed={8}
+          edgeWidth={0.22}
+          edgeFlicker={1}
+          edgeGlow={2.4}
+          edgeTint={0.8}
+          aberration={8}
+          passthrough={0.10}
+          background="#0d0d12"
+          smoothing={0.16}
+          className="relative mx-auto max-w-5xl overflow-hidden rounded-3xl border border-neutral-800 bg-[#0d0d12] font-sans text-neutral-100 shadow-2xl"
+        >
           {/* Mac-style Window Top Bar */}
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-800/80 bg-[#14141a] px-4 py-3">
             <div className="flex items-center gap-2">
@@ -285,6 +304,10 @@ export function Hero(): ReactNode {
               <span className="inline-block h-3 w-3 rounded-full bg-green-500/80" />
               <span className="ml-3 font-mono text-xs font-semibold tracking-wide text-neutral-300">
                 AURA CONSOLE — MISSION TELEMETRY
+              </span>
+              <span className="hidden items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 font-mono text-[10px] text-emerald-400 sm:inline-flex">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                DECRYPT REVEAL
               </span>
             </div>
 
@@ -712,7 +735,10 @@ export function Hero(): ReactNode {
               </span>
             </div>
           </div>
-        </div>
+        </DecryptReveal>
+        <p className="mt-3 text-center font-mono text-xs text-neutral-500">
+          Encrypted ASCII cipher — Bring cursor close to decode into live telemetry
+        </p>
       </motion.div>
 
       {/* Partner Logo Loop */}

@@ -45,6 +45,8 @@ export interface TokenUsage {
 export interface GeminiAgentInput {
   query: string;
   runId?: string;
+  surface?: string;
+  context?: string;
   tools?: McpToolDefinition[];
   signal?: AbortSignal;
   onToolStart?: (toolStart: {
@@ -217,6 +219,8 @@ interface MissionDetailsResponse {
 function planDeterministicTurn(
   history: GeminiContent[],
   runId?: string,
+  _surface?: string,
+  _context?: string,
 ): { parts: GeminiPart[]; thought?: string } {
   const initialUserTurn = history.find((h) => h.role === "user");
   const query = initialUserTurn?.parts.find((p) => p.text)?.text ?? "";
@@ -942,9 +946,11 @@ async function generateTurn(options: {
   declarations: GeminiFunctionDeclaration[];
   tools: McpToolDefinition[];
   runId?: string;
+  surface?: string;
+  context?: string;
   signal?: AbortSignal;
 }): Promise<{ parts: GeminiPart[]; thought?: string }> {
-  const { history, declarations, runId, signal } = options;
+  const { history, declarations, runId, surface, context, signal } = options;
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
   const model = process.env.GEMINI_MODEL || "gemini-flash-latest";
 
@@ -956,6 +962,10 @@ async function generateTurn(options: {
       : timeoutController.signal;
 
     try {
+      const surfaceNote = surface
+        ? `\nCurrent Active Console Surface: ${surface}. Relevant context: ${context ?? surface}. Ground responses directly to this surface area.`
+        : "";
+
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
         {
@@ -964,7 +974,7 @@ async function generateTurn(options: {
           signal: effectiveSignal,
           body: JSON.stringify({
             systemInstruction: {
-              parts: [{ text: AURA_SYSTEM_INSTRUCTION }],
+              parts: [{ text: AURA_SYSTEM_INSTRUCTION + surfaceNote }],
             },
             contents: history.map((h) => ({
               role: h.role === "function" ? "tool" : h.role,
@@ -1016,7 +1026,7 @@ async function generateTurn(options: {
   }
 
   // Deterministic autonomous planner for offline / testing / fallback
-  return planDeterministicTurn(history, runId);
+  return planDeterministicTurn(history, runId, surface, context);
 }
 
 /**
@@ -1028,6 +1038,8 @@ export async function runGeminiAgentLoop(input: GeminiAgentInput): Promise<Gemin
   const {
     query,
     runId,
+    surface,
+    context,
     tools = MCP_TOOLS,
     signal,
     onToolStart,
@@ -1068,6 +1080,8 @@ export async function runGeminiAgentLoop(input: GeminiAgentInput): Promise<Gemin
       declarations: toolDeclarations,
       tools,
       runId,
+      surface,
+      context,
       signal,
     });
 

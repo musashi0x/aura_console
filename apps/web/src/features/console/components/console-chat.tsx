@@ -8,7 +8,8 @@ import {
   useSyncExternalStore,
 } from "react";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { getRouteChatContext } from "../chat/route-chat-context";
 
 import { Banner } from "@astryxdesign/core/Banner";
 import { ChatComposer } from "@astryxdesign/core/Chat";
@@ -121,6 +122,8 @@ export interface ChatGrounding {
 export interface ConsoleChatProps {
   /** The Run the conversation is scoped to. Absent means nothing to ask about. */
   runId?: string;
+  /** The console surface the operator is currently viewing (e.g. Agents, Missions, Guardrails). */
+  surface?: string;
   /** Omitted means unchecked, and is reported as unchecked, never as ready. */
   grounding?: ChatGrounding;
   /**
@@ -190,8 +193,16 @@ function normalizeToolCallItem(call: ChatToolCallItem): ChatToolCallItem {
  * ever list evidence that was really used. It is deliberately not a catalogue
  * of available memory: showing one would imply a retrieval that has not run.
  */
-export function ConsoleChat({ runId, grounding, memoryEnabled }: ConsoleChatProps) {
+export function ConsoleChat({
+  runId,
+  surface,
+  grounding,
+  memoryEnabled,
+}: ConsoleChatProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const routeContext = getRouteChatContext(surface, pathname, runId);
+
   // The owning page is a server component and cannot read a client store, so
   // the chat subscribes directly rather than having the flag drilled through
   // one. Same store the palette writes, so the two cannot disagree.
@@ -201,7 +212,11 @@ export function ConsoleChat({ runId, grounding, memoryEnabled }: ConsoleChatProp
     () => MEMORY_VIEW_SERVER_SNAPSHOT,
   );
   const memoryOn = memoryEnabled ?? memoryFromPalette;
-  const activeRunContext = runId?.trim() || "global";
+  const activeRunContext =
+    runId?.trim() ||
+    (routeContext.surfaceId !== "general"
+      ? `surface:${routeContext.surfaceId}`
+      : "global");
 
   useEffect(() => {
     setActiveChatContext(activeRunContext);
@@ -290,9 +305,13 @@ export function ConsoleChat({ runId, grounding, memoryEnabled }: ConsoleChatProp
         prev.map((m) => (m.id === agentId ? change(m) : m)),
       );
 
+    const surfaceParam =
+      routeContext.surfaceId !== "general"
+        ? `&surface=${encodeURIComponent(routeContext.surfaceId)}`
+        : "";
     const streamUrl = runId
-      ? `${env.NEXT_PUBLIC_API_URL}/api/runs/${encodeURIComponent(runId)}/chat?q=${encodeURIComponent(question)}`
-      : `${env.NEXT_PUBLIC_API_URL}/api/chat?q=${encodeURIComponent(question)}`;
+      ? `${env.NEXT_PUBLIC_API_URL}/api/runs/${encodeURIComponent(runId)}/chat?q=${encodeURIComponent(question)}${surfaceParam}`
+      : `${env.NEXT_PUBLIC_API_URL}/api/chat?q=${encodeURIComponent(question)}${surfaceParam}`;
 
     handleRef.current?.close();
     handleRef.current = openChatStream({
@@ -462,7 +481,13 @@ export function ConsoleChat({ runId, grounding, memoryEnabled }: ConsoleChatProp
     />
   );
 
-  const zeroState = <ConsoleChatSuggestions onOffer={offer} runId={runId} />;
+  const zeroState = (
+    <ConsoleChatSuggestions
+      onOffer={offer}
+      runId={runId}
+      surface={surface}
+    />
+  );
 
   return (
     <VStack gap={4} height="100%">
@@ -476,6 +501,15 @@ export function ConsoleChat({ runId, grounding, memoryEnabled }: ConsoleChatProp
           <div className="cs__chat-scope-wrap flex items-center text-sm text-neutral-400 max-w-full overflow-hidden">
             {runId ? (
               <MonoRef label={console_.chat.scopeLabel}>{runId}</MonoRef>
+            ) : routeContext.surfaceId !== "general" ? (
+              <div className="flex items-center gap-2 flex-wrap" data-testid="chat-surface-scope">
+                <span className="text-[11px] font-mono tracking-wider text-[var(--color-accent,#b692f6)] font-semibold uppercase px-2 py-0.5 rounded bg-[var(--color-accent)]/10 border border-[var(--color-accent)]/20">
+                  {routeContext.scopeLabel}
+                </span>
+                <span className="text-xs text-neutral-300 font-medium truncate">
+                  {routeContext.activeSummary}
+                </span>
+              </div>
             ) : (
               console_.chat.noScope
             )}
@@ -483,6 +517,44 @@ export function ConsoleChat({ runId, grounding, memoryEnabled }: ConsoleChatProp
           <Text as="p" size="xsm" color="secondary">
             {console_.chat.readOnly}
           </Text>
+          {routeContext.surfaceId !== "general" && (
+            <Text as="p" size="xsm" color="secondary" className="opacity-80">
+              {routeContext.groundingDescription}
+            </Text>
+          )}
+
+          {/* Quick Active Counterparty selector pill row on /counterparties */}
+          {routeContext.entities && routeContext.entities.length > 0 ? (
+            <div className="flex items-center gap-1.5 flex-wrap pt-1.5 border-t border-white/5">
+              <span className="text-[11px] font-mono text-neutral-400">Agents:</span>
+              {routeContext.entities.map((agent) => (
+                <button
+                  key={agent.key}
+                  type="button"
+                  className="text-[11px] font-mono px-2 py-0.5 rounded bg-neutral-800/80 hover:bg-neutral-700/80 text-neutral-300 border border-white/10 transition-colors flex items-center gap-1 cursor-pointer"
+                  onClick={() =>
+                    offer(
+                      `Audit counterparty ${agent.label} (${agent.key}) Bayesian prior and risk profile`,
+                    )
+                  }
+                  title={`Quick audit for ${agent.label}`}
+                >
+                  <span>{agent.label}</span>
+                  <span
+                    className={
+                      agent.status === "PREFERRED"
+                        ? "text-emerald-400"
+                        : agent.status === "WATCH"
+                          ? "text-amber-400"
+                          : "text-cyan-400"
+                    }
+                  >
+                    {agent.score}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : null}
         </VStack>
       </StackItem>
 

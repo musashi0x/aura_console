@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { ClickableCard } from "@astryxdesign/core/ClickableCard";
 import { Grid } from "@astryxdesign/core/Grid";
 import { VStack } from "@astryxdesign/core/Stack";
@@ -7,6 +8,7 @@ import { Text } from "@astryxdesign/core/Text";
 
 import { CONSOLE_COMMANDS } from "../console-commands";
 import { console_ } from "../copy";
+import { getRouteChatContext } from "../chat/route-chat-context";
 
 export interface ConsoleChatSuggestionsProps {
   /**
@@ -16,16 +18,15 @@ export interface ConsoleChatSuggestionsProps {
    */
   onOffer: (text: string) => void;
   runId?: string;
+  surface?: string;
 }
 
 /**
  * The zero state: what to ask, when nothing has been asked.
  *
- * Every card is drawn from the command registry the palette runs, so this
- * cannot drift into advertising a command that does not exist. There are no
- * invented categories: the honest grouping is "these run now" and "this needs
- * the agent", because those are the two things the console can actually tell
- * the operator apart.
+ * Grounded contextually to whichever surface/route the operator is currently on.
+ * Suggestions dynamically adapt between /counterparties, /runs, /policies,
+ * /system, and /docs while maintaining canonical command registry access.
  */
 const SIBYL_MEMORY_SHOWCASE_PROMPTS = [
   {
@@ -72,7 +73,14 @@ const SIBYL_MEMORY_SHOWCASE_PROMPTS = [
   },
 ] as const;
 
-export function ConsoleChatSuggestions({ onOffer, runId }: ConsoleChatSuggestionsProps) {
+export function ConsoleChatSuggestions({
+  onOffer,
+  runId,
+  surface,
+}: ConsoleChatSuggestionsProps) {
+  const pathname = usePathname();
+  const routeContext = getRouteChatContext(surface, pathname, runId);
+
   return (
     <VStack gap={3} padding={2}>
       <VStack gap={1}>
@@ -80,124 +88,156 @@ export function ConsoleChatSuggestions({ onOffer, runId }: ConsoleChatSuggestion
           {console_.chat.zero.title}
         </Text>
         <Text as="p" size="sm" color="secondary">
-          {console_.chat.zero.lede}
+          {routeContext.surfaceId !== "general"
+            ? `${routeContext.surfaceTitle} contextual intelligence: ${routeContext.groundingDescription}`
+            : console_.chat.zero.lede}
         </Text>
       </VStack>
 
-      {/* When scoped to a Run, provide prompt cards that explain the running steps */}
-      {runId ? (
+      {/* Surface-specific Active Entity Registry (e.g. Counterparties on /counterparties) */}
+      {routeContext.entities && routeContext.entities.length > 0 ? (
         <VStack gap={1}>
-          <Text as="p" size="xsm" color="secondary" weight="semibold">
-            Mission Execution & Step Explanations
-          </Text>
+          <div className="flex items-center justify-between">
+            <Text as="p" size="xsm" color="secondary" weight="semibold">
+              Active Counterparty Registry ({routeContext.entities.length})
+            </Text>
+            <span className="text-[10px] font-mono text-[var(--color-accent,#b692f6)]">
+              1-Click Audit
+            </span>
+          </div>
           <Grid columns={{ minWidth: 220, max: 2 }} gap={2}>
-            <ClickableCard
-              label="Explain Mission Running Steps"
-              variant="muted"
-              padding={3}
-              onClick={() =>
-                onOffer(
-                  "Explain the recorded execution steps of this mission so far, including memory recall, candidate scoring, and the chosen counterparty.",
-                )
-              }
-            >
-              <VStack gap={0.5}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Text as="p" size="sm" weight="semibold">
-                    Explain Mission Steps
-                  </Text>
-                  <span
+            {routeContext.entities.map((agent) => (
+              <ClickableCard
+                key={agent.key}
+                label={`Audit ${agent.label}`}
+                variant="muted"
+                padding={3}
+                onClick={() =>
+                  onOffer(
+                    `Audit counterparty ${agent.label} (${agent.key}) Bayesian prior and risk profile`,
+                  )
+                }
+              >
+                <VStack gap={0.5}>
+                  <div
                     style={{
-                      fontSize: "10px",
-                      padding: "1px 5px",
-                      borderRadius: "4px",
-                      background: "color-mix(in srgb, var(--color-success) 15%, transparent)",
-                      color: "var(--color-success)",
-                      letterSpacing: "0.04em",
-                      fontFamily: "var(--font-mono, monospace)",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
                     }}
                   >
-                    RUN PIPELINE
-                  </span>
-                </div>
-                <Text as="p" size="xsm" color="secondary">
-                  Walk through the causal execution spine: budget ceiling, Sibyl reputation queries, and candidate ranking
-                </Text>
-              </VStack>
-            </ClickableCard>
-
-            <ClickableCard
-              label="Why was this counterparty chosen?"
-              variant="muted"
-              padding={3}
-              onClick={() =>
-                onOffer(
-                  "Why was this counterparty chosen for this mission based on Sibyl relationship memory?",
-                )
-              }
-            >
-              <VStack gap={0.5}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Text as="p" size="sm" weight="semibold">
-                    Why was this chosen?
+                    <Text as="p" size="sm" weight="semibold">
+                      {agent.label}
+                    </Text>
+                    <span
+                      style={{
+                        fontSize: "10px",
+                        padding: "1px 5px",
+                        borderRadius: "4px",
+                        background:
+                          agent.status === "PREFERRED"
+                            ? "color-mix(in srgb, var(--color-success) 15%, transparent)"
+                            : agent.status === "WATCH"
+                              ? "color-mix(in srgb, var(--color-warning) 15%, transparent)"
+                              : "color-mix(in srgb, var(--color-cyan) 15%, transparent)",
+                        color:
+                          agent.status === "PREFERRED"
+                            ? "var(--color-success)"
+                            : agent.status === "WATCH"
+                              ? "var(--color-warning)"
+                              : "var(--color-cyan)",
+                        letterSpacing: "0.04em",
+                        fontFamily: "var(--font-mono, monospace)",
+                      }}
+                    >
+                      {agent.status} · {agent.score}
+                    </span>
+                  </div>
+                  <Text as="p" size="xsm" color="secondary">
+                    {agent.note}
                   </Text>
-                  <span
-                    style={{
-                      fontSize: "10px",
-                      padding: "1px 5px",
-                      borderRadius: "4px",
-                      background: "color-mix(in srgb, var(--color-cyan) 15%, transparent)",
-                      color: "var(--color-cyan)",
-                      letterSpacing: "0.04em",
-                      fontFamily: "var(--font-mono, monospace)",
-                    }}
-                  >
-                    DECISION REASONING
-                  </span>
-                </div>
-                <Text as="p" size="xsm" color="secondary">
-                  Inspect Bayesian composite scores, reliability ratings, and past delivery episodes
-                </Text>
-              </VStack>
-            </ClickableCard>
-
-            <ClickableCard
-              label="Trace Sibyl Memory & Provenance"
-              variant="muted"
-              padding={3}
-              onClick={() =>
-                onOffer(
-                  "Trace the exact Sibyl Memory event IDs, queried counterparties, WARM and COLD storage tiers, and prove why memory was load-bearing for this mission.",
-                )
-              }
-            >
-              <VStack gap={0.5}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Text as="p" size="sm" weight="semibold">
-                    Trace Sibyl Memory & Provenance
-                  </Text>
-                  <span
-                    style={{
-                      fontSize: "10px",
-                      padding: "1px 5px",
-                      borderRadius: "4px",
-                      background: "color-mix(in srgb, var(--color-warning) 15%, transparent)",
-                      color: "var(--color-warning)",
-                      letterSpacing: "0.04em",
-                      fontFamily: "var(--font-mono, monospace)",
-                    }}
-                  >
-                    SIBYL GATE (40/40)
-                  </span>
-                </div>
-                <Text as="p" size="xsm" color="secondary">
-                  Inspect canonical event IDs, WARM/COLD tiers, Bayesian score adjustments, and load-bearing deletion proof
-                </Text>
-              </VStack>
-            </ClickableCard>
+                </VStack>
+              </ClickableCard>
+            ))}
           </Grid>
         </VStack>
       ) : null}
+
+      {/* Surface-specific Suggestion Groups */}
+      {routeContext.suggestionGroups.map((group) => (
+        <VStack key={group.title} gap={1}>
+          <Text as="p" size="xsm" color="secondary" weight="semibold">
+            {group.title}
+          </Text>
+          <Grid columns={{ minWidth: 220, max: 2 }} gap={2}>
+            {group.suggestions.map((item) => (
+              <ClickableCard
+                key={item.id}
+                label={item.label}
+                variant="muted"
+                padding={3}
+                onClick={() => onOffer(item.prompt)}
+              >
+                <VStack gap={0.5}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text as="p" size="sm" weight="semibold">
+                      {item.label}
+                    </Text>
+                    <span
+                      style={{
+                        fontSize: "10px",
+                        padding: "1px 5px",
+                        borderRadius: "4px",
+                        background:
+                          item.tier.includes("BAYES") ||
+                          item.tier.includes("REPUTATION") ||
+                          item.tier.includes("HEAD")
+                            ? "color-mix(in srgb, var(--color-cyan) 15%, transparent)"
+                            : item.tier.includes("PENALTY") ||
+                                item.tier.includes("FAIL") ||
+                                item.tier.includes("BREACH")
+                              ? "color-mix(in srgb, var(--color-warning) 15%, transparent)"
+                              : item.tier.includes("PIPELINE") ||
+                                  item.tier.includes("NODE") ||
+                                  item.tier.includes("CEILINGS")
+                                ? "color-mix(in srgb, var(--color-success) 15%, transparent)"
+                                : "var(--color-surface-hover)",
+                        color:
+                          item.tier.includes("BAYES") ||
+                          item.tier.includes("REPUTATION") ||
+                          item.tier.includes("HEAD")
+                            ? "var(--color-cyan)"
+                            : item.tier.includes("PENALTY") ||
+                                item.tier.includes("FAIL") ||
+                                item.tier.includes("BREACH")
+                              ? "var(--color-warning)"
+                              : item.tier.includes("PIPELINE") ||
+                                  item.tier.includes("NODE") ||
+                                  item.tier.includes("CEILINGS")
+                                ? "var(--color-success)"
+                                : "var(--color-text-muted)",
+                        letterSpacing: "0.04em",
+                        fontFamily: "var(--font-mono, monospace)",
+                      }}
+                    >
+                      {item.tier}
+                    </span>
+                  </div>
+                  <Text as="p" size="xsm" color="secondary">
+                    {item.description}
+                  </Text>
+                </VStack>
+              </ClickableCard>
+            ))}
+          </Grid>
+        </VStack>
+      ))}
 
       {/* Sibyl Labs 5-Tier Memory Protocol Showcase */}
       <VStack gap={1}>
@@ -214,7 +254,13 @@ export function ConsoleChatSuggestions({ onOffer, runId }: ConsoleChatSuggestion
               onClick={() => onOffer(item.prompt)}
             >
               <VStack gap={0.5}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
                   <Text as="p" size="sm" weight="semibold">
                     {item.label}
                   </Text>

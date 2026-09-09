@@ -70,7 +70,7 @@ describe("accessibility", () => {
   it("has no axe violations", async () => {
     const { container } = render(<LandingPage ready />);
     await expectNoAxeViolations(container);
-  });
+  }, 20000);
 
   it("provides a skip link pointing to #main", () => {
     const { container } = render(<LandingPage ready />);

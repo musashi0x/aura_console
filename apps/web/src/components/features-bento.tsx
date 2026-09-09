@@ -15,7 +15,7 @@ import {
   Sparkles,
   LayoutGrid,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { FloatingCardsGallery, type FloatingCardItem } from "./floating-cards-gallery";
 
 const EASE = [0.23, 1, 0.32, 1] as const;
@@ -74,7 +74,7 @@ function MemoryArchitectureCard(): ReactNode {
       id="storage-hierarchy"
       {...cardAnimation}
       transition={getCardTransition(0)}
-      className="group border-border bg-frame/90 hover:border-accent/40 relative flex h-full min-h-[540px] scroll-mt-32 flex-col justify-between overflow-hidden rounded-4xl border p-6 shadow-xl transition-all sm:scroll-mt-40 sm:p-7 md:col-span-2 lg:col-span-1 lg:row-span-2 dark:border-neutral-800 dark:bg-neutral-900/80"
+      className="group bg-card-primary dark:bg-[#151518] border border-border dark:border-neutral-800 shadow-xl hover:border-accent/40 relative flex h-full min-h-[380px] lg:min-h-0 scroll-mt-32 flex-col justify-between overflow-hidden rounded-4xl p-6 transition-all sm:scroll-mt-40 sm:p-7 md:col-span-2 lg:col-span-1 lg:row-span-2"
     >
       <div className="relative z-10 transition-transform duration-500 ease-out group-hover:scale-[1.01]">
         <div className="mb-3 flex items-center justify-between">
@@ -144,7 +144,7 @@ function DeletionTestCard(): ReactNode {
       id="deletion-test"
       {...cardAnimation}
       transition={getCardTransition(0.1)}
-      className="group border-border bg-frame/90 hover:border-accent/40 relative flex h-full min-h-72 scroll-mt-32 flex-col justify-between overflow-hidden rounded-4xl border p-6 shadow-xl transition-all sm:scroll-mt-40 sm:p-7 dark:border-neutral-800 dark:bg-neutral-900/80"
+      className="group bg-card-primary dark:bg-[#151518] border border-border dark:border-neutral-800 shadow-xl hover:border-accent/40 relative flex h-full min-h-72 scroll-mt-32 flex-col justify-between overflow-hidden rounded-4xl p-6 transition-all sm:scroll-mt-40 sm:p-7"
     >
       <div className="relative z-10 transition-transform duration-500 ease-out group-hover:scale-[1.01]">
         <div className="mb-3 flex items-center justify-between">
@@ -212,7 +212,7 @@ function BaseSepoliaCard(): ReactNode {
       id="base-sepolia"
       {...cardAnimation}
       transition={getCardTransition(0.15)}
-      className="group border-border bg-frame/90 hover:border-accent/40 relative flex h-full min-h-72 scroll-mt-32 flex-col justify-between overflow-hidden rounded-4xl border p-6 shadow-xl transition-all sm:scroll-mt-40 sm:p-7 dark:border-neutral-800 dark:bg-neutral-900/80"
+      className="group bg-card-primary dark:bg-[#151518] border border-border dark:border-neutral-800 shadow-xl hover:border-accent/40 relative flex h-full min-h-72 scroll-mt-32 flex-col justify-between overflow-hidden rounded-4xl p-6 transition-all sm:scroll-mt-40 sm:p-7"
     >
       <div className="transition-transform duration-500 ease-out group-hover:scale-[1.01]">
         <div className="mb-3 flex items-center justify-between">
@@ -270,7 +270,7 @@ function VirtualsAcpCard(): ReactNode {
       id="virtuals-acp"
       {...cardAnimation}
       transition={getCardTransition(0.2)}
-      className="group border-border bg-frame/90 hover:border-accent/40 relative flex h-full min-h-72 scroll-mt-32 flex-col justify-between overflow-hidden rounded-4xl border p-6 shadow-xl transition-all sm:scroll-mt-40 sm:p-7 dark:border-neutral-800 dark:bg-neutral-900/80"
+      className="group bg-card-primary dark:bg-[#151518] border border-border dark:border-neutral-800 shadow-xl hover:border-accent/40 relative flex h-full min-h-72 scroll-mt-32 flex-col justify-between overflow-hidden rounded-4xl p-6 transition-all sm:scroll-mt-40 sm:p-7"
     >
       <div className="transition-transform duration-500 ease-out group-hover:scale-[1.01]">
         <div className="mb-3 flex items-center justify-between">
@@ -332,7 +332,7 @@ function ReputationFsmCard(): ReactNode {
       id="reputation-fsm"
       {...cardAnimation}
       transition={getCardTransition(0.25)}
-      className="group border-border bg-frame/90 hover:border-accent/40 relative flex h-full min-h-72 scroll-mt-32 flex-col justify-between overflow-hidden rounded-4xl border p-6 shadow-xl transition-all sm:scroll-mt-40 sm:p-7 dark:border-neutral-800 dark:bg-neutral-900/80"
+      className="group bg-card-primary dark:bg-[#151518] border border-border dark:border-neutral-800 shadow-xl hover:border-accent/40 relative flex h-full min-h-72 scroll-mt-32 flex-col justify-between overflow-hidden rounded-4xl p-6 transition-all sm:scroll-mt-40 sm:p-7"
     >
       <div className="transition-transform duration-500 ease-out group-hover:scale-[1.01]">
         <div className="mb-3 flex items-center justify-between">
@@ -394,7 +394,7 @@ function McpCard(): ReactNode {
       id="mcp"
       {...cardAnimation}
       transition={getCardTransition(0.3)}
-      className="group border-border bg-frame/90 hover:border-accent/40 relative flex scroll-mt-32 flex-col justify-between overflow-hidden rounded-4xl border p-6 shadow-xl transition-all sm:scroll-mt-40 sm:p-8 md:col-span-2 lg:col-span-3 dark:border-neutral-800 dark:bg-neutral-900/80"
+      className="group bg-card-primary dark:bg-[#151518] border border-border dark:border-neutral-800 shadow-xl hover:border-accent/40 relative flex scroll-mt-32 flex-col justify-between overflow-hidden rounded-4xl p-6 transition-all sm:scroll-mt-40 sm:p-8 md:col-span-2 lg:col-span-3"
     >
       <div className="flex w-full flex-col items-start justify-between gap-6 lg:flex-row lg:items-center">
         <div className="max-w-2xl">
@@ -458,6 +458,29 @@ function McpCard(): ReactNode {
 
 export function FeaturesBento(): ReactNode {
   const [viewMode, setViewMode] = useState<"gallery" | "grid">("gallery");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const checkHash = () => {
+      const h = window.location.hash.replace(/^#/, "");
+      if (
+        [
+          "storage-hierarchy",
+          "storage-tiers",
+          "deletion-test",
+          "base-sepolia",
+          "virtuals-acp",
+          "reputation-fsm",
+          "mcp",
+        ].includes(h)
+      ) {
+        setViewMode("gallery");
+      }
+    };
+    checkHash();
+    window.addEventListener("hashchange", checkHash);
+    return () => window.removeEventListener("hashchange", checkHash);
+  }, []);
 
   const galleryCards: FloatingCardItem[] = [
     {
@@ -542,7 +565,7 @@ export function FeaturesBento(): ReactNode {
 
         {viewMode === "gallery" ? (
           <div className="relative w-full">
-            <FloatingCardsGallery cards={galleryCards} height={780} />
+            <FloatingCardsGallery cards={galleryCards} height={880} />
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">

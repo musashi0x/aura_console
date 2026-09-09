@@ -27,6 +27,8 @@ async function handleGlobalChatStream(c: Context, rawQuestion: unknown) {
   if (!question.success) {
     throw httpError(400, "invalid_question", "q must be a question between 1 and 2000 characters");
   }
+  const surface = c.req.query("surface");
+  const context = c.req.query("context");
 
   return streamSSE(c, async (stream) => {
     const controller = new AbortController();
@@ -35,6 +37,8 @@ async function handleGlobalChatStream(c: Context, rawQuestion: unknown) {
     try {
       await runGeminiAgentLoop({
         query: question.data,
+        surface,
+        context,
         signal: controller.signal,
         onToolStart: async (start) => {
           await stream.writeSSE({
@@ -122,6 +126,9 @@ chat.get("/:runId/chat", async (c) => {
   const run = await runs.getRun(runId.data);
   if (!run) throw httpError(404, "run_not_found", `No Run ${runId.data}`);
 
+  const surface = c.req.query("surface");
+  const context = c.req.query("context");
+
   return streamSSE(c, async (stream) => {
     const controller = new AbortController();
     stream.onAbort(() => controller.abort());
@@ -130,6 +137,8 @@ chat.get("/:runId/chat", async (c) => {
       await runGeminiAgentLoop({
         query: question.data,
         runId: runId.data,
+        surface,
+        context,
         signal: controller.signal,
         onToolStart: async (start) => {
           await stream.writeSSE({
