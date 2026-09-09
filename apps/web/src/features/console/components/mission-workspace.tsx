@@ -322,7 +322,7 @@ export function MissionWorkspace({
   return (
     <section className="mw" aria-labelledby="mission-heading">
       <header className="run__head">
-        <div className="flex-1 min-w-0">
+        <div className="run__head-main flex-1 min-w-[min(100%,280px)]">
           <span className="text-[10px] font-mono tracking-wider uppercase px-2 py-0.5 rounded bg-white/5 text-neutral-400 border border-white/10 inline-block mb-1.5">
             Mission Objective
           </span>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { AppShell } from "@astryxdesign/core/AppShell";
 import { BottomSheet } from "@astryxdesign/core/BottomSheet";
 import { Layout, LayoutContent, LayoutPanel } from "@astryxdesign/core/Layout";
@@ -140,8 +140,27 @@ function ConsoleShellInner({
   const chatOpen = useChatOpen();
   const chatTouched = useChatTouched();
   const narrow = useMediaQuery(NARROW);
-  const chatDocked = chatOpen && !narrow && !hostsConversation;
+  const canExpandInline = useMediaQuery("(min-width: 96rem)");
+  const chatDocked = chatOpen && !narrow && !hostsConversation && (!chatExpanded || canExpandInline);
   const chatAsSheet = chatOpen && narrow && !hostsConversation && chatTouched;
+  const showOverlayDrawer = chatOpen && !hostsConversation && !narrow && chatExpanded && !canExpandInline;
+
+  useEffect(() => {
+    if (!chatExpanded || canExpandInline) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setChatExpanded(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [chatExpanded, canExpandInline]);
+
+  useEffect(() => {
+    if (!chatOpen && chatExpanded) {
+      setChatExpanded(false);
+    }
+  }, [chatOpen, chatExpanded]);
 
   return (
     <>
@@ -162,7 +181,7 @@ function ConsoleShellInner({
         <Layout
           content={
             <LayoutContent padding={6} tabIndex={0}>
-              <div className="cs__workspace relative w-full min-h-[580px] flex flex-col flex-1">
+              <div className="cs__workspace relative w-full min-h-[580px] flex flex-col flex-1 min-w-0">
                 {children}
               </div>
             </LayoutContent>
@@ -188,6 +207,28 @@ function ConsoleShellInner({
           }
         />
       </AppShell>
+      {/* Floating slide-over drawer when expanded on viewports below 96rem (1536px) */}
+      {showOverlayDrawer ? (
+        <>
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity"
+            onClick={() => setChatExpanded(false)}
+            aria-hidden="true"
+          />
+          <aside
+            role="complementary"
+            aria-label={console_.chat.dock.label}
+            className="fixed top-0 right-0 bottom-0 z-50 w-full max-w-[760px] bg-neutral-900 border-l border-white/10 shadow-2xl p-4 flex flex-col transition-transform animate-in slide-in-from-right duration-200"
+          >
+            <ConsoleChatRegion
+              runId={runRef}
+              grounding={grounding}
+              isExpanded={chatExpanded}
+              onToggleExpand={() => setChatExpanded(false)}
+            />
+          </aside>
+        </>
+      ) : null}
       {narrow && !hostsConversation && chatTouched ? (
         <BottomSheet
           isOpen={chatAsSheet}
@@ -199,7 +240,7 @@ function ConsoleShellInner({
           <ConsoleChatRegion runId={runRef} grounding={grounding} />
         </BottomSheet>
       ) : null}
-      {!hostsConversation && !chatDocked && !chatAsSheet ? (
+      {!hostsConversation && !chatDocked && !chatAsSheet && !showOverlayDrawer ? (
         <ConsoleChatLauncher />
       ) : null}
     </>

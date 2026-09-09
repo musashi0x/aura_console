@@ -82,31 +82,34 @@ export function ConsoleTopbar({
         <div className="flex items-center gap-2 max-w-full overflow-hidden flex-nowrap">
           <span className="cs__surface whitespace-nowrap">{surface}</span>
           {runRef ? (
-            <code className="cs__run-ref" title={runRef}>
+            <code
+              className="cs__run-ref max-w-[110px] sm:max-w-[150px] md:max-w-[220px] truncate"
+              title={runRef}
+            >
               {runRef}
             </code>
           ) : null}
         </div>
       }
       endContent={
-        <div className="cs__topbar-end flex items-center gap-2 max-w-full">
+        <div className="cs__topbar-end flex items-center gap-1.5 sm:gap-2 max-w-full">
           {actions}
           <ConnectWalletButton />
           {/* The palette lives in the bar so its keyboard hint is discoverable
               without hunting: a shortcut nobody can see is a shortcut nobody
               uses. */}
           <CommandPalette />
-          {utcTime ? <span className="cs__utc-clock">{utcTime}</span> : null}
+          {utcTime ? <span className="cs__utc-clock hidden xl:inline">{utcTime}</span> : null}
           {telemetry.commit ? (
             <code
-              className="cs__commit-badge"
+              className="cs__commit-badge hidden 2xl:inline"
               title={telemetry.startedAt ? `Process started at ${telemetry.startedAt}` : undefined}
             >
               {telemetry.commit.slice(0, 7)}
             </code>
           ) : null}
           <span
-            className="cs__env"
+            className="cs__env hidden lg:inline"
             title="Base Sepolia Network: Aura Console operates on Base Sepolia testnet and local simulation. Testing agent missions and spend approvals never moves real mainnet funds while executing real cryptographic signatures and testnet contract transactions."
           >
             {console_.environment}

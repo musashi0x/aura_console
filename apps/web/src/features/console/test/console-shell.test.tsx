@@ -1,4 +1,5 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -256,5 +257,51 @@ describe("responsive and motion rules", () => {
     );
     expect(screen.getByRole("button", { name: "Ask the agent" })).toBeInTheDocument();
     window.matchMedia = origMatchMedia;
+  });
+
+  it("toggles slide-over overlay drawer on laptop viewports when expand is clicked", async () => {
+    const origMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query.includes("min-width: 96rem") ? false : false, // < 1536px, not narrow
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+
+    setChatOpen(true);
+
+    const user = userEvent.setup();
+    render(
+      <ConsoleShell surface="Missions" readiness="ready">
+        <h1>Missions</h1>
+      </ConsoleShell>,
+    );
+
+    const expandBtn = screen.getByTestId("chat-expand-toggle-btn");
+    expect(expandBtn).toHaveTextContent("Expand");
+
+    // Click Expand to open overlay drawer
+    await user.click(expandBtn);
+
+    // Should now show "Standard" button inside drawer
+    const standardButtons = screen.getAllByTestId("chat-expand-toggle-btn");
+    expect(standardButtons[0]).toHaveTextContent("Standard");
+
+    // Press Escape to close overlay drawer
+    fireEvent.keyDown(window, { key: "Escape" });
+    const toggledButtons = screen.getAllByTestId("chat-expand-toggle-btn");
+    expect(toggledButtons[0]).toHaveTextContent("Expand");
+
+    window.matchMedia = origMatchMedia;
+  });
+
+  it("contains responsive rules for run__head and run__objective", () => {
+    expect(css).toMatch(/\.run__head\s*\{[^}]*flex-wrap:\s*wrap;/);
+    expect(css).toMatch(/\.run__head-main\s*\{[^}]*flex:\s*1 1 280px;/);
+    expect(css).toMatch(/@media \(max-width: 53\.99rem\)\s*\{\s*\.run__head\s*\{[^}]*flex-direction:\s*column;/);
   });
 });

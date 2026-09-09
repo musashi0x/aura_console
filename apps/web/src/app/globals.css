@@ -682,17 +682,21 @@ main:has(.lp) {
   gap: var(--space-1);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
+  max-width: 100%;
 }
 
 .mono-ref__label {
   color: var(--color-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  flex-shrink: 0;
 }
 
 .mono-ref__value {
   color: var(--color-text);
   font-family: inherit;
+  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 
 .empty-state {
@@ -1598,14 +1602,9 @@ a.cs__brand,
 .cs__workspace {
   container-type: inline-size;
   container-name: workspace;
-  /* Content starts at the top. Centring the whole workspace was for short
-     empty states, and it pushed a real page's heading several hundred pixels
-     down the screen the moment a surface had something to show — the Agents
-     list opened with its h1 at y=351 and a band of nothing above it.
-     The balance those empty states needed is theirs to ask for: the rule below
-     centres a state that is alone on the surface, and leaves everything else
-     where a reader expects to start. */
   min-height: 100%;
+  min-width: 0;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
   justify-content: start;
@@ -1665,6 +1664,7 @@ a.cs__brand,
   justify-content: space-between;
   gap: var(--space-4);
   align-items: flex-start;
+  flex-wrap: wrap;
   padding: 20px 24px;
   background: linear-gradient(180deg, var(--color-surface-raised) 0%, var(--color-surface) 100%);
   border: 1px solid var(--color-border);
@@ -1673,13 +1673,20 @@ a.cs__brand,
   box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4);
 }
 
+.run__head-main {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
 .run__objective {
-  font-size: clamp(1.2rem, 2.2vw, 1.45rem);
+  font-size: clamp(1.15rem, 2vw, 1.45rem);
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.35;
   margin: 0 0 10px;
-  text-wrap: pretty;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  text-wrap: balance;
   color: var(--color-text);
 }
 
@@ -1691,6 +1698,7 @@ a.cs__brand,
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   color: var(--color-text-muted);
+  word-break: break-word;
 }
 
 .run__states {
@@ -1811,6 +1819,19 @@ a.cs__brand,
 
   .cs__palette-trigger .cs__palette-text {
     display: none;
+  }
+}
+
+@media (max-width: 53.99rem) {
+  .run__head {
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: 16px 18px;
+  }
+
+  .run__states {
+    width: 100%;
+    justify-content: flex-start;
   }
 }
 
@@ -4634,6 +4655,10 @@ input[type="range"].fluid-slider::-moz-range-thumb {
   border-radius: var(--radius-sm);
   color: var(--color-text-muted);
   font-size: var(--text-xs);
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+  display: inline-block;
 }
 
 .cs__mission-inspector-panel [data-testid="meta-budget"] {
