@@ -123,7 +123,7 @@ function DesktopDropdown({
                   onClick={onClose}
                   className="hover:bg-neutral-100 dark:hover:bg-neutral-800/80 group block rounded-xl px-4 py-3 transition-colors"
                 >
-                  <div className="text-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 text-sm font-medium transition-colors">
+                  <div className="text-foreground group-hover:text-emerald-700 dark:group-hover:text-emerald-400 text-sm font-medium transition-colors">
                     {item.label}
                   </div>
                   <div className="text-muted-foreground group-hover:text-neutral-600 dark:group-hover:text-neutral-300 mt-0.5 text-xs leading-relaxed transition-colors">
@@ -187,7 +187,7 @@ function MobileExpandable({
                   className="hover:bg-neutral-100 dark:hover:bg-neutral-800/80 group block rounded-lg px-3 py-2.5 text-sm transition-colors"
                   onClick={onClose}
                 >
-                  <span className="text-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 block font-medium transition-colors">
+                  <span className="text-foreground group-hover:text-emerald-700 dark:group-hover:text-emerald-400 block font-medium transition-colors">
                     {item.label}
                   </span>
                   <span className="text-muted-foreground group-hover:text-neutral-600 dark:group-hover:text-neutral-300 mt-0.5 block text-xs transition-colors">

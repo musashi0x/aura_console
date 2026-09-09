@@ -40,6 +40,7 @@ type Particle = {
   mult: number;
   vx: number;
   vy: number;
+  col: number;
 };
 
 function hash01(i: number): number {
@@ -257,6 +258,7 @@ export function FloatingCardsGallery({
         mult: (COL_DRIFT_MULTS[slotIndex % 3] ?? 0.9) + hash01(i) * 0.04,
         vx: prev ? prev.vx : 0,
         vy: prev ? prev.vy : 0,
+        col: slotIndex % 3,
       };
     });
   }, [cards]);
@@ -348,10 +350,12 @@ export function FloatingCardsGallery({
       const drag = dragRef.current;
       const heldIdx = drag.isDragging ? drag.activeIdx : null;
 
+      const UNIFORM_SPAN = H + 440;
+
+      // 1. Motion integration, damping, drift, horizontal bounds, and uniform cycle wrapping
       for (let i = 0; i < partsRef.current.length; i++) {
         const a = partsRef.current[i];
-        const node = nodesRef.current[i];
-        if (!a || !node) continue;
+        if (!a) continue;
         const frozen = zi === i;
         const isHeld = heldIdx === i;
 
@@ -382,11 +386,77 @@ export function FloatingCardsGallery({
             a.vx = -Math.abs(a.vx) * 0.4;
           }
 
-          // Wrap seamlessly around top/bottom edges
-          const span = H + a.h;
-          if (a.y > H + a.h * 0.2) a.y -= span;
-          else if (a.y < -a.h * 1.2) a.y += span;
+          // Wrap seamlessly around top/bottom edges with uniform spatial wavelength
+          while (a.y > H + 20) a.y -= UNIFORM_SPAN;
+          while (a.y < -420) a.y += UNIFORM_SPAN;
         }
+      }
+
+      // 2. Pairwise vertical distance constraint between cards in the same column to prevent drift overlap
+      for (let i = 0; i < partsRef.current.length; i++) {
+        const a = partsRef.current[i];
+        if (!a) continue;
+
+        for (let j = i + 1; j < partsRef.current.length; j++) {
+          const b = partsRef.current[j];
+          if (!b || a.col !== b.col) continue;
+
+          const cyA = a.y + a.h / 2;
+          const cyB = b.y + b.h / 2;
+          let dY = cyB - cyA;
+
+          // Cyclic shortest distance path across uniform column wrap span
+          if (dY > UNIFORM_SPAN / 2) dY -= UNIFORM_SPAN;
+          else if (dY < -UNIFORM_SPAN / 2) dY += UNIFORM_SPAN;
+
+          const distY = Math.abs(dY);
+          const minDist = (a.h + b.h) / 2 + 30;
+
+          if (distY < minDist) {
+            const overlap = minDist - distY;
+            const sign = dY >= 0 ? 1 : -1;
+
+            const frozenA = zi === i;
+            const isHeldA = heldIdx === i;
+            const frozenB = zi === j;
+            const isHeldB = heldIdx === j;
+
+            const canMoveA = !frozenA && !isHeldA;
+            const canMoveB = !frozenB && !isHeldB;
+
+            // Soft repulsive spring separation
+            const springRate = Math.min(1, 10 * dt);
+            const sep = overlap * springRate;
+
+            if (canMoveA && canMoveB) {
+              a.y -= sign * sep * 0.5;
+              b.y += sign * sep * 0.5;
+            } else if (canMoveA && !canMoveB) {
+              a.y -= sign * sep;
+            } else if (!canMoveA && canMoveB) {
+              b.y += sign * sep;
+            }
+
+            // Keep positions within bounds after repulsive separation
+            if (canMoveA) {
+              while (a.y > H + 20) a.y -= UNIFORM_SPAN;
+              while (a.y < -420) a.y += UNIFORM_SPAN;
+            }
+            if (canMoveB) {
+              while (b.y > H + 20) b.y -= UNIFORM_SPAN;
+              while (b.y < -420) b.y += UNIFORM_SPAN;
+            }
+          }
+        }
+      }
+
+      // 3. Pointer interaction, click zoom, and visual transform updates
+      for (let i = 0; i < partsRef.current.length; i++) {
+        const a = partsRef.current[i];
+        const node = nodesRef.current[i];
+        if (!a || !node) continue;
+        const frozen = zi === i;
+        const isHeld = heldIdx === i;
 
         let tx = 0;
         let ty = 0;
