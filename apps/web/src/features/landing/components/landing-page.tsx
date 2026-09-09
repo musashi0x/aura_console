@@ -13,6 +13,7 @@ import { Providers } from "@/components/providers";
 import { Testimonials } from "@/components/testimonials";
 import { ThemeSwitch } from "@/components/theme-switch";
 import { SkipLink } from "@/components/skip-link";
+import Ravine from "@/components/ravine";
 
 export function LandingPage({ ready }: { ready: boolean }) {
   return (
@@ -92,6 +93,35 @@ export function LandingPage({ ready }: { ready: boolean }) {
           <FeaturesBento />
           <CounterfactualMatrix />
           <HowItWorks />
+          <section id="go-deeper" className="relative w-full overflow-hidden border-y border-border/40 my-16 bg-[#0a0a0a]">
+            <Ravine
+              className="h-[520px] w-full"
+              speed={1}
+              steps={128}
+              scale={0.25}
+              height={1}
+              fade={35}
+              cameraHeight={6}
+              nearColor="#ffffff"
+              farColor="#0a0a0a"
+              brightness={0.8}
+            >
+              <div className="flex h-full flex-col items-center justify-center text-center px-6">
+                <div className="flex flex-col items-center justify-center p-8 sm:p-10 rounded-2xl bg-black/80 backdrop-blur-md border border-white/15 shadow-2xl max-w-xl z-10">
+                  <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/90 px-3.5 py-1 font-mono text-xs text-white/90 shadow-sm">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>3D RAYMARCHED TOPOLOGY</span>
+                  </div>
+                  <h1 className="text-5xl sm:text-6xl font-medium text-white tracking-tight drop-shadow-lg">
+                    Go deeper
+                  </h1>
+                  <p className="mt-3 text-sm sm:text-base text-neutral-200 font-sans leading-relaxed drop-shadow">
+                    Continuous gradient recall across 5 storage tiers with zero loss under load-bearing deletion.
+                  </p>
+                </div>
+              </div>
+            </Ravine>
+          </section>
           <Pricing />
           <Testimonials />
           <FAQ />
