@@ -1,11 +1,12 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { AppShell } from "@astryxdesign/core/AppShell";
 import { BottomSheet } from "@astryxdesign/core/BottomSheet";
 import { Layout, LayoutContent, LayoutPanel } from "@astryxdesign/core/Layout";
 import { Theme } from "@astryxdesign/core/theme";
 import { useMediaQuery } from "@astryxdesign/core/hooks";
+import { Maximize2, Minimize2 } from "lucide-react";
 
 import { stoneTheme } from "@/themes/stone/stone.js";
 import { InteractionSounds, SoundToggle } from "@/components/primitives";
@@ -48,8 +49,9 @@ export interface ConsoleShellProps {
   children: ReactNode;
 }
 
-/** The chat is a region of the frame, not a floating sheet. */
-const CHAT_PANEL_WIDTH = 380;
+/** Standard and expanded chat panel dimensions for readability. */
+const CHAT_PANEL_WIDTH = 420;
+const CHAT_PANEL_EXPANDED_WIDTH = 760;
 
 /**
  * Below this the frame cannot comfortably afford two columns: a docked chat panel
@@ -83,15 +85,43 @@ const NARROW = "(max-width: 69.99rem)";
 function ConsoleChatRegion({
   runId,
   grounding,
+  isExpanded = false,
+  onToggleExpand,
 }: {
   runId?: string;
   grounding?: ChatGrounding;
+  isExpanded?: boolean;
+  onToggleExpand?: () => void;
 }) {
   return (
     <div className="cs__chat-region">
-      <div className="cs__chat-dock-head">
+      <div className="cs__chat-dock-head flex items-center justify-between gap-2">
         <h2 className="cs__chat-dock-title">{console_.chat.dock.label}</h2>
-        <ConsoleChatCloseButton />
+        <div className="flex items-center gap-1.5">
+          {onToggleExpand && (
+            <button
+              type="button"
+              className="btn cs__chat-expand-btn text-xs px-2.5 py-1 rounded-md flex items-center gap-1.5 border border-white/10 hover:bg-white/10 text-neutral-300 transition-colors cursor-pointer"
+              onClick={onToggleExpand}
+              title={isExpanded ? "Collapse to standard view (420px)" : "Expand to wide view (760px)"}
+              aria-label={isExpanded ? "Collapse chat panel" : "Expand chat panel to wide view"}
+              data-testid="chat-expand-toggle-btn"
+            >
+              {isExpanded ? (
+                <>
+                  <Minimize2 size={13} className="text-neutral-400" />
+                  <span className="text-[11px] font-mono">Standard</span>
+                </>
+              ) : (
+                <>
+                  <Maximize2 size={13} className="text-neutral-400" />
+                  <span className="text-[11px] font-mono">Expand</span>
+                </>
+              )}
+            </button>
+          )}
+          <ConsoleChatCloseButton />
+        </div>
       </div>
       <ConsoleChatPanel runId={runId} grounding={grounding} />
     </div>
@@ -106,6 +136,7 @@ function ConsoleShellInner({
   grounding,
   children,
 }: ConsoleShellProps) {
+  const [chatExpanded, setChatExpanded] = useState(false);
   const chatOpen = useChatOpen();
   const chatTouched = useChatTouched();
   const narrow = useMediaQuery(NARROW);
@@ -139,14 +170,19 @@ function ConsoleShellInner({
           end={
             chatDocked ? (
               <LayoutPanel
-                width={CHAT_PANEL_WIDTH}
+                width={chatExpanded ? CHAT_PANEL_EXPANDED_WIDTH : CHAT_PANEL_WIDTH}
                 hasDivider
                 padding={4}
                 role="complementary"
                 label={console_.chat.dock.label}
-                className="cs__chat-dock"
+                className={`cs__chat-dock transition-all duration-300 ${chatExpanded ? "cs__chat-dock--expanded" : ""}`}
               >
-                <ConsoleChatRegion runId={runRef} grounding={grounding} />
+                <ConsoleChatRegion
+                  runId={runRef}
+                  grounding={grounding}
+                  isExpanded={chatExpanded}
+                  onToggleExpand={() => setChatExpanded((prev) => !prev)}
+                />
               </LayoutPanel>
             ) : undefined
           }

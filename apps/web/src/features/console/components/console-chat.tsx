@@ -473,13 +473,13 @@ export function ConsoleChat({ runId, grounding, memoryEnabled }: ConsoleChatProp
           is the one thing that should absorb the leftover space and scroll. */}
       <StackItem>
         <VStack gap={1}>
-          <Text as="p" size="sm" color="secondary">
+          <div className="cs__chat-scope-wrap flex items-center text-sm text-neutral-400 max-w-full overflow-hidden">
             {runId ? (
               <MonoRef label={console_.chat.scopeLabel}>{runId}</MonoRef>
             ) : (
               console_.chat.noScope
             )}
-          </Text>
+          </div>
           <Text as="p" size="xsm" color="secondary">
             {console_.chat.readOnly}
           </Text>

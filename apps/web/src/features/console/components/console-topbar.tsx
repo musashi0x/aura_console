@@ -79,10 +79,14 @@ export function ConsoleTopbar({
         </Link>
       }
       startContent={
-        <>
-          <span className="cs__surface">{surface}</span>
-          {runRef ? <code className="cs__run-ref">{runRef}</code> : null}
-        </>
+        <div className="flex items-center gap-2 max-w-full overflow-hidden flex-nowrap">
+          <span className="cs__surface whitespace-nowrap">{surface}</span>
+          {runRef ? (
+            <code className="cs__run-ref" title={runRef}>
+              {runRef}
+            </code>
+          ) : null}
+        </div>
       }
       endContent={
         <div className="cs__topbar-end flex items-center gap-2 max-w-full">
