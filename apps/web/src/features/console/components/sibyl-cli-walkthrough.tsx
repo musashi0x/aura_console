@@ -35,6 +35,7 @@ interface StepData {
   description: string;
   highlights: string[];
   terminalOutput: string[];
+  curlTerminalOutput?: string[];
 }
 
 const STEPS: StepData[] = [
@@ -62,6 +63,16 @@ const STEPS: StepData[] = [
       "Installing collected packages: mcp, sibyl-memory-cli",
       "Successfully installed sibyl-memory-cli-0.4.1 mcp-1.3.0",
       "✓ Sibyl Memory binary ready at /usr/local/bin/sibyl",
+    ],
+    curlTerminalOutput: [
+      "$ curl -fsSL https://sibyllabs.org/install | sh",
+      "✦ Fetching Sibyl Memory installer from sibyllabs.org...",
+      "  Downloading release v0.4.1 for Darwin/arm64...",
+      "  Verifying sha256 checksum...",
+      "  Unpacking binary to ~/.local/bin/sibyl",
+      "  Configuring environment PATH...",
+      "✓ Sibyl Memory v0.4.1 successfully installed!",
+      "Ready for authentication. Run 'sibyl init' next.",
     ],
   },
   {
@@ -150,10 +161,39 @@ const STEPS: StepData[] = [
   },
 ];
 
+export async function copyToClipboard(text: string): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  try {
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // fallback to execCommand below
+  }
+  try {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    textArea.style.opacity = "0";
+    textArea.style.pointerEvents = "none";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    const successful = document.execCommand("copy");
+    document.body.removeChild(textArea);
+    return successful;
+  } catch {
+    return false;
+  }
+}
+
 const VENV_FIX = [
   "python3 -m venv ~/.sibyl-memory/venv && source ~/.sibyl-memory/venv/bin/activate",
   "pip install 'sibyl-memory-cli[mcp]'",
 ];
+const VENV_ONE_LINER =
+  "python3 -m venv ~/.sibyl-memory/venv && source ~/.sibyl-memory/venv/bin/activate && pip install 'sibyl-memory-cli[mcp]'";
 
 export function SibylCliWalkthrough({ onJumpToTool, className = "" }: SibylCliWalkthroughProps) {
   const [activeStepIndex, setActiveStepIndex] = useState(0);
@@ -164,21 +204,35 @@ export function SibylCliWalkthrough({ onJumpToTool, className = "" }: SibylCliWa
 
   const currentStep = STEPS[activeStepIndex] ?? STEPS[0]!;
 
+  const currentTerminalOutput =
+    currentStep.id === "install" && installOption === "curl"
+      ? (currentStep.curlTerminalOutput ?? currentStep.terminalOutput)
+      : currentStep.terminalOutput;
+
+  const [simulatedCount, setSimulatedCount] = useState<number | null>(null);
+  const revealedLines = simulatedCount ?? currentTerminalOutput.length;
+
   const handleCopy = async (text: string, key: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedKey(key);
-      setTimeout(() => setCopiedKey(null), 2000);
-    } catch {
-      // clipboard fallback
-    }
+    await copyToClipboard(text);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2000);
   };
 
   const handleSimulate = () => {
+    if (isSimulating) return;
     setIsSimulating(true);
-    setTimeout(() => {
-      setIsSimulating(false);
-    }, 800);
+    setSimulatedCount(1);
+    const totalLines = currentTerminalOutput.length;
+    let count = 1;
+    const interval = setInterval(() => {
+      count += 1;
+      setSimulatedCount(count);
+      if (count >= totalLines) {
+        clearInterval(interval);
+        setIsSimulating(false);
+        setSimulatedCount(null);
+      }
+    }, 130);
   };
 
   return (
@@ -229,12 +283,16 @@ export function SibylCliWalkthrough({ onJumpToTool, className = "" }: SibylCliWa
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6" role="tablist" aria-label="Walkthrough Steps">
         {STEPS.map((step, idx) => {
           const isActive = idx === activeStepIndex;
+          const tabId = `walkthrough-tab-${step.id}`;
+          const panelId = `walkthrough-panel-${step.id}`;
           return (
             <button
               key={step.id}
+              id={tabId}
               type="button"
               role="tab"
               aria-selected={isActive}
+              aria-controls={panelId}
               onClick={() => {
                 setActiveStepIndex(idx);
                 onJumpToTool?.(step.id);
@@ -260,7 +318,12 @@ export function SibylCliWalkthrough({ onJumpToTool, className = "" }: SibylCliWa
       </div>
 
       {/* Step Detail Card & Interactive Terminal Split */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      <div
+        id={`walkthrough-panel-${currentStep.id}`}
+        role="tabpanel"
+        aria-labelledby={`walkthrough-tab-${currentStep.id}`}
+        className="grid grid-cols-1 lg:grid-cols-12 gap-5"
+      >
         {/* Left Side: Step Instructions & Actions */}
         <div className="lg:col-span-6 flex flex-col justify-between rounded-xl border border-line bg-surface p-5">
           <div>
@@ -470,7 +533,7 @@ export function SibylCliWalkthrough({ onJumpToTool, className = "" }: SibylCliWa
                   transition={{ duration: 0.15 }}
                   className="space-y-1"
                 >
-                  {currentStep.terminalOutput.map((line, idx) => {
+                  {currentTerminalOutput.slice(0, revealedLines).map((line, idx) => {
                     const isCommand = line.startsWith("$");
                     const isSuccess = line.startsWith("✓");
                     const isClaude = line.startsWith("> Claude:");
@@ -498,18 +561,23 @@ export function SibylCliWalkthrough({ onJumpToTool, className = "" }: SibylCliWa
                       </div>
                     );
                   })}
+                  {isSimulating && revealedLines < currentTerminalOutput.length && (
+                    <div className="text-[11px] text-emerald-400 font-mono animate-pulse">
+                      &gt; executing...
+                    </div>
+                  )}
                 </motion.div>
               </AnimatePresence>
             </div>
           </div>
 
           {/* Terminal Footer Status */}
-          <div className="pt-3 mt-3 border-t border-neutral-800 flex items-center justify-between text-[10.5px] text-neutral-500 font-sans">
+          <div className="pt-3 mt-3 border-t border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[10.5px] text-neutral-500 font-sans">
             <span className="flex items-center gap-1.5">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
               <span>Daemon active &bull; Base Sepolia L2 proof ready</span>
             </span>
-            <span className="font-mono">SQLite ~/.sibyl-memory/memory.db</span>
+            <span className="font-mono text-neutral-400">SQLite ~/.sibyl-memory/memory.db</span>
           </div>
         </div>
       </div>
@@ -546,7 +614,7 @@ export function SibylCliWalkthrough({ onJumpToTool, className = "" }: SibylCliWa
                   <span className="text-[10px] text-muted">Virtualenv Sandbox Fix</span>
                   <button
                     type="button"
-                    onClick={() => handleCopy(VENV_FIX.join("\n"), "venv-fix")}
+                    onClick={() => handleCopy(VENV_ONE_LINER, "venv-fix")}
                     className="inline-flex items-center gap-1 text-[11px] text-muted hover:text-ink"
                   >
                     {copiedKey === "venv-fix" ? (

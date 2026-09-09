@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 
+import { copyToClipboard } from "@/features/console/components/sibyl-cli-walkthrough";
 import { readProgress, writeProgress } from "../acknowledgement";
 import { copy } from "../copy";
 import { canContinue, initialState, onboardingReducer } from "../onboarding-reducer";
@@ -29,7 +30,7 @@ export function OnboardingFlow({ onFinish, onSkip }: OnboardingFlowProps) {
   const restored = useRef(false);
 
   const copyCommand = (cmd: string, key: string) => {
-    void navigator.clipboard?.writeText?.(cmd);
+    void copyToClipboard(cmd);
     setCopiedCommand(key);
     setTimeout(() => setCopiedCommand(null), 2000);
   };

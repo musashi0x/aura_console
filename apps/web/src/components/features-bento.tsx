@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { motion, type Transition } from "motion/react";
 import {
   Database,
@@ -11,6 +12,7 @@ import {
   FileCheck2,
   TrendingUp,
   Coins,
+  Sparkles,
 } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -440,13 +442,48 @@ function McpCard(): ReactNode {
 }
 
 export function FeaturesBento(): ReactNode {
+  const [viewMode, setViewMode] = useState<"gallery" | "grid">("gallery");
+
+  const galleryCards: FloatingCardItem[] = [
+    {
+      id: "storage-hierarchy",
+      title: "5-Tier Dynamic Storage Architecture",
+      node: <MemoryArchitectureCard />,
+    },
+    {
+      id: "deletion-test",
+      title: "Load-Bearing Deletion Test",
+      node: <DeletionTestCard />,
+    },
+    {
+      id: "base-sepolia",
+      title: "Cryptographic Proof",
+      node: <BaseSepoliaCard />,
+    },
+    {
+      id: "virtuals-acp",
+      title: "Virtuals Protocol ACP Settlement",
+      node: <VirtualsAcpCard />,
+    },
+    {
+      id: "reputation-fsm",
+      title: "Dynamic Bayesian Reputation",
+      node: <ReputationFsmCard />,
+    },
+    {
+      id: "mcp",
+      title: "Multi-Agent MCP Coordination",
+      node: <McpCard />,
+    },
+  ];
+
   return (
     <section
       id="architecture"
       className="bg-background mb-28 w-full scroll-mt-28 pt-20 px-4 sm:mb-36 sm:scroll-mt-36 sm:pt-28 sm:px-6 lg:px-8"
     >
       <div className="mx-auto max-w-6xl">
-        <div className="mb-12 text-center">
+        <div className="mb-10 text-center">
           <span className="text-accent font-mono text-xs font-semibold tracking-widest uppercase">
             ✦ Core Architecture
           </span>
@@ -458,16 +495,50 @@ export function FeaturesBento(): ReactNode {
             autonomous capital cannot move without verifiable relationship
             memory.
           </p>
+
+          {/* View mode toggle: Floating Gallery vs Structured Grid */}
+          <div className="mt-6 flex items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => setViewMode("gallery")}
+              className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 font-mono text-xs font-semibold transition-all cursor-pointer ${
+                viewMode === "gallery"
+                  ? "bg-emerald-500 text-neutral-950 shadow-md ring-2 ring-emerald-500/30"
+                  : "border border-border/80 bg-frame/60 text-muted-foreground hover:text-foreground hover:border-accent/40"
+              }`}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Floating Gallery
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("grid")}
+              className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 font-mono text-xs font-semibold transition-all cursor-pointer ${
+                viewMode === "grid"
+                  ? "bg-emerald-500 text-neutral-950 shadow-md ring-2 ring-emerald-500/30"
+                  : "border border-border/80 bg-frame/60 text-muted-foreground hover:text-foreground hover:border-accent/40"
+              }`}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              Structured Grid
+            </button>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-          <MemoryArchitectureCard />
-          <DeletionTestCard />
-          <BaseSepoliaCard />
-          <VirtualsAcpCard />
-          <ReputationFsmCard />
-          <McpCard />
-        </div>
+        {viewMode === "gallery" ? (
+          <div className="relative w-full">
+            <FloatingCardsGallery cards={galleryCards} height={780} />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+            <MemoryArchitectureCard />
+            <DeletionTestCard />
+            <BaseSepoliaCard />
+            <VirtualsAcpCard />
+            <ReputationFsmCard />
+            <McpCard />
+          </div>
+        )}
       </div>
     </section>
   );

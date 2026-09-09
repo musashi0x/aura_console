@@ -111,14 +111,51 @@ describe("Sibyl Studio Components", () => {
       expect(screen.getByText(/Option B \(curl one-liner\)/i)).toBeInTheDocument();
     });
 
-    it("toggles between pip and curl options on step 1", async () => {
+    it("toggles between pip and curl options on step 1 and updates terminal output", async () => {
       const user = userEvent.setup();
       render(<SibylCliWalkthrough />);
+
+      // Pip is default
+      expect(screen.getByText(/Downloading sibyl_memory_cli/i)).toBeInTheDocument();
 
       const curlBtn = screen.getByRole("button", { name: /Option B \(curl one-liner\)/i });
       await user.click(curlBtn);
 
-      expect(screen.getByText(/curl -fsSL https:\/\/sibyllabs.org\/install \| sh/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/curl -fsSL https:\/\/sibyllabs.org\/install \| sh/i).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByText(/Fetching Sibyl Memory installer from sibyllabs\.org/i)).toBeInTheDocument();
+      expect(screen.getByText(/Downloading release v0\.4\.1/i)).toBeInTheDocument();
+    });
+
+    it("wires accessible ARIA tabs and tabpanels correctly", () => {
+      render(<SibylCliWalkthrough />);
+
+      const tab = screen.getByRole("tab", { name: /Step 1/i });
+      expect(tab).toHaveAttribute("aria-controls", "walkthrough-panel-install");
+      expect(tab).toHaveAttribute("id", "walkthrough-tab-install");
+
+      const panel = screen.getByRole("tabpanel");
+      expect(panel).toHaveAttribute("id", "walkthrough-panel-install");
+      expect(panel).toHaveAttribute("aria-labelledby", "walkthrough-tab-install");
+    });
+
+    it("triggers live progressive simulation in the terminal", async () => {
+      const user = userEvent.setup();
+      render(<SibylCliWalkthrough />);
+
+      const simulateBtn = screen.getByRole("button", { name: /Simulate/i });
+      await user.click(simulateBtn);
+
+      expect(screen.getByText(/Running\.\.\./i)).toBeInTheDocument();
+    });
+
+    it("copies command with feedback", async () => {
+      const user = userEvent.setup();
+      render(<SibylCliWalkthrough />);
+
+      const copyBtn = screen.getByRole("button", { name: /Copy command for Install Sibyl Memory CLI & MCP/i });
+      await user.click(copyBtn);
+
+      expect(screen.getByText("Copied")).toBeInTheDocument();
     });
 
     it("navigates forward through all 4 steps", async () => {
