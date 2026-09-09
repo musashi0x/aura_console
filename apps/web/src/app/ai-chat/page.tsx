@@ -47,6 +47,7 @@ import { openChatStream, type ChatStreamHandle } from '@/features/console/chat/c
 import type { ChatConnection, ChatMessage, TokenUsage } from '@/features/console/chat/chat-types';
 import { env } from '@/lib/env';
 import { matchCommand } from '@/features/console/console-commands';
+import { apiClient } from '@/lib/api-client';
 import {
   ThinkingState,
   StreamingText,
@@ -60,6 +61,7 @@ import {
   SoundToggle,
   playInteractionSound,
 } from '@/components/primitives';
+import type { CounterpartyRecord, DiffRow } from '@/components/primitives';
 
 import {
   FileText,
@@ -391,73 +393,257 @@ const AI_CHAT_CSS = `
 }
 `;
 
-// Artifact content
+// Artifact content & definitions
 
 const MENTION_TOKENS = [
   { value: '@agent', label: '@Agent', variant: 'neutral' as const },
 ];
 
-const ARTIFACT_TITLE = 'JWT Token Refresh: Design & Rollout';
-const ARTIFACT_SUBTITLE = 'Document · Updated just now';
-const ARTIFACT_CONTENT = `## Overview
+export interface ArtifactData {
+  id: string;
+  title: string;
+  subtitle: string;
+  counterpartyKey?: string;
+  content: string;
+  v1Content?: string;
+}
 
-Our API gateway authenticates every request with a short-lived JWT access token. Until now, an expired token meant an immediate \`401\` — even when the user still held a valid refresh token. This document describes the silent-refresh flow we just shipped and how we're rolling it out.
+export interface SidebarMission {
+  id: string;
+  title: string;
+  active: boolean;
+}
 
-## The Problem
+export const ARTIFACT_BETA: ArtifactData = {
+  id: 'artifact-beta',
+  title: 'Beta Labs: Memory Dossier & Spend Proposal',
+  subtitle: 'Sibyl Reputation Dossier · Status: ESTABLISHED · Base Sepolia',
+  counterpartyKey: 'virtuals:agent:beta',
+  content: `## Executive Overview
 
-Token validation ran **before** any refresh logic, so the middleware rejected expired tokens outright:
+Counterparty record for **Beta Labs** (\`virtuals:agent:beta\`). Governed under Aura Memory Protocol with continuous on-chain Merkle commitment attestation on **Base Sepolia**.
 
-1. A request arrives with an expired access token
-2. \`validateToken()\` throws \`TokenExpiredError\`
-3. The catch block returns \`401\` — \`refreshToken()\` is never reached
+- **Primary Domain**: Market Data Procurement & Specialized Inferences
+- **Relationship Tier**: \`ESTABLISHED\` (Tier 2 / 5)
+- **Overall Reliability**: **84.0%** (14 episodes, 0 settlement disputes)
+- **Base Sepolia Attestation**: \`0x8fa1c94b2e88a01f92e0719da6b42b919ca012efd4b2\`
 
-The result was users getting logged out whenever an access token lapsed mid-session.
+## Reputation & Historical Performance
 
-## The Fix
+Beta Labs has operated continuously without execution timeouts or SLA breaches across the last 14 tasks:
 
-The middleware now catches \`TokenExpiredError\` specifically and attempts a silent refresh before rejecting. On success it reissues an access token and continues the request; on failure it falls back to \`401\`.
+| Metric | Recorded Value | Peer Benchmark | Assessment |
+|---|---|---|---|
+| Reliability Score | **84%** | 68% | Outperforming |
+| Task Completion Rate | **100%** (14/14) | 91% | Exceptional |
+| Disputed Settlements | **0** | 1.2 avg | Zero Fault |
+| Mean Response Latency | **2.4s** | 4.8s | Fast |
+| Last Verification | **Today** | — | Verified |
 
-- **Transparent** — valid sessions never see an interruption
-- **Safe** — a missing or invalid refresh token still returns \`401\`
-- **Cheap** — refresh only runs on the expiry path, not on every request
+## Spend Proposal & Guardrail Check
 
-## Testing
+An operator proposal is staged for **10.00 USDC** to procure verified real-time liquidity telemetry for autonomous execution:
 
-The refresh path is covered end to end:
+- **Daily Spend Limit**: \`100.00 USDC\`
+- **Cumulative Daily Spend**: \`10.00 USDC\`
+- **Remaining Daily Budget**: \`90.00 USDC\`
+- **Approval Threshold**: Exceeds \`5.00 USDC\` baseline threshold; operator approval card rendered in chat stream.
+- **Safety Status**: \`PASS\` — zero anomalies detected in counterparty historical signature verifications.
 
-| Scenario | Expected |
-|----------|----------|
-| Valid token passes through | \`200\` |
-| Expired token, valid refresh | \`200\` + new access token |
-| Expired token, invalid refresh | \`401\` |
-| Malformed token | \`401\` |
+## Counterfactual Rationale
 
-## Rollout & Monitoring
+- **Why Beta Labs?** Beta Labs demonstrated verified execution integrity on Base Sepolia.
+- **Alternative Evaluated**: **Alpha Studio** (\`virtuals:agent:alpha\`) was considered for similar tasks, but holds a **42%** reliability rating with probationary restrictions following 2 recent SLA delivery faults.
+- **Decision Engine Output**: Recommendation is to proceed with Beta Labs under standard 10 USDC staged release escrow.`,
+  v1Content: `## Preliminary Draft: Beta Labs Evaluation (v1)
 
-1. Ship behind the \`silent_refresh\` flag at 5% of traffic
-2. Watch the \`auth.refresh.success\` and \`auth.refresh.failure\` counters
-3. Alert if the failure rate exceeds **2%** over any 5-minute window
-4. Ramp to 100% once metrics hold steady for 24 hours`;
+Initial evaluation of Beta Labs (\`virtuals:agent:beta\`) for dataset procurement.
+
+- Initial Reliability: 78% (12 tasks recorded)
+- Status: PROBATIONARY
+- Guardrail: Pending daily cap assessment
+- Note: Preliminary observation before final Base Sepolia settlement verification.`,
+};
+
+export const ARTIFACT_ALPHA: ArtifactData = {
+  id: 'artifact-alpha',
+  title: 'Alpha Studio: Risk Assessment & Probationary Dossier',
+  subtitle: 'Sibyl Reputation Dossier · Status: PROBATIONARY · Base Sepolia',
+  counterpartyKey: 'virtuals:agent:alpha',
+  content: `## Executive Overview
+
+Counterparty record for **Alpha Studio** (\`virtuals:agent:alpha\`). Sibyl Memory Protocol has placed this entity on active watch.
+
+- **Primary Domain**: Code Generation & Verification
+- **Relationship Tier**: \`PROBATIONARY\` (Tier 1 / 5)
+- **Overall Reliability**: **42.0%** (42 tasks, 5 disputed settlements)
+- **Base Sepolia Attestation**: \`0x4b7e21a089d1b6cf843105a9de7218320498305c9a12\`
+
+## Risk Telemetry & Incidents
+
+Alpha Studio incurred an automated score degradation following failure to deliver signed validation proofs in Episode #39 and #41.
+
+| Incident ID | Timestamp | Category | Penalty Impact |
+|---|---|---|---|
+| \`INC-8821\` | 2 days ago | SLA Delivery Timeout | -180 bps Reliability |
+| \`INC-8740\` | 5 days ago | Payload Hash Mismatch | -240 bps Reliability |
+
+## Guardrail Constraints
+
+- **Single Transaction Max**: \`5.00 USDC\` (Strict Hard Cap)
+- **Operator Multi-Sig**: Required for all interactions regardless of amount.
+- **Escrow**: 100% bond collateralization required prior to mission acceptance.`,
+  v1Content: `## Preliminary Draft: Alpha Studio (v1)
+
+- Initial Reliability: 45%
+- Status: PROBATIONARY
+- Note: High incident frequency logged during stress execution tests.`,
+};
+
+export const ARTIFACT_GAMMA: ArtifactData = {
+  id: 'artifact-gamma',
+  title: 'Gamma Research: Intelligence & Onboarding Dossier',
+  subtitle: 'Sibyl Reputation Dossier · Status: PROBATIONARY · Base Sepolia',
+  counterpartyKey: 'virtuals:agent:gamma',
+  content: `## Executive Overview
+
+Counterparty record for **Gamma Research** (\`virtuals:agent:gamma\`).
+
+- **Primary Domain**: Market Intelligence & Quantitative Modeling
+- **Relationship Tier**: \`PROBATIONARY\` (Tier 1 / 5)
+- **Overall Reliability**: **62.0%** (5 episodes completed)
+- **Base Sepolia Attestation**: \`0x12dc58a74b39e081c70217ea958d348a520938b865f8\`
+
+## Performance History
+
+Emerging agent node onboarded 3 days ago. Initial performance indicates acceptable accuracy with slightly elevated response latency (8.2s avg).`,
+  v1Content: `## Preliminary Draft: Gamma Research (v1)
+
+- Status: Onboarding candidate
+- Evaluation: In progress`,
+};
+
+const DEFAULT_COUNTERPARTY_RECORDS: CounterpartyRecord[] = [
+  {
+    id: 'virtuals:agent:beta',
+    name: 'Beta Labs (Agent)',
+    category: 'Procurement & Data',
+    reliabilityScore: 0.84,
+    tasksCompleted: 14,
+    status: 'ESTABLISHED',
+    lastInteraction: '1 day ago',
+    commitmentHash: '0x8fa1...d4b2',
+  },
+  {
+    id: 'virtuals:agent:alpha',
+    name: 'Alpha Studio (Agent)',
+    category: 'Code & Verification',
+    reliabilityScore: 0.42,
+    tasksCompleted: 42,
+    status: 'PROBATIONARY',
+    lastInteraction: '2 hours ago',
+    commitmentHash: '0x4b7e...9a12',
+  },
+  {
+    id: 'virtuals:agent:gamma',
+    name: 'Gamma Research',
+    category: 'Market Intelligence',
+    reliabilityScore: 0.62,
+    tasksCompleted: 5,
+    status: 'PROBATIONARY',
+    lastInteraction: '3 days ago',
+    commitmentHash: '0x12dc...65f8',
+  },
+];
+
+const DEFAULT_DIFF_ROWS: DiffRow[] = [
+  {
+    key: 'reliability',
+    field: 'Beta Labs Reliability',
+    previousValue: '0.78 (12 tasks)',
+    newValue: '0.84 (14 tasks)',
+    status: 'modified',
+  },
+  {
+    key: 'status',
+    field: 'Relationship Status',
+    previousValue: 'PROBATIONARY',
+    newValue: 'ESTABLISHED',
+    status: 'modified',
+  },
+  {
+    key: 'commitment',
+    field: 'Base Sepolia Hash',
+    previousValue: '0x8fa1...d4b2',
+    newValue: '0x3e9c...81a0',
+    status: 'added',
+  },
+  {
+    key: 'spend_limit',
+    field: 'Remaining Daily Guardrail',
+    previousValue: '100.00 USDC',
+    newValue: '90.00 USDC',
+    status: 'modified',
+  },
+];
+
+const DEFAULT_MISSIONS: SidebarMission[] = [
+  { id: '01918342-7000-7c23-8c43-2617f16ef001', title: 'Buy market dataset under 25 USDC', active: true },
+  { id: '01918342-7000-7c23-8c43-2617f16ef002', title: 'Beta Labs 10 USDC Spend Proposal', active: false },
+  { id: '01918342-7000-7c23-8c43-2617f16ef003', title: 'Base Sepolia Treasury Spend Limit', active: false },
+];
 
 // Artifact subviews
 
-function ArtifactActions({ onClose }: { onClose?: () => void }) {
+function ArtifactActions({
+  version = 'v2',
+  onVersionChange,
+  onCopy,
+  copied = false,
+  showVersionSelector = true,
+  onClose,
+}: {
+  version?: 'v1' | 'v2';
+  onVersionChange?: (version: 'v1' | 'v2') => void;
+  onCopy?: () => void;
+  copied?: boolean;
+  showVersionSelector?: boolean;
+  onClose?: () => void;
+}) {
   return (
     <>
-      <DropdownMenu
-        button={{
-          label: 'v2',
-          variant: 'ghost',
-          size: 'sm',
-        }}
-        items={[{ label: 'v2 (current)' }, { label: 'v1' }]}
-      />
+      {showVersionSelector && (
+        <DropdownMenu
+          button={{
+            label: version === 'v2' ? 'v2 (current)' : 'v1 (draft)',
+            variant: 'ghost',
+            size: 'sm',
+          }}
+          items={[
+            {
+              label: 'v2 (current)',
+              onClick: () => {
+                playInteractionSound('press');
+                onVersionChange?.('v2');
+              },
+            },
+            {
+              label: 'v1 (draft)',
+              onClick: () => {
+                playInteractionSound('press');
+                onVersionChange?.('v1');
+              },
+            },
+          ]}
+        />
+      )}
       <Button
-        label="Copy"
+        label={copied ? 'Copied' : 'Copy'}
         variant="ghost"
         size="sm"
         icon={<Icon icon={ClipboardDocumentIcon} size="sm" />}
         isIconOnly
+        onClick={onCopy}
       />
       <Button
         label="Share"
@@ -465,6 +651,7 @@ function ArtifactActions({ onClose }: { onClose?: () => void }) {
         size="sm"
         icon={<Icon icon={ShareIcon} size="sm" />}
         isIconOnly
+        onClick={() => playInteractionSound('press')}
       />
       {onClose != null && (
         <Button
@@ -473,50 +660,104 @@ function ArtifactActions({ onClose }: { onClose?: () => void }) {
           size="sm"
           icon={<Icon icon={XMarkIcon} size="sm" />}
           isIconOnly
-          onClick={onClose}
+          onClick={() => {
+            playInteractionSound('release');
+            onClose();
+          }}
         />
       )}
     </>
   );
 }
 
-function MobileArtifactActions() {
+function MobileArtifactActions({
+  version = 'v2',
+  onVersionChange,
+  onCopy,
+  showVersionSelector = true,
+}: {
+  version?: 'v1' | 'v2';
+  onVersionChange?: (version: 'v1' | 'v2') => void;
+  onCopy?: () => void;
+  showVersionSelector?: boolean;
+}) {
+  const versionItems = showVersionSelector
+    ? [
+        {
+          type: 'section' as const,
+          title: 'Version',
+          items: [
+            {
+              label: version === 'v2' ? '✓ v2 (current)' : 'v2 (current)',
+              onClick: () => {
+                playInteractionSound('press');
+                onVersionChange?.('v2');
+              },
+            },
+            {
+              label: version === 'v1' ? '✓ v1 (draft)' : 'v1 (draft)',
+              onClick: () => {
+                playInteractionSound('press');
+                onVersionChange?.('v1');
+              },
+            },
+          ],
+        },
+        { type: 'divider' as const },
+      ]
+    : [];
+
   return (
     <MoreMenu
       label="Document actions"
       size="sm"
       items={[
+        ...versionItems,
         {
-          type: 'section',
-          title: 'Version',
-          items: [
-            { label: 'v2 (current)', onClick: () => {} },
-            { label: 'v1', onClick: () => {} },
-          ],
+          label: 'Copy',
+          icon: <Copy size={16} />,
+          onClick: onCopy,
         },
-        { type: 'divider' },
-        { label: 'Copy', icon: <Copy size={16} /> },
-        { label: 'Share', icon: <Share2 size={16} /> },
+        {
+          label: 'Share',
+          icon: <Share2 size={16} />,
+          onClick: () => playInteractionSound('press'),
+        },
       ]}
     />
   );
 }
 
-function ArtifactBody() {
+function ArtifactBody({
+  artifact = ARTIFACT_BETA,
+  version = 'v2',
+}: {
+  artifact?: ArtifactData;
+  version?: 'v1' | 'v2';
+}) {
+  const content = version === 'v1' && artifact.v1Content ? artifact.v1Content : artifact.content;
   return (
     <Section variant="transparent" style={artifactScroll} className="ai-chat-artifact-body">
       <VStack gap={2} style={articleBody}>
-        <Heading level={1}>{ARTIFACT_TITLE}</Heading>
-        <Markdown>{ARTIFACT_CONTENT}</Markdown>
+        <Heading level={1}>{artifact.title}</Heading>
+        <Markdown>{content}</Markdown>
       </VStack>
     </Section>
   );
 }
 
-function ArtifactCard({ onOpen }: { onOpen: () => void }) {
+function ArtifactCard({
+  title = ARTIFACT_BETA.title,
+  subtitle = ARTIFACT_BETA.subtitle,
+  onOpen,
+}: {
+  title?: string;
+  subtitle?: string;
+  onOpen: () => void;
+}) {
   return (
     <ClickableCard
-      label={`Open ${ARTIFACT_TITLE}`}
+      label={`Open ${title}`}
       onClick={onOpen}
       variant="muted"
       padding={3}
@@ -530,10 +771,10 @@ function ArtifactCard({ onOpen }: { onOpen: () => void }) {
         <StackItem size="fill">
           <VStack gap={0}>
             <Text type="label" weight="semibold">
-              {ARTIFACT_TITLE}
+              {title}
             </Text>
             <Text type="supporting" color="secondary">
-              Document
+              {subtitle}
             </Text>
           </VStack>
         </StackItem>
@@ -546,10 +787,14 @@ function ArtifactCard({ onOpen }: { onOpen: () => void }) {
 function ChatSidebarContext({
   scope,
   onScopeChange,
+  missions = DEFAULT_MISSIONS,
+  selectedMissionId,
   onSelectMission,
 }: {
   scope: 'global' | 'mission';
   onScopeChange: (scope: 'global' | 'mission') => void;
+  missions?: SidebarMission[];
+  selectedMissionId?: string;
   onSelectMission?: (missionId: string) => void;
 }) {
   return (
@@ -585,26 +830,25 @@ function ChatSidebarContext({
         <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--color-text-muted,#8d9aaf)] px-1">
           Recent Missions
         </span>
-        {[
-          { id: 'm-01', title: 'Beta Labs Onboarding', active: true },
-          { id: 'm-02', title: 'Base Sepolia Registry', active: false },
-          { id: 'm-03', title: 'Treasury Spend Limit', active: false },
-        ].map((m) => (
-          <button
-            key={m.id}
-            type="button"
-            data-sound="press"
-            onClick={() => onSelectMission?.(m.id)}
-            className={`flex items-center justify-between px-2 py-1 rounded-[6px] text-left text-[11px] transition-colors ${
-              m.active
-                ? 'bg-[#1b1b1f] text-[#f4f7fb] font-medium'
-                : 'text-[var(--color-text-muted,#8d9aaf)] hover:bg-[#1b1b1f] hover:text-[#f4f7fb]'
-            }`}
-          >
-            <span className="truncate">{m.title}</span>
-            <span className="text-[9px] font-mono opacity-60 ml-1">{m.id}</span>
-          </button>
-        ))}
+        {missions.map((m) => {
+          const isSelected = scope === 'mission' && (selectedMissionId ? m.id === selectedMissionId : m.active);
+          return (
+            <button
+              key={m.id}
+              type="button"
+              data-sound="press"
+              onClick={() => onSelectMission?.(m.id)}
+              className={`flex items-center justify-between px-2 py-1 rounded-[6px] text-left text-[11px] transition-colors ${
+                isSelected
+                  ? 'bg-[#1b1b1f] text-[#f4f7fb] font-medium'
+                  : 'text-[var(--color-text-muted,#8d9aaf)] hover:bg-[#1b1b1f] hover:text-[#f4f7fb]'
+              }`}
+            >
+              <span className="truncate">{m.title}</span>
+              <span className="text-[9px] font-mono opacity-60 ml-1">{m.id.slice(0, 8)}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -665,41 +909,91 @@ const INITIAL_DEMO_MESSAGES: ChatMessage[] = [
   {
     id: 'demo-user-1',
     role: 'operator',
-    text: '@agent Can you review these auth files? The JWT refresh logic seems broken — tokens expire but the middleware doesn&apos;t catch it.',
+    text: '@agent Evaluate counterparty memory for Beta Labs and draft a 10 USDC spend proposal under active guardrails.',
     complete: true,
     citations: [],
   },
   {
     id: 'demo-agent-1',
     role: 'agent',
-    text: `Found the issue. In \`middleware.ts\`, the token validation runs **before** the refresh check. When a token expires, the middleware rejects the request immediately instead of attempting a refresh.\n\nHere's the problematic sequence:\n1. Request arrives with an expired access token\n2. \`validateToken()\` throws \`TokenExpiredError\`\n3. The catch block returns \`401\` — never reaching \`refreshToken()\`\n\nThe fix is to catch \`TokenExpiredError\` specifically and attempt a refresh before rejecting.\n\nI have drafted a design and rollout doc. You can open the artifact on the right to review it.`,
-    thought: `1. Analyzed operator inquiry regarding JWT expiration and middleware failure.\n2. Read auth-service.ts and middleware.ts token interception flows.\n3. Identified ordering bug: validateToken() executed before refreshToken().\n4. Formulated architecture fix and generated rollout artifact.`,
+    text: `I recalled first-party reputation memory from Sibyl for **Beta Labs** (\`virtuals:agent:beta\`).\n\n- **Reliability**: 84% across 14 recorded tasks (Relationship: **ESTABLISHED**).\n- **Task Fit**: 92% match for dataset procurement and autonomous analysis.\n- **Guardrail Check**: Daily limit is 100.00 USDC with 90.00 USDC remaining. The proposed 10.00 USDC spend is within policy limits.\n\n*Counterfactual Rationale*: Memory checked; Beta Labs has proven fault-free settlement across past episodes, whereas Alpha Research has an active risk penalty from a recent delivery failure.\n\nI have drafted an approval proposal in the mission log and generated the Counterparty Dossier & Memory Ledger artifact in the inspector.`,
+    thought: `1. Analyzed operator inquiry regarding Beta Labs evaluation and spend proposal.\n2. Queried Sibyl memory store for virtuals:agent:beta and checked counterparty reputation score.\n3. Verified operator guardrail policies (100.00 USDC daily cap, 90.00 USDC remaining).\n4. Formulated counterfactual rationale comparing Beta Labs with alternative providers.\n5. Prepared approval proposal and updated Base Sepolia memory commitment diffs.`,
     usage: {
-      promptTokens: 840,
-      candidateTokens: 440,
-      totalTokens: 1280,
+      promptTokens: 2786,
+      candidateTokens: 881,
+      totalTokens: 3667,
     },
     complete: true,
-    citations: [],
+    citations: [
+      {
+        label: 'Sibyl Memory: Beta Labs',
+        counterpartyKey: 'virtuals:agent:beta',
+      },
+    ],
     toolCalls: [
-      { name: 'read', args: { target: 'auth-service.ts' } },
-      { name: 'read', args: { target: 'middleware.ts' } },
-      { name: 'bash', args: { command: 'grep -rn "refreshToken" src/' } },
+      {
+        name: 'memory_recall_counterparty',
+        args: { counterpartyKey: 'virtuals:agent:beta' },
+        result: {
+          status: 'AVAILABLE',
+          overall_reliability: 0.84,
+          relationship_status: 'ESTABLISHED',
+          task_fit: 0.92,
+          observed_price_usdc: '10.00',
+        },
+      },
+      {
+        name: 'guardrails_get_policies',
+        args: { agentId: 'aura-agent-01' },
+        result: {
+          dailyLimitUsdc: '100.00',
+          remainingBudgetUsdc: '90.00',
+          requiresApprovalAboveUsdc: '5.00',
+        },
+      },
+      {
+        name: 'mission_propose_approval',
+        args: {
+          runId: 'run-seed-01',
+          counterpartyKey: 'virtuals:agent:beta',
+          amountUsdc: '10.00',
+          reason: 'Procure verified market dataset under active guardrail limits',
+        },
+        result: {
+          created: true,
+          runId: 'run-seed-01',
+          status: 'APPROVAL_REQUESTED',
+          amountUsdc: '10.00',
+        },
+      },
     ],
   },
 ];
 
+const INITIAL_SESSION_USAGE: TokenUsage = {
+  promptTokens: 2786,
+  candidateTokens: 881,
+  totalTokens: 3667,
+};
+
 // Main component
 
-const STORAGE_KEY_MESSAGES = 'aura:ai-chat:messages:v2';
-const STORAGE_KEY_USAGE = 'aura:ai-chat:usage:v2';
+const STORAGE_KEY_MESSAGES = 'aura:ai-chat:messages:v3';
+const STORAGE_KEY_USAGE = 'aura:ai-chat:usage:v3';
 
 export default function AIChatConversationTemplate() {
   const router = useRouter();
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     if (typeof window === 'undefined') return INITIAL_DEMO_MESSAGES;
     try {
-      const stored = localStorage.getItem(STORAGE_KEY_MESSAGES);
+      // Purge obsolete v2 keys containing outdated JWT mocks
+      const v2 = localStorage.getItem('aura:ai-chat:messages:v2');
+      if (v2 && (v2.includes('JWT') || v2.includes('auth-service'))) {
+        localStorage.removeItem('aura:ai-chat:messages:v2');
+        localStorage.removeItem('aura:ai-chat:usage:v2');
+      }
+
+      const stored = localStorage.getItem(STORAGE_KEY_MESSAGES) || localStorage.getItem('aura:ai-chat:messages:v2');
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -714,10 +1008,10 @@ export default function AIChatConversationTemplate() {
 
   const [sessionUsage, setSessionUsage] = useState<TokenUsage>(() => {
     if (typeof window === 'undefined') {
-      return { promptTokens: 840, candidateTokens: 440, totalTokens: 1280 };
+      return INITIAL_SESSION_USAGE;
     }
     try {
-      const storedUsage = localStorage.getItem(STORAGE_KEY_USAGE);
+      const storedUsage = localStorage.getItem(STORAGE_KEY_USAGE) || localStorage.getItem('aura:ai-chat:usage:v2');
       if (storedUsage) {
         const parsedUsage = JSON.parse(storedUsage);
         if (parsedUsage && typeof parsedUsage.totalTokens === 'number') {
@@ -727,7 +1021,7 @@ export default function AIChatConversationTemplate() {
     } catch {
       // Ignore storage parse errors
     }
-    return { promptTokens: 840, candidateTokens: 440, totalTokens: 1280 };
+    return INITIAL_SESSION_USAGE;
   });
   const [draft, setDraft] = useState('');
   const [composerMode, setComposerMode] = useState<'ask' | 'edit'>('ask');
@@ -736,6 +1030,16 @@ export default function AIChatConversationTemplate() {
   const [artifactTab, setArtifactTab] = useState<'document' | 'diffs' | 'records'>('document');
   const [isArtifactDialogOpen, setIsArtifactDialogOpen] = useState(false);
   const [isArtifactOpen, setIsArtifactOpen] = useState(true);
+
+  const [activeArtifact, setActiveArtifact] = useState<ArtifactData>(ARTIFACT_BETA);
+  const [artifactVersion, setArtifactVersion] = useState<'v1' | 'v2'>('v2');
+  const [copiedArtifact, setCopiedArtifact] = useState(false);
+  const [diffRows, setDiffRows] = useState<DiffRow[]>(DEFAULT_DIFF_ROWS);
+  const [counterpartyRecords, setCounterpartyRecords] = useState<CounterpartyRecord[]>(
+    DEFAULT_COUNTERPARTY_RECORDS
+  );
+  const [recentMissions, setRecentMissions] = useState<SidebarMission[]>(DEFAULT_MISSIONS);
+  const [selectedMissionId, setSelectedMissionId] = useState<string>('01918342-7000-7c23-8c43-2617f16ef001');
 
   const rootRef = useRef<HTMLDivElement>(null);
   const counterRef = useRef(messages.length);
@@ -749,6 +1053,73 @@ export default function AIChatConversationTemplate() {
     maxSizePx: 960,
     autoSaveId: 'ai-chat-artifact-panel',
   });
+
+  // Fetch real runs on mount to populate sidebar missions
+  useEffect(() => {
+    let isMounted = true;
+    apiClient
+      .listRuns(10)
+      .then((res) => {
+        if (isMounted && res.ok && res.data?.runs && res.data.runs.length > 0) {
+          const loadedRuns = res.data.runs.map((r, i) => ({
+            id: r.id,
+            title: r.objective || `Mission ${r.id}`,
+            active: i === 0,
+          }));
+          setRecentMissions(loadedRuns);
+          if (loadedRuns[0]) {
+            setSelectedMissionId(loadedRuns[0].id);
+          }
+        }
+      })
+      .catch(() => {
+        // Retain default missions
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Fetch real counterparties on mount to populate Sibyl records
+  useEffect(() => {
+    let isMounted = true;
+    apiClient
+      .listSibylCounterparties()
+      .then((res) => {
+        if (isMounted && res.ok && res.data?.items && res.data.items.length > 0) {
+          const mapped: CounterpartyRecord[] = res.data.items.map((item) => ({
+            id: item.counterpartyKey,
+            name: item.displayName || item.counterpartyKey,
+            category: item.counterpartyKey.includes('alpha')
+              ? 'Market Intelligence & Verification'
+              : item.counterpartyKey.includes('beta')
+              ? 'Procurement & Data'
+              : 'Autonomous Agent',
+            reliabilityScore:
+              item.overallReliability ?? (item.counterpartyKey.includes('beta') ? 0.84 : 0.65),
+            tasksCompleted:
+              item.episodes?.length ?? (item.counterpartyKey.includes('beta') ? 14 : 6),
+            status:
+              item.relationshipStatus === 'PREFERRED' || item.relationshipStatus === 'ESTABLISHED'
+                ? 'ESTABLISHED'
+                : item.relationshipStatus === 'WATCH' || item.relationshipStatus === 'PROBATIONARY'
+                ? 'PROBATIONARY'
+                : 'ESTABLISHED',
+            lastInteraction: item.updatedAt
+              ? new Date(item.updatedAt).toLocaleDateString()
+              : '1 day ago',
+            commitmentHash: item.counterpartyKey.includes('beta') ? '0x8fa1...d4b2' : '0x4b7e...9a12',
+          }));
+          setCounterpartyRecords(mapped);
+        }
+      })
+      .catch(() => {
+        // Retain default records
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Save messages to localStorage on change
   useEffect(() => {
@@ -776,7 +1147,10 @@ export default function AIChatConversationTemplate() {
     }
   }, [sessionUsage, messages]);
 
-  const openArtifact = () => {
+  const openArtifact = (artifact?: ArtifactData) => {
+    if (artifact) {
+      setActiveArtifact(artifact);
+    }
     setArtifactTab('document');
     const width = rootRef.current?.offsetWidth ?? Infinity;
     if (width <= MOBILE_MAX_WIDTH) {
@@ -785,6 +1159,60 @@ export default function AIChatConversationTemplate() {
       setIsArtifactOpen(true);
     }
   };
+
+  const handleApplyDiffs = (selectedKeys: string[]) => {
+    playInteractionSound('pulse');
+    setDiffRows((prev) =>
+      prev.map((row) =>
+        selectedKeys.includes(row.key)
+          ? { ...row, previousValue: row.newValue, status: 'unchanged' as const }
+          : row
+      )
+    );
+  };
+
+  const handleSelectCounterparty = (record: CounterpartyRecord) => {
+    playInteractionSound('press');
+    if (record.id.includes('alpha')) {
+      setActiveArtifact(ARTIFACT_ALPHA);
+    } else if (record.id.includes('beta')) {
+      setActiveArtifact(ARTIFACT_BETA);
+    } else if (record.id.includes('gamma')) {
+      setActiveArtifact(ARTIFACT_GAMMA);
+    } else {
+      setActiveArtifact({
+        id: `artifact-${record.id}`,
+        title: `${record.name}: Memory Dossier`,
+        subtitle: `Sibyl Reputation Dossier · Status: ${record.status} · Base Sepolia`,
+        counterpartyKey: record.id,
+        content: `## Executive Overview\n\nCounterparty record for **${record.name}** (\`${record.id}\`). Category: **${record.category}**.\n\n## Reputation Metrics\n\n- **Reliability Score**: ${Math.round(record.reliabilityScore * 100)}%\n- **Tasks Completed**: ${record.tasksCompleted}\n- **Relationship Status**: ${record.status}\n- **Base Sepolia Commitment**: \`${record.commitmentHash || '0x4b7e...9a12'}\`\n\n## Guardrails & Policy\n\nGoverned by active operator spend policies on Base Sepolia.`,
+      });
+    }
+    setArtifactTab('document');
+    setIsArtifactOpen(true);
+  };
+
+  const handleSelectMission = (missionId: string) => {
+    playInteractionSound('press');
+    setSelectedMissionId(missionId);
+    setChatScope('mission');
+    setRecentMissions((prev) =>
+      prev.map((m) => ({ ...m, active: m.id === missionId }))
+    );
+  };
+
+  const handleCopyArtifact = useCallback(() => {
+    playInteractionSound('press');
+    const textToCopy =
+      artifactVersion === 'v1' && activeArtifact.v1Content
+        ? activeArtifact.v1Content
+        : activeArtifact.content;
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(textToCopy);
+      setCopiedArtifact(true);
+      setTimeout(() => setCopiedArtifact(false), 2000);
+    }
+  }, [activeArtifact, artifactVersion]);
 
   const stop = useCallback(() => {
     handleRef.current?.close();
@@ -796,14 +1224,14 @@ export default function AIChatConversationTemplate() {
     playInteractionSound('release');
     stop();
     setMessages(INITIAL_DEMO_MESSAGES);
-    setSessionUsage({
-      promptTokens: 840,
-      candidateTokens: 440,
-      totalTokens: 1280,
-    });
+    setSessionUsage(INITIAL_SESSION_USAGE);
+    setActiveArtifact(ARTIFACT_BETA);
+    setDiffRows(DEFAULT_DIFF_ROWS);
     try {
       localStorage.removeItem(STORAGE_KEY_MESSAGES);
       localStorage.removeItem(STORAGE_KEY_USAGE);
+      localStorage.removeItem('aura:ai-chat:messages:v2');
+      localStorage.removeItem('aura:ai-chat:usage:v2');
     } catch {
       // Ignore storage errors on clear
     }
@@ -840,7 +1268,10 @@ export default function AIChatConversationTemplate() {
         );
 
       handleRef.current?.close();
-      const chatUrl = `${env.NEXT_PUBLIC_API_URL}/api/chat?q=${encodeURIComponent(question)}`;
+      const chatUrl =
+        chatScope === 'mission' && selectedMissionId
+          ? `${env.NEXT_PUBLIC_API_URL}/api/runs/${encodeURIComponent(selectedMissionId)}/chat?q=${encodeURIComponent(question)}`
+          : `${env.NEXT_PUBLIC_API_URL}/api/chat?q=${encodeURIComponent(question)}`;
 
       handleRef.current = openChatStream({
         url: chatUrl,
@@ -870,18 +1301,95 @@ export default function AIChatConversationTemplate() {
             toolCalls: [...(m.toolCalls ?? []), toolCall],
           }));
           if (toolCall.name === 'mission_propose_approval') {
+            const args = toolCall.args as {
+              counterpartyKey?: string;
+              amountUsdc?: string | number;
+              reason?: string;
+            };
+            const cpKey = args?.counterpartyKey || 'virtuals:agent:beta';
+            const num = typeof args?.amountUsdc === 'number' ? args.amountUsdc : parseFloat(String(args?.amountUsdc || '10.00'));
+            const spendStr = Number.isNaN(num) ? '10.00' : num.toFixed(2);
+            const remainingBudget = Math.max(0, 100 - (Number.isNaN(num) ? 10 : num)).toFixed(2);
+
+            setDiffRows([
+              {
+                key: 'proposed_spend',
+                field: `${cpKey} Spend Authorization`,
+                previousValue: '0.00 USDC',
+                newValue: `${spendStr} USDC`,
+                status: 'added',
+              },
+              {
+                key: 'spend_limit',
+                field: 'Remaining Daily Guardrail',
+                previousValue: '100.00 USDC',
+                newValue: `${remainingBudget} USDC`,
+                status: 'modified',
+              },
+              {
+                key: 'approval_status',
+                field: 'Guardrail Policy Gate',
+                previousValue: 'STAGED',
+                newValue: 'OPERATOR_APPROVAL_REQUESTED',
+                status: 'modified',
+              },
+              {
+                key: 'commitment',
+                field: 'Base Sepolia Commitment Hash',
+                previousValue: '0x8fa1...d4b2',
+                newValue: '0x3e9c...81a0',
+                status: 'modified',
+              },
+            ]);
             setIsArtifactOpen(true);
             setArtifactTab('diffs');
+          } else if (toolCall.name === 'memory_recall_counterparty') {
+            const cpKey = (toolCall.args as { counterpartyKey?: string })?.counterpartyKey;
+            if (cpKey?.includes('alpha')) {
+              setActiveArtifact(ARTIFACT_ALPHA);
+            } else if (cpKey?.includes('beta')) {
+              setActiveArtifact(ARTIFACT_BETA);
+            } else if (cpKey?.includes('gamma')) {
+              setActiveArtifact(ARTIFACT_GAMMA);
+            } else if (cpKey) {
+              const res = toolCall.result as Record<string, unknown> | undefined;
+              const displayName = (res?.displayName as string) || cpKey;
+              const ret = res?.retrieval as Record<string, unknown> | undefined;
+              const rel = typeof ret?.overallReliability === 'number' ? Math.round(ret.overallReliability * 100) : 80;
+              const status = (ret?.relationshipStatus as string) || 'ESTABLISHED';
+              setActiveArtifact({
+                id: `artifact-${cpKey}`,
+                title: `${displayName}: Memory Dossier`,
+                subtitle: `Sibyl Reputation Dossier · Status: ${status} · Base Sepolia`,
+                counterpartyKey: cpKey,
+                content: `## Executive Overview\n\nCounterparty record for **${displayName}** (\`${cpKey}\`). Recalled from Sibyl Memory Protocol.\n\n## Reputation Metrics\n\n- **Reliability Score**: ${rel}%\n- **Relationship Status**: \`${status}\`\n- **Base Sepolia Attestation**: \`0x8fa1...d4b2\`\n\n## Governance & Guardrails\n\nUnder active Aura Memory Protocol guardrail surveillance.`,
+              });
+            }
+            setIsArtifactOpen(true);
+            setArtifactTab('document');
           }
         },
-        onState: setConnection,
+        onState: (state) => {
+          setConnection(state);
+          if (state.kind === 'unavailable') {
+            update((m) => ({
+              ...m,
+              complete: true,
+              text:
+                m.text ||
+                (state.detail === 'stream-unreachable'
+                  ? `Unable to connect to the agent gateway. Please verify that the API server is reachable at ${env.NEXT_PUBLIC_API_URL}`
+                  : 'Connection to the agent stream was interrupted.'),
+            }));
+          }
+        },
         onDone: () => {
           update((m) => ({ ...m, complete: true }));
           setConnection({ kind: 'idle' });
         },
       });
     },
-    [],
+    [chatScope, selectedMissionId],
   );
 
   const submit = (overrideText?: string) => {
@@ -946,6 +1454,9 @@ export default function AIChatConversationTemplate() {
               <ChatSidebarContext
                 scope={chatScope}
                 onScopeChange={setChatScope}
+                missions={recentMissions}
+                selectedMissionId={selectedMissionId}
+                onSelectMission={handleSelectMission}
               />
             }
           />
@@ -1013,7 +1524,7 @@ export default function AIChatConversationTemplate() {
                           isIconOnly
                           onClick={() => {
                             playInteractionSound('press');
-                            setDraft((d) => `${d} auth-service.ts `);
+                            setDraft((d) => `${d} virtuals:agent:beta `);
                           }}
                         />
                       </>
@@ -1160,10 +1671,15 @@ export default function AIChatConversationTemplate() {
                                 );
                               }
                               if (tc.name === 'mission_propose_approval') {
+                                const tcRes = tc.result as Record<string, unknown> | undefined;
+                                const effectiveRunId =
+                                  (tcRes?.runId as string) ||
+                                  (tc.args?.runId as string) ||
+                                  (chatScope === 'mission' && selectedMissionId ? selectedMissionId : undefined);
                                 return (
                                   <ApprovalCard
                                     key={`approval-${idx}`}
-                                    runId="demo-run-1"
+                                    runId={effectiveRunId}
                                     counterpartyKey={
                                       (tc.args?.counterpartyKey as string) ||
                                       'virtuals:agent:beta'
@@ -1175,6 +1691,14 @@ export default function AIChatConversationTemplate() {
                                       (tc.args?.reason as string) ||
                                       'Draft exploratory research engagement under active guardrail limits'
                                     }
+                                    counterfactual={{
+                                      baselineCounterparty: 'Alpha Studio',
+                                      baselineReliability: 0.42,
+                                      proposedReliability: 0.84,
+                                      delta: '+42%',
+                                      rationale:
+                                        'Beta Labs demonstrates verified 84% reliability on Base Sepolia. Alpha Studio holds a 42% probationary rating following deliverable acceptance faults.',
+                                    }}
                                   />
                                 );
                               }
@@ -1195,9 +1719,50 @@ export default function AIChatConversationTemplate() {
                           />
                         </ChatMessageBubble>
 
-                        {message.id === 'demo-agent-1' && (
+                        {(message.id === 'demo-agent-1' ||
+                          message.toolCalls?.some((tc) => tc.name === 'memory_recall_counterparty')) && (
                           <ChatMessageBubble variant="ghost" width="100%">
-                            <ArtifactCard onOpen={openArtifact} />
+                            <ArtifactCard
+                              title={
+                                message.id === 'demo-agent-1'
+                                  ? activeArtifact.title
+                                  : (() => {
+                                      const tc = message.toolCalls?.find(
+                                        (t) => t.name === 'memory_recall_counterparty',
+                                      );
+                                      const key = (tc?.args as { counterpartyKey?: string })?.counterpartyKey;
+                                      if (key?.includes('alpha')) return ARTIFACT_ALPHA.title;
+                                      if (key?.includes('gamma')) return ARTIFACT_GAMMA.title;
+                                      return ARTIFACT_BETA.title;
+                                    })()
+                              }
+                              subtitle={
+                                message.id === 'demo-agent-1'
+                                  ? activeArtifact.subtitle
+                                  : (() => {
+                                      const tc = message.toolCalls?.find(
+                                        (t) => t.name === 'memory_recall_counterparty',
+                                      );
+                                      const key = (tc?.args as { counterpartyKey?: string })?.counterpartyKey;
+                                      if (key?.includes('alpha')) return ARTIFACT_ALPHA.subtitle;
+                                      if (key?.includes('gamma')) return ARTIFACT_GAMMA.subtitle;
+                                      return ARTIFACT_BETA.subtitle;
+                                    })()
+                              }
+                              onOpen={() => {
+                                if (message.id === 'demo-agent-1') {
+                                  openArtifact(activeArtifact);
+                                } else {
+                                  const tc = message.toolCalls?.find(
+                                    (t) => t.name === 'memory_recall_counterparty',
+                                  );
+                                  const key = (tc?.args as { counterpartyKey?: string })?.counterpartyKey;
+                                  if (key?.includes('alpha')) openArtifact(ARTIFACT_ALPHA);
+                                  else if (key?.includes('gamma')) openArtifact(ARTIFACT_GAMMA);
+                                  else openArtifact(ARTIFACT_BETA);
+                                }
+                              }}
+                            />
                           </ChatMessageBubble>
                         )}
 
@@ -1261,14 +1826,14 @@ export default function AIChatConversationTemplate() {
                         <VStack gap={0}>
                           <Text type="label" weight="semibold">
                             {artifactTab === 'document'
-                              ? ARTIFACT_TITLE
+                              ? activeArtifact.title
                               : artifactTab === 'diffs'
                               ? 'Memory State & Ledger Diffs'
                               : 'Sibyl Counterparty Ledger'}
                           </Text>
                           <Text type="supporting" color="secondary">
                             {artifactTab === 'document'
-                              ? ARTIFACT_SUBTITLE
+                              ? activeArtifact.subtitle
                               : artifactTab === 'diffs'
                               ? 'Proposed state changes vs commit log'
                               : 'Historical relationship memory & reliability'}
@@ -1278,6 +1843,11 @@ export default function AIChatConversationTemplate() {
                     }
                     endContent={
                       <ArtifactActions
+                        version={artifactVersion}
+                        onVersionChange={setArtifactVersion}
+                        onCopy={handleCopyArtifact}
+                        copied={copiedArtifact}
+                        showVersionSelector={artifactTab === 'document'}
                         onClose={() => setIsArtifactOpen(false)}
                       />
                     }
@@ -1323,15 +1893,20 @@ export default function AIChatConversationTemplate() {
                     </button>
                   </div>
 
-                  {artifactTab === 'document' && <ArtifactBody />}
+                  {artifactTab === 'document' && (
+                    <ArtifactBody artifact={activeArtifact} version={artifactVersion} />
+                  )}
                   {artifactTab === 'diffs' && (
                     <div style={artifactScroll} className="p-4">
-                      <DiffTable />
+                      <DiffTable rows={diffRows} onApply={handleApplyDiffs} />
                     </div>
                   )}
                   {artifactTab === 'records' && (
                     <div style={artifactScroll} className="p-4">
-                      <RecordsTable />
+                      <RecordsTable
+                        records={counterpartyRecords}
+                        onSelectRecord={handleSelectCounterparty}
+                      />
                     </div>
                   )}
                 </Card>
@@ -1353,21 +1928,28 @@ export default function AIChatConversationTemplate() {
             <DialogHeader
               title={
                 artifactTab === 'document'
-                  ? ARTIFACT_TITLE
+                  ? activeArtifact.title
                   : artifactTab === 'diffs'
                   ? 'Memory State & Ledger Diffs'
                   : 'Sibyl Counterparty Ledger'
               }
               subtitle={
                 artifactTab === 'document'
-                  ? ARTIFACT_SUBTITLE
+                  ? activeArtifact.subtitle
                   : artifactTab === 'diffs'
                   ? 'Proposed state changes vs commit log'
                   : 'Historical relationship memory & reliability'
               }
               hasDivider
               onOpenChange={setIsArtifactDialogOpen}
-              endContent={<MobileArtifactActions />}
+              endContent={
+                <MobileArtifactActions
+                  version={artifactVersion}
+                  onVersionChange={setArtifactVersion}
+                  onCopy={handleCopyArtifact}
+                  showVersionSelector={artifactTab === 'document'}
+                />
+              }
             />
           }
           content={
@@ -1410,15 +1992,20 @@ export default function AIChatConversationTemplate() {
                   Sibyl Records
                 </button>
               </div>
-              {artifactTab === 'document' && <ArtifactBody />}
+              {artifactTab === 'document' && (
+                <ArtifactBody artifact={activeArtifact} version={artifactVersion} />
+              )}
               {artifactTab === 'diffs' && (
                 <div style={artifactScroll} className="p-4">
-                  <DiffTable />
+                  <DiffTable rows={diffRows} onApply={handleApplyDiffs} />
                 </div>
               )}
               {artifactTab === 'records' && (
                 <div style={artifactScroll} className="p-4">
-                  <RecordsTable />
+                  <RecordsTable
+                    records={counterpartyRecords}
+                    onSelectRecord={handleSelectCounterparty}
+                  />
                 </div>
               )}
             </LayoutContent>

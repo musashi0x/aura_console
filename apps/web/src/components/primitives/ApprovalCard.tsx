@@ -32,10 +32,10 @@ export function ApprovalCard({
   reason = "Draft exploratory engagement under active guardrail limits",
   counterfactual = {
     baselineCounterparty: "Alpha Studio",
-    baselineReliability: 0.98,
+    baselineReliability: 0.42,
     proposedReliability: 0.84,
-    delta: "-14%",
-    rationale: "Beta Labs costs 60% less per token unit while maintaining acceptable quality for non-critical tasks.",
+    delta: "+42%",
+    rationale: "Beta Labs demonstrates verified 84% reliability on Base Sepolia. Alpha Studio holds a 42% probationary rating following deliverable acceptance faults.",
   },
   onApprove,
   onReject,

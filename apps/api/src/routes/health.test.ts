@@ -87,6 +87,17 @@ describe("health routes", () => {
   });
 
   it("answers /health/agent with agent identity verification", async () => {
+    globalThis.fetch = vi.fn().mockImplementation(async (url: string | URL | Request) => {
+      const urlStr = String(url);
+      if (urlStr.includes("/list-apps")) {
+        return new Response(JSON.stringify(["aura-agent"]), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return originalFetch(url);
+    });
+
     const res = await app.request("/health/agent");
     expect(res.status).toBe(200);
     const body = (await res.json()) as {

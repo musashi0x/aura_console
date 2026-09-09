@@ -38,23 +38,23 @@ describe("AIChatPage — Stone Theme & Conversational Workspace", () => {
 
   it("renders initial demo messages, tool calls, and artifact card", () => {
     render(<AIChatPage />);
-    expect(screen.getByText(/Can you review these auth files/i)).toBeInTheDocument();
-    expect(screen.getByText(/Found the issue/i)).toBeInTheDocument();
-    expect(screen.getAllByText("read").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText("JWT Token Refresh: Design & Rollout").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/Evaluate counterparty memory for Beta Labs/i)).toBeInTheDocument();
+    expect(screen.getByText(/I recalled first-party reputation memory from Sibyl/i)).toBeInTheDocument();
+    expect(screen.getAllByText("memory_recall_counterparty").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("Beta Labs: Memory Dossier & Spend Proposal").length).toBeGreaterThanOrEqual(1);
   });
 
   it("toggles the artifact panel when close and card open are clicked", () => {
     render(<AIChatPage />);
-    expect(screen.getByRole("heading", { level: 1, name: "JWT Token Refresh: Design & Rollout" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Beta Labs: Memory Dossier & Spend Proposal" })).toBeInTheDocument();
 
     const closeBtn = screen.getByRole("button", { name: "Close document" });
     fireEvent.click(closeBtn);
-    expect(screen.queryByRole("heading", { level: 1, name: "JWT Token Refresh: Design & Rollout" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 1, name: "Beta Labs: Memory Dossier & Spend Proposal" })).not.toBeInTheDocument();
 
-    const openCard = screen.getByRole("button", { name: /Open JWT Token Refresh: Design & Rollout/i });
+    const openCard = screen.getByRole("button", { name: /Open Beta Labs: Memory Dossier & Spend Proposal/i });
     fireEvent.click(openCard);
-    expect(screen.getByRole("heading", { level: 1, name: "JWT Token Refresh: Design & Rollout" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Beta Labs: Memory Dossier & Spend Proposal" })).toBeInTheDocument();
   });
 
   it("contains no cyan or electric blue in inline CSS", () => {
@@ -182,7 +182,7 @@ describe("AIChatPage — Stone Theme & Conversational Workspace", () => {
         citations: [],
       },
     ];
-    localStorage.setItem("aura:ai-chat:messages:v2", JSON.stringify(savedMessages));
+    localStorage.setItem("aura:ai-chat:messages:v3", JSON.stringify(savedMessages));
 
     render(<AIChatPage />);
     expect(await screen.findByText("Temporary message before clear")).toBeInTheDocument();
@@ -192,8 +192,112 @@ describe("AIChatPage — Stone Theme & Conversational Workspace", () => {
     fireEvent.click(newChatBtns[0]!);
 
     expect(screen.queryByText("Temporary message before clear")).not.toBeInTheDocument();
-    expect(screen.getByText(/Can you review these auth files/i)).toBeInTheDocument();
-    expect(localStorage.getItem("aura:ai-chat:messages:v2")).toBeNull();
+    expect(screen.getByText(/Evaluate counterparty memory for Beta Labs/i)).toBeInTheDocument();
+    expect(localStorage.getItem("aura:ai-chat:messages:v3")).toBeNull();
+  });
+
+  it("switches inspector tabs to Memory Diffs and Sibyl Records", () => {
+    render(<AIChatPage />);
+    const diffsTabBtns = screen.getAllByRole("button", { name: "Memory Diffs" });
+    fireEvent.click(diffsTabBtns[0]!);
+    expect(screen.getAllByText("Beta Labs Reliability").length).toBeGreaterThanOrEqual(1);
+
+    const recordsTabBtns = screen.getAllByRole("button", { name: "Sibyl Records" });
+    fireEvent.click(recordsTabBtns[0]!);
+    expect(screen.getAllByText("Beta Labs (Agent)").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("selects a counterparty from Sibyl Records to open their dossier in the inspector", () => {
+    render(<AIChatPage />);
+    const recordsTabBtns = screen.getAllByRole("button", { name: "Sibyl Records" });
+    fireEvent.click(recordsTabBtns[0]!);
+
+    const alphaRows = screen.getAllByText("Alpha Studio (Agent)");
+    fireEvent.click(alphaRows[0]!);
+
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Alpha Studio: Risk Assessment & Probationary Dossier" })
+    ).toBeInTheDocument();
+  });
+
+  it("switches artifact version to v1 draft via version dropdown", () => {
+    render(<AIChatPage />);
+    const versionBtns = screen.getAllByRole("button", { name: /v2 \(current\)/i });
+    fireEvent.click(versionBtns[0]!);
+
+    const v1Options = screen.getAllByText(/v1 \(draft\)/i);
+    fireEvent.click(v1Options[0]!);
+
+    expect(screen.getAllByText(/Preliminary Draft: Beta Labs Evaluation/i).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("hides artifact version dropdown when switching away from document tab", () => {
+    render(<AIChatPage />);
+    expect(screen.getAllByRole("button", { name: /v2 \(current\)/i }).length).toBeGreaterThanOrEqual(1);
+
+    const diffsTabBtns = screen.getAllByRole("button", { name: "Memory Diffs" });
+    fireEvent.click(diffsTabBtns[0]!);
+    expect(screen.queryByRole("button", { name: /v2 \(current\)/i })).not.toBeInTheDocument();
+
+    const docTabBtns = screen.getAllByRole("button", { name: "Document" });
+    fireEvent.click(docTabBtns[0]!);
+    expect(screen.getAllByRole("button", { name: /v2 \(current\)/i }).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("renders ApprovalCard with authentic Aura counterfactual (+42% reliability gain over Alpha)", () => {
+    render(<AIChatPage />);
+    expect(screen.getByText("+42% Reliability")).toBeInTheDocument();
+    expect(screen.getAllByText(/Alpha Studio/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/42% reliability/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/84% reliability/i).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("renders interactive ArtifactCard for recalled counterparty in chat turns", async () => {
+    const savedWithRecall = [
+      {
+        id: "op-custom-1",
+        role: "operator",
+        text: "Please inspect Alpha Studio",
+        complete: true,
+        citations: [],
+      },
+      {
+        id: "agent-custom-1",
+        role: "agent",
+        text: "Recalled memory for Alpha Studio.",
+        complete: true,
+        citations: [],
+        toolCalls: [
+          {
+            name: "memory_recall_counterparty",
+            args: { counterpartyKey: "virtuals:agent:alpha" },
+            result: {
+              counterpartyKey: "virtuals:agent:alpha",
+              displayName: "Alpha Studio",
+              retrieval: {
+                status: "AVAILABLE",
+                overallReliability: 0.42,
+                relationshipStatus: "PROBATIONARY",
+              },
+            },
+          },
+        ],
+      },
+    ];
+    localStorage.setItem("aura:ai-chat:messages:v3", JSON.stringify(savedWithRecall));
+
+    render(<AIChatPage />);
+    const openAlphaBtn = await screen.findByRole("button", {
+      name: /Open Alpha Studio: Risk Assessment & Probationary Dossier/i,
+    });
+    expect(openAlphaBtn).toBeInTheDocument();
+    fireEvent.click(openAlphaBtn);
+
+    expect(
+      screen.getAllByRole("heading", { level: 1, name: "Alpha Studio: Risk Assessment & Probationary Dossier" }).length
+    ).toBeGreaterThanOrEqual(1);
+
+    localStorage.removeItem("aura:ai-chat:messages:v3");
   });
 
   it("passes axe accessibility audits", async () => {
