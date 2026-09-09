@@ -80,6 +80,13 @@ if (typeof HTMLDialogElement !== "undefined") {
   }
 }
 
+if (typeof HTMLMediaElement !== "undefined") {
+  HTMLMediaElement.prototype.play = () => Promise.resolve();
+  HTMLMediaElement.prototype.pause = () => {};
+  HTMLMediaElement.prototype.load = () => {};
+}
+
+
 /**
  * jsdom does not implement matchMedia. Default to "no preference" so reveal
  * motion is exercised, and let a test override it to assert the reduced

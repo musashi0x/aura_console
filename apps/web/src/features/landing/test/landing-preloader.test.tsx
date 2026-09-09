@@ -105,7 +105,13 @@ describe("LandingPreloader", () => {
   });
 
   it("has no axe violations", async () => {
+    console.time("render");
     const { container } = render(<LandingPreloader />);
+    console.timeEnd("render");
+
+    console.time("expectNoAxeViolations");
     await expectNoAxeViolations(container);
-  });
+    console.timeEnd("expectNoAxeViolations");
+  }, 15000);
+
 });

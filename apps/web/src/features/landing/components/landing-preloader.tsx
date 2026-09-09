@@ -23,22 +23,39 @@ export function LandingPreloader({
   const [progress, setProgress] = useState(0);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const isExitingRef = useRef(false);
+  const dismissTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const skipButtonRef = useRef<HTMLButtonElement | null>(null);
 
   const handleDismiss = useCallback(() => {
     if (isExitingRef.current) return;
     isExitingRef.current = true;
     setIsExiting(true);
 
-    setTimeout(() => {
+    dismissTimerRef.current = setTimeout(() => {
       setIsDismissed(true);
       onComplete?.();
-    }, 600);
+    }, 700);
   }, [onComplete]);
 
-  // Handle keyboard shortcuts (Escape, Space)
+  // Clean up any pending dismiss timer on unmount
+  useEffect(() => {
+    return () => {
+      if (dismissTimerRef.current) {
+        clearTimeout(dismissTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Autofocus the skip button on mount for keyboard & screen reader accessibility
+  useEffect(() => {
+    skipButtonRef.current?.focus();
+  }, []);
+
+  // Handle keyboard shortcuts (Escape, Space) with preventDefault to avoid background scroll
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" || e.key === " ") {
+      if (e.key === "Escape" || e.key === " " || e.key === "Spacebar") {
+        e.preventDefault();
         handleDismiss();
       }
     };
@@ -51,11 +68,6 @@ export function LandingPreloader({
   useEffect(() => {
     if (isDismissed) return;
 
-    const isJsdom =
-      typeof navigator !== "undefined" &&
-      navigator.userAgent?.includes("jsdom");
-    if (isJsdom) return;
-
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
@@ -64,24 +76,18 @@ export function LandingPreloader({
     };
   }, [isDismissed]);
 
-  // Fallback timer: ensure preloader dismisses automatically after 6.8s
+  // Fallback timer: ensure preloader dismisses automatically after timeout
   useEffect(() => {
-    // Respect reduced motion
+    if (isDismissed) return;
+
+    // Respect reduced motion: dismiss immediately without animation delay
     if (
       typeof window !== "undefined" &&
       typeof window.matchMedia === "function" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches
     ) {
-      handleDismiss();
-      return;
-    }
-
-    // In headless test environments like jsdom, avoid scheduling dangling timers
-    // unless explicitly tested with fallbackTimeoutMs
-    const isJsdom =
-      typeof navigator !== "undefined" &&
-      navigator.userAgent?.includes("jsdom");
-    if (isJsdom && !fallbackTimeoutMs) {
+      setIsDismissed(true);
+      onComplete?.();
       return;
     }
 
@@ -91,24 +97,24 @@ export function LandingPreloader({
     }, timeout);
 
     return () => clearTimeout(timer);
-  }, [handleDismiss, fallbackTimeoutMs]);
+  }, [handleDismiss, fallbackTimeoutMs, isDismissed, onComplete]);
 
-  // Attempt video playback
+  // Attempt video playback with standard browser feature detection
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    // Do not call play() if not a real browser / media environment
-    const isJsdom =
-      typeof navigator !== "undefined" &&
-      navigator.userAgent?.includes("jsdom");
-    if (isJsdom) return;
-
-    const playPromise = video.play();
-    if (playPromise !== undefined) {
-      playPromise.catch(() => {
-        // Autoplay may be restricted by browser policy; fallback timer handles completion
-      });
+    if (typeof video.play === "function") {
+      try {
+        const playPromise = video.play();
+        if (playPromise && typeof playPromise.catch === "function") {
+          playPromise.catch(() => {
+            // Autoplay may be restricted by browser policy; fallback timer handles completion
+          });
+        }
+      } catch {
+        // Playback not supported
+      }
     }
   }, []);
 
@@ -148,7 +154,9 @@ export function LandingPreloader({
         </div>
 
         <button
+          ref={skipButtonRef}
           type="button"
+          autoFocus
           onClick={handleDismiss}
           aria-label="Skip preloader animation"
           className="group inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/60 px-4 py-1.5 font-mono text-xs text-neutral-200 backdrop-blur-md transition-all hover:bg-white/10 hover:border-white/40 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 cursor-pointer"
@@ -167,16 +175,17 @@ export function LandingPreloader({
           autoPlay
           muted
           playsInline
-          preload="none"
+          preload="auto"
           poster="/preloader-poster.jpg"
           onEnded={handleDismiss}
+          onError={handleDismiss}
           onTimeUpdate={handleTimeUpdate}
           aria-label="How do I give my agent lasting memory animation"
           className="w-full max-h-[72vh] object-contain rounded-xl shadow-2xl border border-white/10"
         >
           <source src="/preloader.webm" type="video/webm" />
-          <source src="/light-rails-0909-164913.webm" type="video/webm" />
           <source src="/preloader.mp4" type="video/mp4" />
+          <source src="/light-rails-0909-164913.webm" type="video/webm" />
           <p className="sr-only">
             How do I give my agent lasting memory? Aura Memory light rails preloader animation.
           </p>

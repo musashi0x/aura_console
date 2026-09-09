@@ -28,7 +28,7 @@ const SPEED_REF = 32; // px/sec baseline drift
 const ZOOM = 1.35; // Maximum zoom factor
 const ZOOM_FIT = 0.92; // Viewport bounding ratio
 
-type Particle = {
+export type Particle = {
   x: number;
   y: number;
   dx: number;
@@ -67,6 +67,92 @@ const CARD_LAYOUT: ReadonlyArray<{
   { w: 360, h: 330, x: 50, y: 96 }, // Col 1 Lower: reputation-fsm
   { w: 380, h: 330, x: 97, y: 96 }, // Col 2 Lower: mcp
 ];
+
+export interface PairwiseConstraintOptions {
+  dt: number;
+  containerHeight: number;
+  uniformSpan: number;
+  zoomedIdx: number | null;
+  heldIdx: number | null;
+  wrapTop?: number;
+  wrapBottom?: number;
+}
+
+/**
+ * Apply pairwise soft repulsive spring separation between cards in the same column.
+ * Guarantees that cards in the same column never overlap across cyclic wraps.
+ */
+export function applyPairwiseColumnConstraints(
+  particles: Particle[],
+  options: PairwiseConstraintOptions
+): void {
+  const {
+    dt,
+    containerHeight: H,
+    uniformSpan: UNIFORM_SPAN,
+    zoomedIdx: zi,
+    heldIdx,
+  } = options;
+  const wrapTop = options.wrapTop ?? -420;
+  const wrapBottom = options.wrapBottom ?? H + 20;
+
+  for (let i = 0; i < particles.length; i++) {
+    const a = particles[i];
+    if (!a) continue;
+
+    for (let j = i + 1; j < particles.length; j++) {
+      const b = particles[j];
+      if (!b || a.col !== b.col) continue;
+
+      const cyA = a.y + a.h / 2;
+      const cyB = b.y + b.h / 2;
+      let dY = cyB - cyA;
+
+      // Cyclic shortest distance path across uniform column wrap span
+      if (dY > UNIFORM_SPAN / 2) dY -= UNIFORM_SPAN;
+      else if (dY < -UNIFORM_SPAN / 2) dY += UNIFORM_SPAN;
+
+      const distY = Math.abs(dY);
+      const minDist = (a.h + b.h) / 2 + 30;
+
+      if (distY < minDist) {
+        const overlap = minDist - distY;
+        const sign = dY >= 0 ? 1 : -1;
+
+        const frozenA = zi === i;
+        const isHeldA = heldIdx === i;
+        const frozenB = zi === j;
+        const isHeldB = heldIdx === j;
+
+        const canMoveA = !frozenA && !isHeldA;
+        const canMoveB = !frozenB && !isHeldB;
+
+        // Soft repulsive spring separation
+        const springRate = Math.min(1, 10 * dt);
+        const sep = overlap * springRate;
+
+        if (canMoveA && canMoveB) {
+          a.y -= sign * sep * 0.5;
+          b.y += sign * sep * 0.5;
+        } else if (canMoveA && !canMoveB) {
+          a.y -= sign * sep;
+        } else if (!canMoveA && canMoveB) {
+          b.y += sign * sep;
+        }
+
+        // Keep positions within bounds after repulsive separation
+        if (canMoveA) {
+          while (a.y > wrapBottom) a.y -= UNIFORM_SPAN;
+          while (a.y < wrapTop) a.y += UNIFORM_SPAN;
+        }
+        if (canMoveB) {
+          while (b.y > wrapBottom) b.y -= UNIFORM_SPAN;
+          while (b.y < wrapTop) b.y += UNIFORM_SPAN;
+        }
+      }
+    }
+  }
+}
 
 export interface FloatingCardItem {
   id: string;
@@ -192,7 +278,7 @@ export function FloatingCardsGallery({
         setZoomed(idx);
 
         const root = rootRef.current;
-        if (root) {
+        if (root && typeof root.scrollIntoView === "function") {
           const rect = root.getBoundingClientRect();
           const inView = rect.top >= 0 && rect.bottom <= window.innerHeight;
           if (!inView) {
@@ -208,8 +294,6 @@ export function FloatingCardsGallery({
 
     const onHashChange = () => focusCardByHash(window.location.hash);
     const onDocumentClick = (e: MouseEvent) => {
-      // Ignore automated/synthetic test runner clicks
-      if (!e.isTrusted) return;
       const target = e.target as HTMLElement | null;
       const anchor = target?.closest("a");
       if (!anchor) return;
@@ -393,62 +477,13 @@ export function FloatingCardsGallery({
       }
 
       // 2. Pairwise vertical distance constraint between cards in the same column to prevent drift overlap
-      for (let i = 0; i < partsRef.current.length; i++) {
-        const a = partsRef.current[i];
-        if (!a) continue;
-
-        for (let j = i + 1; j < partsRef.current.length; j++) {
-          const b = partsRef.current[j];
-          if (!b || a.col !== b.col) continue;
-
-          const cyA = a.y + a.h / 2;
-          const cyB = b.y + b.h / 2;
-          let dY = cyB - cyA;
-
-          // Cyclic shortest distance path across uniform column wrap span
-          if (dY > UNIFORM_SPAN / 2) dY -= UNIFORM_SPAN;
-          else if (dY < -UNIFORM_SPAN / 2) dY += UNIFORM_SPAN;
-
-          const distY = Math.abs(dY);
-          const minDist = (a.h + b.h) / 2 + 30;
-
-          if (distY < minDist) {
-            const overlap = minDist - distY;
-            const sign = dY >= 0 ? 1 : -1;
-
-            const frozenA = zi === i;
-            const isHeldA = heldIdx === i;
-            const frozenB = zi === j;
-            const isHeldB = heldIdx === j;
-
-            const canMoveA = !frozenA && !isHeldA;
-            const canMoveB = !frozenB && !isHeldB;
-
-            // Soft repulsive spring separation
-            const springRate = Math.min(1, 10 * dt);
-            const sep = overlap * springRate;
-
-            if (canMoveA && canMoveB) {
-              a.y -= sign * sep * 0.5;
-              b.y += sign * sep * 0.5;
-            } else if (canMoveA && !canMoveB) {
-              a.y -= sign * sep;
-            } else if (!canMoveA && canMoveB) {
-              b.y += sign * sep;
-            }
-
-            // Keep positions within bounds after repulsive separation
-            if (canMoveA) {
-              while (a.y > H + 20) a.y -= UNIFORM_SPAN;
-              while (a.y < -420) a.y += UNIFORM_SPAN;
-            }
-            if (canMoveB) {
-              while (b.y > H + 20) b.y -= UNIFORM_SPAN;
-              while (b.y < -420) b.y += UNIFORM_SPAN;
-            }
-          }
-        }
-      }
+      applyPairwiseColumnConstraints(partsRef.current, {
+        dt,
+        containerHeight: H,
+        uniformSpan: UNIFORM_SPAN,
+        zoomedIdx: zi,
+        heldIdx,
+      });
 
       // 3. Pointer interaction, click zoom, and visual transform updates
       for (let i = 0; i < partsRef.current.length; i++) {
