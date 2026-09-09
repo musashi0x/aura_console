@@ -591,5 +591,46 @@ describe("interactive in-chat approvals and tool start streaming", () => {
   });
 });
 
+describe("route-aware chat surface grounding", () => {
+  it("renders surface badge, summary, and quick active counterparty pills on Agents surface", () => {
+    render(<ConsoleChat surface="Agents" />);
+
+    expect(screen.getByTestId("chat-surface-scope")).toBeInTheDocument();
+    expect(screen.getByText("COUNTERPARTIES & AGENTS")).toBeInTheDocument();
+    expect(screen.getByText(/Active Registry \(Alpha, Beta, Charlie\)/)).toBeInTheDocument();
+    expect(screen.getAllByText("Alpha Research (Alpha)")).toHaveLength(2);
+    expect(screen.getAllByText("Agent Beta")).toHaveLength(2);
+    expect(screen.getAllByText("Charlie Compute (Charlie)")).toHaveLength(2);
+  });
+
+  it("clicking a quick audit counterparty pill offers audit prompt into composer", async () => {
+    const user = userEvent.setup();
+    render(<ConsoleChat surface="Agents" />);
+
+    const betaPill = screen.getByTitle("Quick audit for Agent Beta");
+    expect(betaPill).toBeInTheDocument();
+    await user.click(betaPill);
+
+    expect(screen.getByLabelText("Message input")).toHaveTextContent(
+      "Audit counterparty Agent Beta (virtuals:agent:beta) Bayesian prior and risk profile",
+    );
+  });
+
+  it("renders Guardrails surface badge and active policy summary", () => {
+    render(<ConsoleChat surface="Guardrails" />);
+
+    expect(screen.getByText("GUARDRAILS & POLICIES")).toBeInTheDocument();
+    expect(screen.getByText(/Auto-Spend: \$10.00 USDC/)).toBeInTheDocument();
+  });
+
+  it("renders Network Readiness surface badge", () => {
+    render(<ConsoleChat surface="Network Readiness" />);
+
+    expect(screen.getByText("NETWORK READINESS")).toBeInTheDocument();
+    expect(screen.getByText(/Postgres · SQLite WARM\/COLD · Base Sepolia/)).toBeInTheDocument();
+  });
+});
+
+
 
 

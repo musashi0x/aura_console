@@ -178,6 +178,53 @@ describe("Gemini Agent Autonomous Function-Calling Loop", () => {
     expect(result.text).toContain("Beta was selected");
   });
 
+  it("handles Charlie counterparty cold journal audit invoking memory_journal for base:agent:charlie", async () => {
+    const toolCalls: RecordedToolCall[] = [];
+    const result = await runGeminiAgentLoop({
+      query: "Audit Charlie's cold journal",
+      onToolCall: (call) => {
+        toolCalls.push(call);
+      },
+    });
+
+    expect(toolCalls).toHaveLength(1);
+    expect(toolCalls[0]!.name).toBe("memory_journal");
+    expect(toolCalls[0]!.args.counterpartyKey).toBe("base:agent:charlie");
+    expect(result.text).toContain("Charlie Compute");
+    expect(result.text).toContain("Base L2");
+  });
+
+  it("handles Charlie counterparty Bayesian audit invoking memory_recall_counterparty", async () => {
+    const toolCalls: RecordedToolCall[] = [];
+    const result = await runGeminiAgentLoop({
+      query: "Audit counterparty Charlie (base:agent:charlie) Bayesian prior and risk profile",
+      onToolCall: (call) => {
+        toolCalls.push(call);
+      },
+    });
+
+    expect(toolCalls).toHaveLength(1);
+    expect(toolCalls[0]!.name).toBe("memory_recall_counterparty");
+    expect(toolCalls[0]!.args.counterpartyKey).toBe("base:agent:charlie");
+    expect(result.text).toContain("Charlie Compute");
+  });
+
+  it("handles Alpha penalty audit query explaining SLA breach in Run #98", async () => {
+    const toolCalls: RecordedToolCall[] = [];
+    const result = await runGeminiAgentLoop({
+      query: "Why was Alpha penalized?",
+      onToolCall: (call) => {
+        toolCalls.push(call);
+      },
+    });
+
+    expect(toolCalls).toHaveLength(1);
+    expect(toolCalls[0]!.name).toBe("memory_recall_counterparty");
+    expect(toolCalls[0]!.args.counterpartyKey).toBe("virtuals:agent:alpha");
+    expect(result.text).toContain("Run #98");
+    expect(result.text).toContain("-11 penalty");
+  });
+
   it("respects abort signal during agent execution", async () => {
     const controller = new AbortController();
     controller.abort();
