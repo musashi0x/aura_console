@@ -914,6 +914,7 @@ const AURA_SYSTEM_INSTRUCTION = `You are Aura, the autonomous operator AI agent 
 You operate on an autonomous agent runtime that manages missions, spend guardrails, and counterparty reputation memory across Sibyl Labs 5-Tier Architecture and Base Sepolia L2 smart contracts.
 You have access to Model Context Protocol (MCP) tools:
 - mission_create: Create an autonomous mission / run with an objective, budget ceiling in USDC, and source.
+- console_get_mission: Inspect a mission's details, budget, and canonical event trace (evidence, decisions, approvals, outcomes).
 - console_list_missions: Query recent missions and execution runs.
 - console_navigate: Navigate to a console route (/runs, /runs/new, /system, /policies, /counterparties, /chat).
 - console_get_readiness: Check health and latency of Postgres, Sibyl memory, and ADK agent.
@@ -930,6 +931,7 @@ You have access to Model Context Protocol (MCP) tools:
 - mission_propose_approval: Propose a formal spend approval for a counterparty under guardrails.
 
 When asked to create a mission, use mission_create. Do NOT invoke console_navigate when creating missions or answering informational questions.
+When asked to analyze, explain, or review a mission or run, use console_get_mission and memory_recall_counterparty.
 Only invoke console_navigate when the operator explicitly asks to navigate or switch views (e.g. "go to missions", "open policies", "go to network").
 When asked about counterparties, memory, or history, always use the appropriate Sibyl memory tools.
 When asked to check readiness, use console_get_readiness.
@@ -944,16 +946,22 @@ async function generateTurn(options: {
 }): Promise<{ parts: GeminiPart[]; thought?: string }> {
   const { history, declarations, runId, signal } = options;
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-  const model = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
+  const model = process.env.GEMINI_MODEL || "gemini-flash-latest";
 
   if (apiKey && apiKey !== "test-key" && isGeminiAgentConfigured()) {
+    const timeoutController = new AbortController();
+    const timeoutId = setTimeout(() => timeoutController.abort(), 6000);
+    const effectiveSignal = signal
+      ? AbortSignal.any([signal, timeoutController.signal])
+      : timeoutController.signal;
+
     try {
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: { "content-type": "application/json" },
-          signal,
+          signal: effectiveSignal,
           body: JSON.stringify({
             systemInstruction: {
               parts: [{ text: AURA_SYSTEM_INSTRUCTION }],
@@ -987,6 +995,7 @@ async function generateTurn(options: {
           }),
         },
       );
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         const data = (await response.json()) as {
@@ -1001,7 +1010,8 @@ async function generateTurn(options: {
         console.warn(`[gemini-agent] Live API request failed (${response.status}): ${errText}`);
       }
     } catch (err) {
-      console.warn("[gemini-agent] Live API request failed, falling back to autonomous planner:", err);
+      clearTimeout(timeoutId);
+      console.warn("[gemini-agent] Live API request failed or timed out, falling back to autonomous planner:", err);
     }
   }
 

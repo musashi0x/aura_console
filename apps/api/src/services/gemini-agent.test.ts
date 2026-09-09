@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 import { RunStore } from "./run-store.js";
@@ -245,5 +246,57 @@ describe("Gemini Agent Autonomous Function-Calling Loop", () => {
     expect(calls).toHaveLength(1);
     expect(calls[0]!.name).toBe("console_navigate");
     expect(calls[0]!.args.destination).toBe("/chat");
+  });
+
+  it("autonomously analyzes a mission by run ID chaining console_get_mission and memory_recall_counterparty", async () => {
+    const created = await runs.createRun({
+      source: "CONSOLE",
+      objective: "Analyze counterparty liquidity dataset",
+      budgetUsdc: "25.000000",
+    });
+    const runId = created.id;
+
+    await runs.appendEvent({
+      eventId: randomUUID(),
+      eventTime: new Date(),
+      runId,
+      type: "candidate.scored",
+      data: {
+        candidates: [
+          { key: "virtuals:agent:beta", score: 96, memory_note: "Preferred reliable partner" },
+          { key: "virtuals:agent:alpha", score: 89, memory_note: "Penalized for delivery delay" },
+        ],
+      },
+    });
+
+    await runs.appendEvent({
+      eventId: randomUUID(),
+      eventTime: new Date(),
+      runId,
+      type: "decision.made",
+      data: {
+        counterparty_key: "virtuals:agent:beta",
+        summary: "Selected highest-ranked counterparty",
+      },
+    });
+
+    const toolCalls: RecordedToolCall[] = [];
+    const result = await runGeminiAgentLoop({
+      query: `so analyze this ${runId} to me`,
+      runId,
+      onToolCall: (c) => {
+        toolCalls.push(c);
+      },
+    });
+
+    expect(toolCalls.length).toBeGreaterThanOrEqual(2);
+    expect(toolCalls[0]!.name).toBe("console_get_mission");
+    expect(toolCalls[0]!.args.runId).toBe(runId);
+    expect(toolCalls[1]!.name).toBe("memory_recall_counterparty");
+    expect(toolCalls[1]!.args.counterpartyKey).toBe("virtuals:agent:beta");
+
+    expect(result.text).toContain("Mission Analysis");
+    expect(result.text).toContain("virtuals:agent:beta");
+    expect(result.text).toContain("Score **96**");
   });
 });
