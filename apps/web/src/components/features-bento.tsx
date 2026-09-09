@@ -13,8 +13,10 @@ import {
   TrendingUp,
   Coins,
   Sparkles,
+  LayoutGrid,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { FloatingCardsGallery, type FloatingCardItem } from "./floating-cards-gallery";
 
 const EASE = [0.23, 1, 0.32, 1] as const;
 

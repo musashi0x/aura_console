@@ -98,14 +98,21 @@ export function FloatingCardsGallery({
 
   const [zoomed, setZoomed] = useState<number | null>(null);
   const zoomedRef = useRef<number | null>(null);
-  zoomedRef.current = zoomed;
-
   const transitionRef = useRef(transition);
-  transitionRef.current = transition;
-
   const zoomAnims = useRef<Array<{ stop: () => void } | null>>([]);
   const cfgRef = useRef({ speed, reach, hover });
-  cfgRef.current = { speed, reach, hover };
+
+  useEffect(() => {
+    zoomedRef.current = zoomed;
+  }, [zoomed]);
+
+  useEffect(() => {
+    transitionRef.current = transition;
+  }, [transition]);
+
+  useEffect(() => {
+    cfgRef.current = { speed, reach, hover };
+  }, [speed, reach, hover]);
 
   // Track window scroll velocity for tactile inertia
   useEffect(() => {
@@ -417,4 +424,3 @@ export function FloatingCardsGallery({
     </div>
   );
 }
-EOF && git add apps/web/src/components/floating-cards-gallery.tsx
