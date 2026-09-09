@@ -4245,6 +4245,267 @@ input[type="range"].fluid-slider::-moz-range-thumb {
   margin-bottom: var(--space-4);
 }
 
+/* Top Executive Pitch & TL;DR Banner */
+.mw__tldr-banner {
+  background: var(--color-surface);
+  border: 1px solid color-mix(in srgb, var(--color-success) 30%, var(--color-border-strong));
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-panel);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.mw__tldr-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.mw__tldr-pitch {
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.45;
+  color: var(--color-text);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+@media (min-width: 768px) {
+  .mw__tldr-pitch {
+    font-size: 1.25rem;
+  }
+}
+
+/* Visual 3-Pill Scorecard */
+.mw__scorecard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.mw__scorecard-pill {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.mw__scorecard-pill-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.mw__scorecard-pill-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.mw__scorecard-pill-desc {
+  font-size: 12px;
+  font-weight: 500;
+  margin: 0;
+  line-height: 1.35;
+}
+
+.mw__scorecard-pill--gate {
+  background: color-mix(in srgb, var(--color-success) 10%, var(--color-surface-raised));
+  border: 1px solid color-mix(in srgb, var(--color-success) 35%, transparent);
+}
+
+.mw__scorecard-pill--gate .mw__scorecard-pill-title {
+  color: var(--color-success);
+}
+
+.mw__scorecard-pill--gate .mw__scorecard-pill-desc {
+  color: var(--color-text);
+}
+
+.mw__scorecard-pill--base {
+  background: color-mix(in srgb, var(--color-cyan) 10%, var(--color-surface-raised));
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 35%, transparent);
+}
+
+.mw__scorecard-pill--base .mw__scorecard-pill-title {
+  color: var(--color-cyan);
+}
+
+.mw__scorecard-pill--base .mw__scorecard-pill-desc {
+  color: var(--color-text);
+}
+
+.mw__scorecard-pill--virtuals {
+  background: color-mix(in srgb, var(--color-accent-stone) 10%, var(--color-surface-raised));
+  border: 1px solid color-mix(in srgb, var(--color-accent-stone) 35%, transparent);
+}
+
+.mw__scorecard-pill--virtuals .mw__scorecard-pill-title {
+  color: var(--color-accent-stone);
+}
+
+.mw__scorecard-pill--virtuals .mw__scorecard-pill-desc {
+  color: var(--color-text);
+}
+
+/* 1-Second Visual "Decision Flip" Comparison */
+.mw__decision-flip-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-panel);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.mw__decision-flip-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--space-2);
+}
+
+.mw__decision-flip-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+@media (max-width: 768px) {
+  .mw__decision-flip-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mw__decision-flip-col {
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.mw__decision-flip-col--amnesia {
+  background: color-mix(in srgb, var(--color-error) 6%, var(--color-surface-raised));
+  border: 1px solid color-mix(in srgb, var(--color-error) 30%, transparent);
+}
+
+.mw__decision-flip-col--bearing {
+  background: color-mix(in srgb, var(--color-success) 6%, var(--color-surface-raised));
+  border: 1px solid color-mix(in srgb, var(--color-success) 35%, transparent);
+}
+
+.mw__decision-flip-col-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.mw__decision-flip-col-badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.mw__decision-flip-col-badge--red {
+  color: var(--color-error);
+}
+
+.mw__decision-flip-col-badge--green {
+  color: var(--color-success);
+}
+
+.mw__decision-flip-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.mw__flip-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.mw__flip-row--danger {
+  background: color-mix(in srgb, var(--color-error) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-error) 25%, transparent);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+}
+
+.mw__flip-row--success {
+  background: color-mix(in srgb, var(--color-success) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-success) 25%, transparent);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+}
+
+.mw__flip-arrow {
+  font-size: 14px;
+  font-weight: 800;
+  padding-left: var(--space-2);
+}
+
+/* Streamlined Flow Simulator Styles */
+.mw__flow-sim-takeaway-banner {
+  background: color-mix(in srgb, var(--color-success) 6%, var(--color-surface-raised));
+  border: 1px solid color-mix(in srgb, var(--color-success) 28%, transparent);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.mw__flow-sim-takeaway-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.mw__flow-sim-takeaway-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0;
+  line-height: 1.45;
+}
+
+.mw__flow-sim-tech-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: inherit;
+}
+
+.mw__flow-sim-tech-toggle:hover {
+  opacity: 0.9;
+}
+
 .mw__hero-card {
   background: var(--color-surface);
   border: 1px solid var(--color-border-strong);

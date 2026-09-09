@@ -57,7 +57,22 @@ export const exampleEvents: RunEvent[] = [
     retrieval_status: "AVAILABLE",
     episodes_used: 2,
   }),
-  ev(5, 4, "candidate.scored", 44, "Counterparties ranked by settlement record and price"),
+  ev(5, 4, "candidate.scored", 44, "Counterparties ranked by settlement record and price", {
+    candidates: [
+      {
+        key: "beta_labs",
+        score: 94,
+        memory_adjustment: 0,
+        memory_note: "100% on-time record across prior deliveries.",
+      },
+      {
+        key: "alpha_research",
+        score: 28,
+        memory_adjustment: -66,
+        memory_note: "Prior SLA breach: 41h late delivery applied severe risk penalty.",
+      },
+    ],
+  }),
   ev(6, 5, "policy.evaluated", 52, "Operator policy allows this counterparty class", {
     policy_version: "v4",
     passed: true,

@@ -3,8 +3,10 @@ import axe from "axe-core";
 /** Fails with the rule ids and the offending markup, not just a count. */
 export async function expectNoAxeViolations(container: HTMLElement): Promise<void> {
   const results = await axe.run(container, {
+    preload: false,
     rules: { region: { enabled: false } },
   });
+
 
   if (results.violations.length > 0) {
     const detail = results.violations

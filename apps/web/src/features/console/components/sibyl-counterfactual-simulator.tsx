@@ -23,9 +23,9 @@ export function SibylCounterfactualSimulator({ className = "" }: { className?: s
   const runStatelessSimulation = () => {
     setIsSimulating(true);
     setActiveSimulation("stateless");
-    setSimulationResult("Simulating stateless execution: Greedy price selection -> Alpha selected...");
+    setSimulationResult("Simulating stateless execution: Greedy price selection -> Agent picks Alpha ($18.50 quote, cheapest)...");
     setTimeout(() => {
-      setSimulationResult("FAILED: virtuals:agent:alpha failed SLA verification. 9.00 USDC forfeited. Zero memory retained.");
+      setSimulationResult("FAILED: virtuals:agent:alpha suffers SLA failure (41h late delivery, wasted treasury). -$9.00 USDC Deficit. Zero memory retained.");
       setIsSimulating(false);
     }, 1200);
   };
@@ -33,9 +33,9 @@ export function SibylCounterfactualSimulator({ className = "" }: { className?: s
   const runSibylSimulation = () => {
     setIsSimulating(true);
     setActiveSimulation("sibyl");
-    setSimulationResult("Simulating Sibyl execution: Recalling episodic memory -> Alpha quarantined (28/100) -> Beta selected (94/100)...");
+    setSimulationResult("Simulating Sibyl execution: Recalling episodic memory -> Alpha penalized (score 28) -> Flips decision to Beta ($22.00 quote, 100% on-time record)...");
     setTimeout(() => {
-      setSimulationResult("SUCCESS: virtuals:agent:beta verified 100%. 6.50 USDC treasury saved. Salted diff committed to Base Sepolia.");
+      setSimulationResult("SUCCESS: Mission Succeeds! virtuals:agent:beta verified 100%. +$6.50 USDC Saved. Salted diff committed to Base Sepolia.");
       setIsSimulating(false);
     }, 1200);
   };
@@ -144,9 +144,9 @@ export function SibylCounterfactualSimulator({ className = "" }: { className?: s
             <div className="mw__cf-step-item">
               <div className="mw__cf-step-num">2</div>
               <div className="mw__cf-step-content">
-                <span className="mw__cf-step-title">Counterparty Selection</span>
+                <span className="mw__cf-step-title">Counterparty Selection (Amnesia)</span>
                 <p className="mw__cf-step-text">
-                  Selects <code className="mw__cf-code-bad">virtuals:agent:alpha</code> purely because quote is lowest ($9.00 vs $18.50).
+                  Agent picks <code className="mw__cf-code-bad">virtuals:agent:alpha</code> ($18.50 quote, cheapest) purely because quote appears lowest. Zero cross-session learning.
                 </p>
                 <span className="mw__cf-subtag mw__cf-subtag--bad">Greedy Price Selection</span>
               </div>
@@ -156,9 +156,9 @@ export function SibylCounterfactualSimulator({ className = "" }: { className?: s
             <div className="mw__cf-step-item">
               <div className="mw__cf-step-num">3</div>
               <div className="mw__cf-step-content">
-                <span className="mw__cf-step-title">Execution Outcome</span>
+                <span className="mw__cf-step-title">Execution Outcome (Failure)</span>
                 <p className="mw__cf-step-text">
-                  Alpha delivers malformed payload missing JSON schema fields. Verification fails.
+                  Suffers SLA failure (41h late delivery, wasted treasury). Alpha deliverable fails required schema tests.
                 </p>
                 <span className="mw__cf-subtag mw__cf-subtag--bad">SLA Breach / Deliverable Rejected</span>
               </div>
@@ -217,11 +217,11 @@ export function SibylCounterfactualSimulator({ className = "" }: { className?: s
             <div className="mw__cf-step-item">
               <div className="mw__cf-step-num mw__cf-step-num--good">2</div>
               <div className="mw__cf-step-content">
-                <span className="mw__cf-step-title">Autonomous Quarantine & Selection</span>
+                <span className="mw__cf-step-title">Autonomous Decision Flip</span>
                 <p className="mw__cf-step-text">
-                  Quarantines Alpha despite cheaper quote. Selects verified partner <code className="mw__cf-code-good">virtuals:agent:beta</code>.
+                  Recalls Alpha&apos;s prior penalty → Flips decision to <code className="mw__cf-code-good">virtuals:agent:beta</code> ($22.00 quote, 100% on-time record across 30 deliveries).
                 </p>
-                <span className="mw__cf-subtag mw__cf-subtag--good">Bayesian SLA Rank: Beta Selected</span>
+                <span className="mw__cf-subtag mw__cf-subtag--good">Decision Flipped: Beta Selected</span>
               </div>
             </div>
 
@@ -229,11 +229,11 @@ export function SibylCounterfactualSimulator({ className = "" }: { className?: s
             <div className="mw__cf-step-item">
               <div className="mw__cf-step-num mw__cf-step-num--good">3</div>
               <div className="mw__cf-step-content">
-                <span className="mw__cf-step-title">Execution Outcome</span>
+                <span className="mw__cf-step-title">Execution Outcome (Success)</span>
                 <p className="mw__cf-step-text">
-                  Beta delivers full verified dataset. Verifier passes all automated tests (score 1.0).
+                  Mission Succeeds! Beta delivers full verified dataset. Verifier passes all automated tests (score 1.0).
                 </p>
-                <span className="mw__cf-subtag mw__cf-subtag--good">100% Tests Passed · Deliverable Accepted</span>
+                <span className="mw__cf-subtag mw__cf-subtag--good">Mission Succeeds · Deliverable Accepted</span>
               </div>
             </div>
 

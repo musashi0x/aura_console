@@ -6,6 +6,58 @@ import { expectNoAxeViolations } from "@/test/axe";
 import { McpExecutiveOverview } from "./mcp-executive-overview";
 
 describe("McpExecutiveOverview", () => {
+  it("renders top executive pitch TL;DR banner understood in 5 seconds", () => {
+    render(<McpExecutiveOverview />);
+    expect(
+      screen.getByText(
+        /Aura stops AI Agents from blindly spending money. It uses Sibyl Memory to remember supplier track records, flips decisions away from bad actors, anchors cryptographic proof on Base, and settles via Virtuals Protocol ACP./i,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("renders the 3-pill hackathon scorecard", () => {
+    render(<McpExecutiveOverview />);
+    expect(screen.getByText(/Pass\/Fail Gate \(40 pts\)/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Sibyl Memory is Load-Bearing \(Zero Blind Spend\)/i),
+    ).toBeInTheDocument();
+
+    expect(screen.getByText(/Verified Stack \(x1\.15\)/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Base Sepolia On-chain Keccak256 Audit Anchor/i),
+    ).toBeInTheDocument();
+
+    expect(screen.getByText(/Verified Stack \(x1\.25 Cap\)/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Virtuals Protocol ACP Escrow Settlement/i),
+    ).toBeInTheDocument();
+  });
+
+  it("renders the 1-second visual decision flip comparison", () => {
+    render(<McpExecutiveOverview />);
+    expect(
+      screen.getByText(/The 1-Second Proof: Why Sibyl Memory is Load-Bearing/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Without Sibyl Memory \(Amnesia\)/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Suffers SLA failure \(41h late delivery, wasted treasury\)/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/With Sibyl Memory \(Load-Bearing\)/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Recalls Alpha's prior penalty/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/\$22\.00 quote, 100% on-time record/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Mission Succeeds! Verified deliverable accepted/i),
+    ).toBeInTheDocument();
+  });
+
   it("renders executive title and description", () => {
     render(<McpExecutiveOverview />);
     expect(

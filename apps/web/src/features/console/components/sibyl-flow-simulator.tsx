@@ -7,8 +7,10 @@ import { HStack } from "@astryxdesign/core/Stack";
 import { Text } from "@astryxdesign/core/Text";
 import {
   Bot,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   Pause,
   Play,
   RotateCcw,
@@ -18,10 +20,13 @@ import {
 
 export interface FlowStep {
   step: number;
+  stageName?: string;
   title: string;
   mcpTool: string;
   role: string;
   statusTone: "blue" | "purple" | "yellow" | "green" | "cyan" | "red";
+  takeaway?: string;
+  whyItMatters?: string;
   narrative: string;
   agentThought: string;
   terminalLog: string[];
@@ -39,10 +44,13 @@ export interface FlowStep {
 export const FLOW_STEPS: FlowStep[] = [
   {
     step: 1,
+    stageName: "1. Init",
     title: "Mission Initialization",
     mcpTool: "mission_initialize",
     role: "Economic Declaration",
     statusTone: "blue",
+    takeaway: "Agent locks an unbreachable 25.00 USDC budget ceiling before querying suppliers — eliminating blind autonomous spend.",
+    whyItMatters: "Fail-closed safety guarantee: autonomous tasks cannot execute without a declared ceiling.",
     narrative: "Declare economic objective and set non-negotiable budget ceiling.",
     agentThought:
       "Received mission objective: 'Procure verified decentralized market intelligence dataset'. Budget ceiling set to 25.00 USDC. Initiating counterparty discovery and reputation query.",
@@ -73,10 +81,13 @@ export const FLOW_STEPS: FlowStep[] = [
   },
   {
     step: 2,
+    stageName: "2. Recall",
     title: "Sibyl Memory Recall",
     mcpTool: "memory_recall_counterparty",
     role: "Episodic Query",
     statusTone: "purple",
+    takeaway: "Queries persistent SQLite store (~/.sibyl-memory/memory.db) and recalls Alpha's past deliverable schema failure (Episode #b2039125).",
+    whyItMatters: "Load-bearing recall: past failure history is retrieved before treasury is committed.",
     narrative: "Query persistent SQLite database (~/.sibyl-memory/memory.db) for counterparty SLA history.",
     agentThought:
       "Consulting Sibyl relationship memory before committing treasury. Querying historical delivery records, schema validation results, and breach logs for both candidates.",
@@ -125,10 +136,13 @@ export const FLOW_STEPS: FlowStep[] = [
   },
   {
     step: 3,
+    stageName: "3. Score",
     title: "Bayesian Scoring & Quarantine",
     mcpTool: "candidate_score",
     role: "Reputation Engine",
     statusTone: "yellow",
+    takeaway: "Bayesian SLA scoring slashes Alpha to 28/100 (Quarantined) and selects Beta at 94/100 despite higher price — the Decision Flip!",
+    whyItMatters: "Flips the decision away from the cheap but unreliable actor to the verified supplier.",
     narrative: "Compute Bayesian SLA reliability scores and quarantine unverified or breached actors.",
     agentThought:
       "Applying Bayesian formula: Alpha has a recent SLA breach within 30 days -> reliability drops from 0.88 to 0.67, with risk penalty resulting in score 28/100 (QUARANTINED). Beta has 100% verified deliveries -> score 94/100 (PREFERRED). Recommending Beta despite higher quote ($18.50 vs $9.00).",
@@ -176,10 +190,13 @@ export const FLOW_STEPS: FlowStep[] = [
   },
   {
     step: 4,
+    stageName: "4. Policy Gate",
     title: "Policy Gate & Authorization",
     mcpTool: "policy_gate",
     role: "Human-in-the-Loop",
     statusTone: "green",
+    takeaway: "Spend bounds validated under operator policy ($6.50 treasury saved); execution pauses for explicit human authorization.",
+    whyItMatters: "Human-in-the-loop governance ensures high-value expenditures are approved before escrow.",
     narrative: "Validate spend against 25.00 USDC ceiling and pause at policy gate for operator approval.",
     agentThought:
       "Autonomous safety checkpoint: The proposed quote of 18.50 USDC is below the 25.00 USDC ceiling. However, policy requires human sign-off for any fund movement over 10.00 USDC. Halting execution and requesting operator grant.",
@@ -215,10 +232,13 @@ export const FLOW_STEPS: FlowStep[] = [
   },
   {
     step: 5,
+    stageName: "5. Base Escrow",
     title: "Base Sepolia Escrow Deposit",
     mcpTool: "base_escrow",
     role: "Smart Contract Escrow",
     statusTone: "cyan",
+    takeaway: "Locks 18.50 USDC into on-chain escrow smart contract on Base Sepolia L2 (84532) — funds are protected on-chain.",
+    whyItMatters: "Funds are locked in decentralized escrow until deliverable passes automated verification.",
     narrative: "Lock 18.50 USDC into on-chain escrow smart contract on Base Sepolia L2 (84532).",
     agentThought:
       "Submitting escrow funding transaction to Base Sepolia smart contract. Counterparty funds are locked safely in escrow until the deliverable passes automated verification.",
@@ -255,10 +275,13 @@ export const FLOW_STEPS: FlowStep[] = [
   },
   {
     step: 6,
+    stageName: "6. Sandbox Verifier",
     title: "Sandboxed CLI Execution & Verifier",
     mcpTool: "cli_sandbox_verifier",
     role: "Automated Verifier",
     statusTone: "green",
+    takeaway: "Runs deliverable inside ephemeral worker sandbox; independent Verifier confirms 100% test pass rate (3/3 checks green).",
+    whyItMatters: "Automated verification gates escrow payout so unverified work is never paid for.",
     narrative: "Execute counterparty job inside ephemeral sandbox and run deterministic verifier tests.",
     agentThought:
       "Worker completed data synthesis. Spawning independent Verifier Agent to audit schema conformity, signature integrity, and dataset completeness. Verifier exit code 0: 100% tests passed.",
@@ -294,10 +317,13 @@ export const FLOW_STEPS: FlowStep[] = [
   },
   {
     step: 7,
+    stageName: "7. Memory Diff",
     title: "Memory Diff & Base Sepolia Commit",
     mcpTool: "memory_journal",
     role: "State Diff Root",
     statusTone: "cyan",
+    takeaway: "Records successful episode in Sibyl SQLite and commits salted Keccak256 memory diff root to Base Sepolia (v12 → v13, +5 Pts).",
+    whyItMatters: "Closes the causal feedback loop: future missions remember this verified delivery forever.",
     narrative: "Record episode in Sibyl SQLite and publish salted Keccak256 memory diff root to Base Sepolia.",
     agentThought:
       "Finalizing mission: Recording positive delivery episode to Sibyl SQLite. Updating Beta's Bayesian confidence (+5 Pts). Generating salted Keccak256 hash of new memory state and committing root to Base Sepolia contract for public verifiable auditability.",
@@ -344,6 +370,7 @@ export interface SibylFlowSimulatorProps {
 export function SibylFlowSimulator({ onStepChange, className = "" }: SibylFlowSimulatorProps) {
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isTechExpanded, setIsTechExpanded] = useState(false);
   const playIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const activeStep = FLOW_STEPS[currentStepIdx]!;
@@ -482,7 +509,7 @@ export function SibylFlowSimulator({ onStepChange, className = "" }: SibylFlowSi
               >
                 {isCompleted ? "✓" : s.step}
               </motion.span>
-              <span className="mw__flow-sim-step-label">{s.title}</span>
+              <span className="mw__flow-sim-step-label">{s.stageName ?? s.title}</span>
             </motion.button>
           );
         })}
@@ -508,6 +535,24 @@ export function SibylFlowSimulator({ onStepChange, className = "" }: SibylFlowSi
                   <code className="mw__flow-sim-tool-code">{activeStep.mcpTool}</code>
                 </HStack>
               </div>
+
+              {/* Executive Takeaway Box */}
+              {activeStep.takeaway ? (
+                <div className="mw__flow-sim-takeaway-banner">
+                  <div className="mw__flow-sim-takeaway-header">
+                    <Sparkles size={14} className="text-emerald-400" />
+                    <span className="font-semibold text-emerald-400 text-xs uppercase tracking-wider">
+                      Executive Takeaway
+                    </span>
+                  </div>
+                  <p className="mw__flow-sim-takeaway-text">{activeStep.takeaway}</p>
+                  {activeStep.whyItMatters ? (
+                    <span className="text-[11px] text-neutral-400 mt-0.5 block">
+                      <strong className="text-neutral-300">Why it matters:</strong> {activeStep.whyItMatters}
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
 
               <p className="mw__flow-sim-lead-text">{activeStep.narrative}</p>
 
@@ -543,60 +588,90 @@ export function SibylFlowSimulator({ onStepChange, className = "" }: SibylFlowSi
           </AnimatePresence>
         </div>
 
-        {/* Right Column: Live Terminal Log & MCP JSON-RPC Payload */}
+        {/* Right Column: Live Terminal Log & MCP JSON-RPC Payload (Collapsible) */}
         <div className="mw__flow-sim-terminal-card">
-          <div className="mw__flow-sim-terminal-header">
+          <button
+            type="button"
+            onClick={() => setIsTechExpanded((p) => !p)}
+            className="mw__flow-sim-tech-toggle"
+            aria-expanded={isTechExpanded}
+          >
             <HStack gap={2} align="center">
               <Terminal size={14} className="mw__flow-sim-term-icon" />
-              <span>LIVE TERMINAL & MCP PROTOCOL EXECUTION</span>
+              <span className="font-semibold text-xs text-neutral-200">
+                LIVE TERMINAL & MCP PROTOCOL EXECUTION
+              </span>
+              <span className="mw__flow-sim-term-badge">STREAMING</span>
             </HStack>
-            <span className="mw__flow-sim-term-badge">STREAMING</span>
-          </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-white/5 text-cyan-300 border border-cyan-500/20">
+                {isTechExpanded ? "Hide Technical Proofs" : "Inspect Technical Calldata & Logs"}
+              </span>
+              {isTechExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+            </div>
+          </button>
 
-          {/* Simulated Terminal Output */}
-          <div className="mw__flow-sim-terminal-screen">
-            <AnimatePresence>
-              <motion.div
-                key={`term-lines-${activeStep.step}`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-              >
-                {activeStep.terminalLog.map((line, lIdx) => (
+          {isTechExpanded ? (
+            <>
+              {/* Simulated Terminal Output */}
+              <div className="mw__flow-sim-terminal-screen">
+                <AnimatePresence>
                   <motion.div
-                    key={lIdx}
-                    className="mw__flow-sim-term-line"
-                    initial={{ opacity: 0, x: -6 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.14, delay: lIdx * 0.035 }}
+                    key={`term-lines-${activeStep.step}`}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
                   >
-                    <span className="mw__flow-sim-term-prompt">&gt;</span>
-                    <span>{line}</span>
+                    {activeStep.terminalLog.map((line, lIdx) => (
+                      <motion.div
+                        key={lIdx}
+                        className="mw__flow-sim-term-line"
+                        initial={{ opacity: 0, x: -6 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.14, delay: lIdx * 0.035 }}
+                      >
+                        <span className="mw__flow-sim-term-prompt">&gt;</span>
+                        <span>{line}</span>
+                      </motion.div>
+                    ))}
                   </motion.div>
-                ))}
-              </motion.div>
-            </AnimatePresence>
-          </div>
-
-          {/* Expandable MCP Request/Response Inspector */}
-          <AnimatePresence>
-            <motion.div
-              key={`payload-${activeStep.step}`}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.18 }}
-              className="mw__flow-sim-payload-block"
-            >
-              <div className="mw__flow-sim-payload-title">
-                <span>MCP RPC: {activeStep.mcpTool}</span>
+                </AnimatePresence>
               </div>
-              <pre className="mw__flow-sim-payload-json">
-                <code>{JSON.stringify(activeStep.toolPayload, null, 2)}</code>
-              </pre>
-            </motion.div>
-          </AnimatePresence>
+
+              {/* Expandable MCP Request/Response Inspector */}
+              <AnimatePresence>
+                <motion.div
+                  key={`payload-${activeStep.step}`}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="mw__flow-sim-payload-block"
+                >
+                  <div className="mw__flow-sim-payload-title">
+                    <span>MCP RPC: {activeStep.mcpTool}</span>
+                  </div>
+                  <pre className="mw__flow-sim-payload-json">
+                    <code>{JSON.stringify(activeStep.toolPayload, null, 2)}</code>
+                  </pre>
+                </motion.div>
+              </AnimatePresence>
+            </>
+          ) : (
+            <div className="p-4 rounded-lg bg-neutral-950/40 border border-dashed border-neutral-800/80 text-center flex flex-col items-center justify-center gap-2">
+              <p className="text-xs text-neutral-400 max-w-sm">
+                Technical logs and JSON-RPC calldata are cleanly tucked away for non-technical judges.
+              </p>
+              <button
+                type="button"
+                onClick={() => setIsTechExpanded(true)}
+                className="text-xs text-cyan-400 hover:text-cyan-300 font-mono underline cursor-pointer"
+              >
+                Click to Inspect Technical Calldata & Logs →
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -2,6 +2,7 @@ import { fireEvent, render, screen, act } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { expectNoAxeViolations } from "@/test-support/axe";
+import { setReducedMotion } from "@/test-support/setup";
 import { LandingPreloader } from "../components/landing-preloader";
 
 describe("LandingPreloader", () => {
@@ -67,6 +68,31 @@ describe("LandingPreloader", () => {
     }
   });
 
+  it("dismisses when Space key is pressed and prevents default scrolling", () => {
+    vi.useFakeTimers();
+    try {
+      const onComplete = vi.fn();
+      render(<LandingPreloader onComplete={onComplete} />);
+
+      const event = new KeyboardEvent("keydown", { key: " ", cancelable: true });
+      const preventDefaultSpy = vi.spyOn(event, "preventDefault");
+      act(() => {
+        window.dispatchEvent(event);
+      });
+
+
+      expect(preventDefaultSpy).toHaveBeenCalled();
+
+      act(() => {
+        vi.advanceTimersByTime(700);
+      });
+
+      expect(onComplete).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("dismisses automatically on video ended", () => {
     vi.useFakeTimers();
     try {
@@ -76,6 +102,26 @@ describe("LandingPreloader", () => {
       const video = container.querySelector("video");
       expect(video).toBeInTheDocument();
       fireEvent.ended(video!);
+
+      act(() => {
+        vi.advanceTimersByTime(700);
+      });
+
+      expect(onComplete).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("dismisses on video error", () => {
+    vi.useFakeTimers();
+    try {
+      const onComplete = vi.fn();
+      const { container } = render(<LandingPreloader onComplete={onComplete} />);
+
+      const video = container.querySelector("video");
+      expect(video).toBeInTheDocument();
+      fireEvent.error(video!);
 
       act(() => {
         vi.advanceTimersByTime(700);
@@ -104,14 +150,45 @@ describe("LandingPreloader", () => {
     }
   });
 
+  it("dismisses on default 6800ms fallback timeout when no prop is specified", () => {
+    vi.useFakeTimers();
+    try {
+      const onComplete = vi.fn();
+      render(<LandingPreloader onComplete={onComplete} />);
+
+      act(() => {
+        vi.advanceTimersByTime(6800);
+        vi.advanceTimersByTime(700);
+      });
+
+      expect(onComplete).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("dismisses immediately without transition when prefers-reduced-motion is active", () => {
+    setReducedMotion(true);
+    const onComplete = vi.fn();
+    render(<LandingPreloader onComplete={onComplete} />);
+
+    expect(onComplete).toHaveBeenCalled();
+    expect(
+      screen.queryByRole("region", { name: /aura memory preloader sequence/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("autoFocuses the skip button for keyboard users", () => {
+    render(<LandingPreloader />);
+    const skipButton = screen.getByRole("button", {
+      name: /skip preloader animation/i,
+    });
+    expect(document.activeElement).toBe(skipButton);
+  });
+
   it("has no axe violations", async () => {
-    console.time("render");
     const { container } = render(<LandingPreloader />);
-    console.timeEnd("render");
-
-    console.time("expectNoAxeViolations");
     await expectNoAxeViolations(container);
-    console.timeEnd("expectNoAxeViolations");
-  }, 15000);
-
+  });
 });
+

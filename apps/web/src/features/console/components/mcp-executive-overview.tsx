@@ -101,6 +101,130 @@ export function McpExecutiveOverview({
       aria-labelledby="mcp-executive-heading"
       data-testid="mcp-executive-overview"
     >
+      {/* 1. Top Executive Pitch & TL;DR Banner (Understood in 5 seconds) */}
+      <div className="mw__tldr-banner" data-testid="tldr-executive-pitch">
+        <div className="mw__tldr-header">
+          <div className="mw__hero-badge-row">
+            <span className="mw__hero-pill">
+              <Bot size={13} className="mw__hero-icon" />
+              SIBYL LABS HACKATHON
+            </span>
+            <span className="mw__hero-env-pill">BASE SEPOLIA (84532)</span>
+            <span className="mw__hero-env-pill mw__hero-env-pill--virtuals">VIRTUALS PROTOCOL ACP</span>
+          </div>
+
+          <h1 className="mw__tldr-pitch">
+            Aura stops AI Agents from blindly spending money. It uses Sibyl Memory to remember supplier track records, flips decisions away from bad actors, anchors cryptographic proof on Base, and settles via Virtuals Protocol ACP.
+          </h1>
+        </div>
+
+        {/* Visual 3-Pill Scorecard */}
+        <div className="mw__scorecard-grid" aria-label="Hackathon Scorecard">
+          <div className="mw__scorecard-pill mw__scorecard-pill--gate">
+            <div className="mw__scorecard-pill-head">
+              <ShieldCheck size={16} className="text-emerald-400 flex-shrink-0" />
+              <span className="mw__scorecard-pill-title">Pass/Fail Gate (40 pts)</span>
+            </div>
+            <p className="mw__scorecard-pill-desc">
+              Sibyl Memory is Load-Bearing (Zero Blind Spend)
+            </p>
+          </div>
+
+          <div className="mw__scorecard-pill mw__scorecard-pill--base">
+            <div className="mw__scorecard-pill-head">
+              <span className="w-2.5 h-2.5 rounded-full bg-blue-400 flex-shrink-0" />
+              <span className="mw__scorecard-pill-title">Verified Stack (x1.15)</span>
+            </div>
+            <p className="mw__scorecard-pill-desc">
+              Base Sepolia On-chain Keccak256 Audit Anchor
+            </p>
+          </div>
+
+          <div className="mw__scorecard-pill mw__scorecard-pill--virtuals">
+            <div className="mw__scorecard-pill-head">
+              <span className="w-2.5 h-2.5 rounded-full bg-purple-400 flex-shrink-0" />
+              <span className="mw__scorecard-pill-title">Verified Stack (x1.25 Cap)</span>
+            </div>
+            <p className="mw__scorecard-pill-desc">
+              Virtuals Protocol ACP Escrow Settlement
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. The 1-Second Visual "Decision Flip" Comparison */}
+      <div className="mw__decision-flip-card" data-testid="decision-flip-comparison">
+        <div className="mw__decision-flip-head">
+          <div className="flex items-center gap-2">
+            <Scale size={15} className="text-cyan-400" />
+            <span className="text-xs font-mono uppercase tracking-wider font-bold text-neutral-200">
+              The 1-Second Proof: Why Sibyl Memory is Load-Bearing
+            </span>
+          </div>
+          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 font-semibold">
+            COUNTERFACTUAL DECISION FLIP
+          </span>
+        </div>
+
+        <div className="mw__decision-flip-grid">
+          {/* Negative Path: Amnesia */}
+          <div className="mw__decision-flip-col mw__decision-flip-col--amnesia">
+            <div className="mw__decision-flip-col-header">
+              <span className="text-base" aria-hidden="true">❌</span>
+              <div>
+                <span className="mw__decision-flip-col-badge mw__decision-flip-col-badge--red">
+                  Without Sibyl Memory (Amnesia)
+                </span>
+                <p className="text-xs text-neutral-400 mt-0.5">Stateless blind spend</p>
+              </div>
+            </div>
+            <div className="mw__decision-flip-content">
+              <div className="mw__flip-row">
+                <span className="mw__flip-label text-neutral-400">Decision:</span>
+                <span className="mw__flip-val text-neutral-200">
+                  Agent picks <strong>Alpha</strong> ($18.50 quote, cheapest)
+                </span>
+              </div>
+              <div className="mw__flip-arrow text-red-500/70" aria-hidden="true">↓</div>
+              <div className="mw__flip-row mw__flip-row--danger">
+                <span className="mw__flip-label text-red-400 font-semibold">Outcome:</span>
+                <span className="mw__flip-val text-red-300 font-medium">
+                  Suffers SLA failure (41h late delivery, wasted treasury)
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Positive Path: Load-Bearing Sibyl */}
+          <div className="mw__decision-flip-col mw__decision-flip-col--bearing">
+            <div className="mw__decision-flip-col-header">
+              <span className="text-base" aria-hidden="true">✅</span>
+              <div>
+                <span className="mw__decision-flip-col-badge mw__decision-flip-col-badge--green">
+                  With Sibyl Memory (Load-Bearing)
+                </span>
+                <p className="text-xs text-neutral-400 mt-0.5">Historical Bayesian SLA evaluation</p>
+              </div>
+            </div>
+            <div className="mw__decision-flip-content">
+              <div className="mw__flip-row">
+                <span className="mw__flip-label text-neutral-400">Decision:</span>
+                <span className="mw__flip-val text-neutral-200">
+                  Recalls Alpha&apos;s prior penalty → Flips decision to <strong>Beta</strong> ($22.00 quote, 100% on-time record)
+                </span>
+              </div>
+              <div className="mw__flip-arrow text-emerald-500/70" aria-hidden="true">↓</div>
+              <div className="mw__flip-row mw__flip-row--success">
+                <span className="mw__flip-label text-emerald-400 font-semibold">Outcome:</span>
+                <span className="mw__flip-val text-emerald-300 font-medium">
+                  Mission Succeeds! Verified deliverable accepted
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Executive Hero Banner */}
       <div className="mw__hero-card">
         <div className="mw__hero-header">

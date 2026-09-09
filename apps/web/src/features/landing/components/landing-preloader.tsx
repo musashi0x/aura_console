@@ -19,7 +19,12 @@ export function LandingPreloader({
   fallbackTimeoutMs,
 }: LandingPreloaderProps) {
   const [isExiting, setIsExiting] = useState(false);
-  const [isDismissed, setIsDismissed] = useState(false);
+  const [isDismissed, setIsDismissed] = useState(() => {
+    if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
+      return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    }
+    return false;
+  });
   const [progress, setProgress] = useState(0);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const isExitingRef = useRef(false);
@@ -76,20 +81,16 @@ export function LandingPreloader({
     };
   }, [isDismissed]);
 
+  // If dismissed immediately on mount (e.g. reduced motion), invoke onComplete
+  useEffect(() => {
+    if (isDismissed) {
+      onComplete?.();
+    }
+  }, [isDismissed, onComplete]);
+
   // Fallback timer: ensure preloader dismisses automatically after timeout
   useEffect(() => {
     if (isDismissed) return;
-
-    // Respect reduced motion: dismiss immediately without animation delay
-    if (
-      typeof window !== "undefined" &&
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    ) {
-      setIsDismissed(true);
-      onComplete?.();
-      return;
-    }
 
     const timeout = fallbackTimeoutMs ?? 6800;
     const timer = setTimeout(() => {
@@ -97,7 +98,7 @@ export function LandingPreloader({
     }, timeout);
 
     return () => clearTimeout(timer);
-  }, [handleDismiss, fallbackTimeoutMs, isDismissed, onComplete]);
+  }, [handleDismiss, fallbackTimeoutMs, isDismissed]);
 
   // Attempt video playback with standard browser feature detection
   useEffect(() => {
