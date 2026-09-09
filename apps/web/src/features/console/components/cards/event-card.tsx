@@ -207,6 +207,12 @@ function Row({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
+export function formatEventTime(value: string): string {
+  const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2})/.exec(value);
+  if (!match) return value;
+  return `${match[1]} ${match[2]} UTC`;
+}
+
 function Shell({
   title,
   tone,
@@ -242,7 +248,7 @@ function Shell({
           {tone ? <Token label={entry.type} size="sm" color={tone} /> : null}
         </HStack>
         <Text as="p" size="xsm" color="secondary">
-          <time dateTime={entry.eventTime}>{entry.eventTime}</time>
+          <time dateTime={entry.eventTime}>{formatEventTime(entry.eventTime)}</time>
         </Text>
       </HStack>
 
@@ -546,11 +552,16 @@ export function EventCard({
          operator no card reads it implies a gap that is not there. That note
          belongs to a type the fold genuinely does not recognise. */
       const lifecycle = entry.stage === null && entry.support === "SUPPORTED";
+      const isDuplicate =
+        !entry.summary ||
+        entry.summary.trim().toLowerCase() === entry.type.trim().toLowerCase();
       return (
         <Shell title={entry.type} entry={entry}>
-          <Text as="p" size="sm">
-            {entry.summary}
-          </Text>
+          {isDuplicate ? null : (
+            <Text as="p" size="sm">
+              {entry.summary}
+            </Text>
+          )}
           {lifecycle ? null : (
             <Text as="p" size="xsm" color="secondary">
               {copy.raw.note}

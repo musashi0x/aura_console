@@ -13,6 +13,7 @@ import type { Counterfactual } from "@/features/console/projection/counterfactua
 import { apiClient } from "@/lib/api-client";
 import { CounterfactualView } from "./counterfactual-view";
 import { amount, text } from "./fields";
+import { formatEventTime } from "./event-card";
 
 /**
  * The pending approval, and the only control in the console that changes the
@@ -155,7 +156,7 @@ export function ApprovalRequestCard({
           <Token label={entry.type} size="sm" color="orange" />
         </HStack>
         <Text as="p" size="xsm" color="secondary">
-          <time dateTime={entry.eventTime}>{entry.eventTime}</time>
+          <time dateTime={entry.eventTime}>{formatEventTime(entry.eventTime)}</time>
         </Text>
       </HStack>
 

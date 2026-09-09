@@ -256,19 +256,23 @@ export function MissionWorkspace({
 
       <MissionRail progress={progress} onJump={jumpTo} />
 
-      <SegmentedControl
-        value={mode}
-        onChange={(next) => setMode(next as MissionMode)}
-        label={console_.mission.modeLabel}
-      >
-        {MODES.map((value) => (
-          <SegmentedControlItem
-            key={value}
-            value={value}
-            label={console_.mission.modes[value]}
-          />
-        ))}
-      </SegmentedControl>
+      <div className="run__modes-bar flex items-center justify-between gap-3 my-2.5">
+        <div className="run__modes-wrap w-fit">
+          <SegmentedControl
+            value={mode}
+            onChange={(next) => setMode(next as MissionMode)}
+            label={console_.mission.modeLabel}
+          >
+            {MODES.map((value) => (
+              <SegmentedControlItem
+                key={value}
+                value={value}
+                label={console_.mission.modes[value]}
+              />
+            ))}
+          </SegmentedControl>
+        </div>
+      </div>
 
       {/* The console operates on a unified dark stone theme matching ai-chat.
           Astryx tokens resolve in dark mode with high contrast (>= 4.5:1 WCAG AA). */}
@@ -318,6 +322,10 @@ export function MissionWorkspace({
           no stream, so pressing Play changed a badge while the Mission sat
           still. Scrubbing and returning are the two things that work. */}
       <div className="run__transport" role="group" aria-label="Timeline transport">
+        <p className="run__foot">
+          Showing {view.entries.length} of {total} {total === 1 ? "event" : "events"}
+          {historical ? ", held at an earlier point in this Mission." : "."}
+        </p>
         <Button
           size="sm"
           variant="secondary"
@@ -331,11 +339,6 @@ export function MissionWorkspace({
           label={ended ? "Back to the end" : "Back to latest"}
         />
       </div>
-
-      <p className="run__foot">
-        Showing {view.entries.length} of {total} {total === 1 ? "event" : "events"}
-        {historical ? ", held at an earlier point in this Mission." : "."}
-      </p>
     </section>
   );
 }

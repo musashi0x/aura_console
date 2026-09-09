@@ -8,6 +8,7 @@ import { Database } from "lucide-react";
 
 import type { TimelineEntry } from "@/features/console/model/types";
 import { number, text } from "./fields";
+import { formatEventTime } from "./event-card";
 
 export interface MemoryDiffCardProps {
   entry: TimelineEntry;
@@ -66,7 +67,7 @@ export function MemoryDiffCard({ entry }: MemoryDiffCardProps) {
           {status ? <Token label={status} size="sm" color={status === "BLOCKED" ? "red" : "green"} /> : null}
         </HStack>
         <Text as="p" size="xsm" color="secondary">
-          <time dateTime={entry.eventTime}>{entry.eventTime}</time>
+          <time dateTime={entry.eventTime}>{formatEventTime(entry.eventTime)}</time>
         </Text>
       </HStack>
 

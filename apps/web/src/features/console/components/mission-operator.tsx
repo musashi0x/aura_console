@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { List, ListItem } from "@astryxdesign/core/List";
 import { Button } from "@astryxdesign/core/Button";
+import { History } from "lucide-react";
 
 import { console_ } from "../copy";
 import { EventCard } from "./cards/event-card";
@@ -77,14 +78,17 @@ export function MissionOperator({
                   onRejected={onRejected}
                   counterfactual={counterfactual}
                 />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="mw__entry-scrub"
-                  onClick={() => onScrubTo?.(entry)}
-                  label={console_.mission.operator.scrubTo(entry.summary)}
-                />
+                <div className="mw__entry-footer">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="mw__entry-scrub"
+                    onClick={() => onScrubTo?.(entry)}
+                    icon={<History size={12} />}
+                    label={console_.mission.operator.scrubTo(entry.summary)}
+                  />
+                </div>
               </div>
             }
           />
