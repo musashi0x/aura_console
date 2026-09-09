@@ -13,11 +13,20 @@ import { PolicyStore } from "../services/policy-store.js";
 import { RunStore } from "../services/run-store.js";
 import { getVirtualsAcpStatus } from "../services/virtuals-acp.js";
 import {
+  archiveCounterpartyInSibyl,
+  getMissionState,
+  getPolicyReference,
   getSibylStatus,
   listCounterpartiesFromSibyl,
   readMemoryJournal,
+  recallEntities,
+  recordEpisodeToSibyl,
   retrieveFromSibyl,
+  setMissionState,
+  setPolicyReference,
+  updateCounterpartyInSibyl,
 } from "../services/sibyl.js";
+import { verifyMemoryCommitment } from "../services/memory-commitment.js";
 
 const runs = new RunStore();
 const memory = new MemoryStore();
@@ -206,6 +215,330 @@ export const memoryJournalTool: McpToolDefinition<{ counterpartyKey?: string; li
       episodes: journal.episodes ?? journal.events ?? [],
       ...(journal.code ? { code: journal.code } : {}),
       ...(journal.detail ? { detail: journal.detail } : {}),
+    };
+  },
+};
+
+export const memorySearchEntitiesTool: McpToolDefinition<{
+  query: string;
+  category?: string;
+  limit?: number;
+}> = {
+  name: "memory_search_entities",
+  description:
+    "Search Sibyl Memory using full-text search (FTS5 BM25) across counterparty entities and relationships, returning search scores, verdicts, and match counts.",
+  parameters: z.object({
+    query: z
+      .string()
+      .min(1)
+      .describe("The search query keywords (e.g. 'research', 'reliable compute', 'alpha')"),
+    category: z
+      .string()
+      .optional()
+      .describe("Optional entity category filter (default 'counterparty')"),
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(50)
+      .optional()
+      .describe("Maximum matches to return (default 10)"),
+  }),
+  execute: async ({ query, category, limit = 10 }) => {
+    const result = await recallEntities(query, { category, limit });
+    const ok = result.reachable;
+    const verdictCode =
+      "verdict" in result && result.verdict ? result.verdict.code : result.code ?? "error";
+    const verdictDetail =
+      "verdict" in result && result.verdict ? result.verdict.detail : result.detail;
+    return {
+      ok,
+      query,
+      verdict: verdictCode,
+      verdictDetail,
+      count: result.records?.length ?? 0,
+      records: result.records ?? [],
+      entities: result.records ?? [],
+      ...(result.detail ? { detail: result.detail } : {}),
+    };
+  },
+};
+
+export const memoryRememberCounterpartyTool: McpToolDefinition<{
+  counterpartyKey: string;
+  relationshipStatus?: "NEW" | "KNOWN" | "PREFERRED" | "WATCH" | "BLOCKED" | "ARCHIVED";
+  overallReliability?: number;
+  confidence?: number;
+  riskNote?: string;
+}> = {
+  name: "memory_remember_counterparty",
+  description:
+    "Remember or update an agent counterparty's profile in Sibyl WARM tier (relationship status, Bayesian reliability rating, confidence, and risk assessment notes).",
+  parameters: z.object({
+    counterpartyKey: z
+      .string()
+      .min(1)
+      .describe("The unique counterparty identifier (e.g. virtuals:agent:alpha)"),
+    relationshipStatus: z
+      .enum(["NEW", "KNOWN", "PREFERRED", "WATCH", "BLOCKED", "ARCHIVED"])
+      .optional()
+      .describe("Updated relationship status"),
+    overallReliability: z
+      .number()
+      .min(0)
+      .max(1)
+      .optional()
+      .describe("Bayesian reliability rating between 0.00 and 1.00"),
+    confidence: z
+      .number()
+      .min(0)
+      .max(1)
+      .optional()
+      .describe("Confidence rating between 0.00 and 1.00"),
+    riskNote: z
+      .string()
+      .optional()
+      .describe("Specific risk assessment note (e.g. 'Past deliverable rejected for corrupted dataset')"),
+  }),
+  execute: async ({
+    counterpartyKey,
+    relationshipStatus,
+    overallReliability,
+    confidence,
+    riskNote,
+  }) => {
+    const res = await updateCounterpartyInSibyl(counterpartyKey, {
+      relationshipStatus,
+      overallReliability,
+      confidence,
+      riskNote,
+    });
+    return {
+      ok: res.ok,
+      counterpartyKey,
+      updated: {
+        ...(relationshipStatus ? { relationshipStatus } : {}),
+        ...(overallReliability !== undefined ? { overallReliability } : {}),
+        ...(confidence !== undefined ? { confidence } : {}),
+        ...(riskNote ? { riskNote } : {}),
+      },
+      ...(res.code ? { code: res.code } : {}),
+      ...(res.detail ? { detail: res.detail } : {}),
+    };
+  },
+};
+
+export const memoryRecordEpisodeTool: McpToolDefinition<{
+  counterpartyKey: string;
+  outcome: "accepted" | "rejected";
+  taskType?: string;
+  deliverableSummary?: string;
+  budgetUsdc?: string;
+  actualUsdc?: string;
+  riskNote?: string;
+  actor?: string;
+}> = {
+  name: "memory_record_episode",
+  description:
+    "Record an immutable interaction episode into Sibyl COLD memory journal and update the counterparty's historical record (accepted or rejected outcome).",
+  parameters: z.object({
+    counterpartyKey: z
+      .string()
+      .min(1)
+      .describe("The counterparty key (e.g. virtuals:agent:alpha, virtuals:agent:beta)"),
+    outcome: z
+      .enum(["accepted", "rejected"])
+      .describe("Deliverable verification outcome"),
+    taskType: z
+      .string()
+      .optional()
+      .describe("Type of task (e.g. 'market_research', 'data_pipeline')"),
+    deliverableSummary: z
+      .string()
+      .optional()
+      .describe("Brief summary of deliverable quality or verification failure reason"),
+    budgetUsdc: z
+      .string()
+      .optional()
+      .describe("Budget allocation in USDC (e.g. '10.00')"),
+    actualUsdc: z
+      .string()
+      .optional()
+      .describe("Actual spend incurred in USDC"),
+    riskNote: z
+      .string()
+      .optional()
+      .describe("Observed risk or note"),
+    actor: z
+      .string()
+      .optional()
+      .describe("Actor recording the episode (defaults to 'agent_buyer_1')"),
+  }),
+  execute: async ({
+    counterpartyKey,
+    outcome,
+    taskType = "general_task",
+    deliverableSummary,
+    budgetUsdc,
+    actualUsdc,
+    riskNote,
+    actor = env.AGENT_ID,
+  }) => {
+    const noteParts = [
+      deliverableSummary ? `Deliverable: ${deliverableSummary}` : null,
+      budgetUsdc !== undefined ? `Budget: ${budgetUsdc} USDC` : null,
+      actualUsdc !== undefined ? `Actual: ${actualUsdc} USDC` : null,
+      riskNote ? `Risk Note: ${riskNote}` : null,
+    ].filter(Boolean);
+    const note = noteParts.length > 0 ? noteParts.join(" · ") : "Episode recorded via agent MCP";
+
+    const res = await recordEpisodeToSibyl(
+      counterpartyKey,
+      {
+        run: `mcp-${randomUUID().slice(0, 8)}`,
+        taskType,
+        outcome,
+        note,
+      },
+      actor,
+    );
+    return {
+      ok: res.ok,
+      counterpartyKey,
+      outcome,
+      eventId: res.eventId ?? null,
+      episodesCount: res.episodesCount ?? null,
+      ...(res.code ? { code: res.code } : {}),
+      ...(res.detail ? { detail: res.detail } : {}),
+    };
+  },
+};
+
+export const memoryManageStateTool: McpToolDefinition<{
+  action: "get" | "set";
+  key: string;
+  state?: Record<string, unknown>;
+}> = {
+  name: "memory_manage_state",
+  description:
+    "Manage ephemeral execution state in Sibyl HOT memory tier ('get' or 'set'), enabling session resumption across restarts.",
+  parameters: z.object({
+    action: z.enum(["get", "set"]).describe("Operation: 'get' to inspect, 'set' to store"),
+    key: z.string().min(1).describe("State document key (e.g. 'mission:active')"),
+    state: z
+      .record(z.string(), z.unknown())
+      .optional()
+      .describe("State payload (required when action is 'set')"),
+  }),
+  execute: async ({ action, key, state }) => {
+    if (action === "set") {
+      const res = await setMissionState(key, state ?? {});
+      return { ok: res.ok, action: "set", key, ...(res.code ? { code: res.code } : {}) };
+    }
+    const res = await getMissionState(key);
+    return {
+      ok: res.ok,
+      action: "get",
+      key,
+      state: res.state ?? null,
+      ...(res.code ? { code: res.code } : {}),
+    };
+  },
+};
+
+export const memoryManageReferenceTool: McpToolDefinition<{
+  action: "get" | "set";
+  key: string;
+  reference?: Record<string, unknown>;
+}> = {
+  name: "memory_manage_reference",
+  description:
+    "Inspect or store static reference documents, guardrail policies, and cryptographic salts in Sibyl REFERENCE tier.",
+  parameters: z.object({
+    action: z.enum(["get", "set"]).describe("Operation: 'get' to read, 'set' to store"),
+    key: z.string().min(1).describe("Reference document key (e.g. 'policy:guardrails')"),
+    reference: z
+      .record(z.string(), z.unknown())
+      .optional()
+      .describe("Reference payload (required when action is 'set')"),
+  }),
+  execute: async ({ action, key, reference }) => {
+    if (action === "set") {
+      const res = await setPolicyReference(key, reference ?? {});
+      return { ok: res.ok, action: "set", key, ...(res.code ? { code: res.code } : {}) };
+    }
+    const res = await getPolicyReference(key);
+    return {
+      ok: res.ok,
+      action: "get",
+      key,
+      reference: res.reference ?? null,
+      ...(res.code ? { code: res.code } : {}),
+    };
+  },
+};
+
+export const memoryArchiveEntityTool: McpToolDefinition<{
+  counterpartyKey: string;
+  reason: string;
+}> = {
+  name: "memory_archive_entity",
+  description:
+    "Archive and decommission an entity or counterparty in Sibyl ARCHIVE tier with an immutable reason.",
+  parameters: z.object({
+    counterpartyKey: z.string().min(1).describe("The counterparty key to archive"),
+    reason: z.string().min(1).describe("Audit rationale for archiving (e.g. 'Persistent deliverable fraud')"),
+  }),
+  execute: async ({ counterpartyKey, reason }) => {
+    const res = await archiveCounterpartyInSibyl(counterpartyKey, reason);
+    return {
+      ok: res.ok,
+      counterpartyKey,
+      archived: res.ok,
+      reason,
+      ...(res.code ? { code: res.code } : {}),
+      ...(res.detail ? { detail: res.detail } : {}),
+    };
+  },
+};
+
+export const memoryVerifyCommitmentTool: McpToolDefinition<{
+  counterpartyKey: string;
+  version?: number;
+  expectedCommitment?: string;
+}> = {
+  name: "memory_verify_commitment",
+  description:
+    "Cryptographically verify the salted Keccak256 memory commitment of a counterparty against Base Sepolia calldata using Sibyl WARM and REFERENCE tiers.",
+  parameters: z.object({
+    counterpartyKey: z
+      .string()
+      .min(1)
+      .describe("Counterparty identifier (e.g. virtuals:agent:alpha, virtuals:agent:beta)"),
+    version: z
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .describe("Memory version (defaults to auto-detected version from Sibyl)"),
+    expectedCommitment: z
+      .string()
+      .optional()
+      .describe("Expected Keccak256 commitment hash (0x...) to verify against"),
+  }),
+  execute: async ({ counterpartyKey, version, expectedCommitment }) => {
+    const res = await verifyMemoryCommitment({
+      counterpartyKey,
+      version,
+      expectedCommitment,
+    });
+    return {
+      counterpartyKey,
+      verified: res.verified,
+      computedCommitment: res.computedCommitment ?? null,
+      saltFound: res.saltFound,
+      version: res.version,
+      details: res.details,
     };
   },
 };
@@ -532,8 +865,15 @@ export const MCP_TOOLS: McpToolDefinition[] = [
   consoleToggleMemoryViewTool,
   consoleGetReadinessTool,
   memoryRecallCounterpartyTool,
+  memorySearchEntitiesTool,
   memoryListCounterpartiesTool,
+  memoryRememberCounterpartyTool,
+  memoryRecordEpisodeTool,
   memoryJournalTool,
+  memoryManageStateTool,
+  memoryManageReferenceTool,
+  memoryArchiveEntityTool,
+  memoryVerifyCommitmentTool,
   consoleListMissionsTool,
   consoleGetMissionTool,
   missionCreateTool,

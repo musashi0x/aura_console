@@ -11,9 +11,16 @@ import {
   consoleNavigateTool,
   consoleToggleMemoryViewTool,
   guardrailsGetPoliciesTool,
+  memoryArchiveEntityTool,
   memoryJournalTool,
   memoryListCounterpartiesTool,
+  memoryManageReferenceTool,
+  memoryManageStateTool,
   memoryRecallCounterpartyTool,
+  memoryRecordEpisodeTool,
+  memoryRememberCounterpartyTool,
+  memorySearchEntitiesTool,
+  memoryVerifyCommitmentTool,
   missionProposeApprovalTool,
 } from "./tools.js";
 
@@ -94,6 +101,97 @@ describe("MCP Console Tools", () => {
       const key = evalData?.counterparty ?? episodeData?.counterparty;
       expect(key).toBe("virtuals:agent:alpha");
     }
+  });
+
+  it("searches entities via memory_search_entities (WARM FTS5)", async () => {
+    const result = await memorySearchEntitiesTool.execute({
+      query: "alpha",
+      limit: 5,
+    });
+    expect(result.ok).toBe(true);
+    expect(result.query).toBe("alpha");
+    expect(Array.isArray(result.entities)).toBe(true);
+    expect(result.verdict).toBeDefined();
+  });
+
+  it("remembers and updates counterparty via memory_remember_counterparty (WARM write)", async () => {
+    const result = await memoryRememberCounterpartyTool.execute({
+      counterpartyKey: "virtuals:agent:alpha",
+      overallReliability: 0.75,
+      relationshipStatus: "KNOWN",
+      riskNote: "Updated by MCP agent during test run",
+    });
+    expect(result.ok).toBe(true);
+    expect(result.counterpartyKey).toBe("virtuals:agent:alpha");
+    expect(result.updated.overallReliability).toBe(0.75);
+    expect(result.updated.relationshipStatus).toBe("KNOWN");
+  });
+
+  it("records an episode via memory_record_episode (COLD write)", async () => {
+    const result = await memoryRecordEpisodeTool.execute({
+      counterpartyKey: "virtuals:agent:beta",
+      outcome: "accepted",
+      taskType: "market_research",
+      deliverableSummary: "High-accuracy dataset delivered on time",
+      budgetUsdc: "15.000000",
+    });
+    expect(result.ok).toBe(true);
+    expect(result.counterpartyKey).toBe("virtuals:agent:beta");
+    expect(result.outcome).toBe("accepted");
+  });
+
+  it("manages state via memory_manage_state (HOT tier get/set)", async () => {
+    const setResult = await memoryManageStateTool.execute({
+      action: "set",
+      key: "mission:test_active",
+      state: { phase: "SCORED", activeCandidate: "virtuals:agent:beta" },
+    });
+    expect(setResult.ok).toBe(true);
+    expect(setResult.action).toBe("set");
+
+    const getResult = await memoryManageStateTool.execute({
+      action: "get",
+      key: "mission:test_active",
+    });
+    expect(getResult.ok).toBe(true);
+    expect(getResult.action).toBe("get");
+    expect(getResult.state).toBeDefined();
+  });
+
+  it("manages reference documents via memory_manage_reference (REFERENCE tier get/set)", async () => {
+    const setResult = await memoryManageReferenceTool.execute({
+      action: "set",
+      key: "policy:test_policy",
+      reference: { maxCeiling: 50, require2FA: false },
+    });
+    expect(setResult.ok).toBe(true);
+
+    const getResult = await memoryManageReferenceTool.execute({
+      action: "get",
+      key: "policy:test_policy",
+    });
+    expect(getResult.ok).toBe(true);
+    expect(getResult.reference).toBeDefined();
+  });
+
+  it("archives an entity via memory_archive_entity (ARCHIVE tier)", async () => {
+    const result = await memoryArchiveEntityTool.execute({
+      counterpartyKey: "virtuals:agent:malicious_quarantined",
+      reason: "Repeated SLA deliverable breach and corrupt output",
+    });
+    expect(result.ok).toBe(true);
+    expect(result.counterpartyKey).toBe("virtuals:agent:malicious_quarantined");
+    expect(result.archived).toBe(true);
+  });
+
+  it("verifies cryptographic memory commitment on Base Sepolia via memory_verify_commitment", async () => {
+    const result = await memoryVerifyCommitmentTool.execute({
+      counterpartyKey: "virtuals:agent:alpha",
+    });
+    expect(result.counterpartyKey).toBe("virtuals:agent:alpha");
+    expect(result).toHaveProperty("verified");
+    expect(result).toHaveProperty("saltFound");
+    expect(result).toHaveProperty("details");
   });
 
   it("lists missions and inspects example mission", async () => {
