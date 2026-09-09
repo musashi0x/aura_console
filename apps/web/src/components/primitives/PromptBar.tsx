@@ -163,7 +163,7 @@ export function PromptBar({
 
   const addAttachment = () => {
     playInteractionSound("press");
-    setAttachments((prev) => [...prev, "auth-middleware.ts"]);
+    setAttachments((prev) => [...prev, "memory-commitment.json"]);
   };
 
   const removeAttachment = (idx: number) => {
