@@ -201,6 +201,141 @@ export async function ensureDatabaseSeeded(): Promise<void> {
         .onConflictDoNothing();
       console.log(`[db] initial operator policy seeded for ${targetAgentId}.`);
     }
+
+    // Seed demo run 3c2dc36a-dc44-4abd-9fe0-8386e55cd677 if not present
+    const demoRunId = "3c2dc36a-dc44-4abd-9fe0-8386e55cd677";
+    const [existingRun] = await db
+      .select({ id: schema.runs.id })
+      .from(schema.runs)
+      .where(eq(schema.runs.id, demoRunId));
+
+    if (!existingRun) {
+      console.log(`[db] seeding demo run ${demoRunId}...`);
+      await db
+        .insert(schema.runs)
+        .values({
+          id: demoRunId,
+          objective:
+            "Execute an autonomous surprise discovery mission: analyze current network readiness, inspect active guardrails, evaluate preferred counterparties in Sibyl memory, and initiate a delightful autonomous operation.",
+          source: "CONSOLE",
+          environment: "base-sepolia",
+          budgetUsdc: "25.000000",
+          createdAt: new Date("2026-09-09T07:00:08.437Z"),
+          updatedAt: new Date("2026-09-09T07:00:08.437Z"),
+        })
+        .onConflictDoNothing();
+
+      await db
+        .insert(schema.runEvents)
+        .values([
+          {
+            eventId: "3e54c675-2a54-4ccc-a9e7-76eeedd5e796",
+            runId: demoRunId,
+            sequence: 0,
+            type: "run.created",
+            eventTime: new Date("2026-09-09T07:00:08.437Z"),
+            data: {
+              source: "CONSOLE",
+              objective:
+                "Execute an autonomous surprise discovery mission: analyze current network readiness, inspect active guardrails, evaluate preferred counterparties in Sibyl memory, and initiate a delightful autonomous operation.",
+              budget_usdc: "25.000000",
+              environment: "base-sepolia",
+            },
+          },
+          {
+            eventId: "9c319338-2bf2-4c09-9354-6e3aa7999181",
+            runId: demoRunId,
+            sequence: 1,
+            type: "memory.retrieved",
+            eventTime: new Date("2026-09-09T07:00:18.132Z"),
+            data: {
+              count: 6,
+              source: "SIBYL",
+              summary: "Recalled 6 counterparties from Sibyl relationship memory",
+              verdict_code: "ok",
+              retrieval_status: "AVAILABLE",
+            },
+          },
+          {
+            eventId: "69bb840f-2ee2-40ae-8940-ab613d99f604",
+            runId: demoRunId,
+            sequence: 2,
+            type: "candidate.scored",
+            eventTime: new Date("2026-09-09T07:00:18.140Z"),
+            data: {
+              summary: "Ranked 2 counterparties on price and relationship memory",
+              excluded: [
+                {
+                  key: "test:failing:agent",
+                  reason: "No observed price on record, so there was nothing to compare on.",
+                },
+                {
+                  key: "virtuals:agent:blocked_test",
+                  reason: "No observed price on record, so there was nothing to compare on.",
+                },
+                {
+                  key: "agent:beta",
+                  reason: "No observed price on record, so there was nothing to compare on.",
+                },
+                {
+                  key: "blocked_candidate",
+                  reason: "No observed price on record, so there was nothing to compare on.",
+                },
+              ],
+              candidates: [
+                {
+                  key: "virtuals:agent:beta",
+                  score: 96,
+                  memory_note: "No previous interactions on record.",
+                  memory_adjustment: 1,
+                },
+                {
+                  key: "virtuals:agent:alpha",
+                  score: 89,
+                  memory_note:
+                    "One acceptance failure inside the last 30 days applies a risk penalty.",
+                  memory_adjustment: -11,
+                },
+              ],
+            },
+          },
+          {
+            eventId: "91c3e7bb-d356-429a-891d-c2bc7d73d023",
+            runId: demoRunId,
+            sequence: 3,
+            type: "decision.made",
+            eventTime: new Date("2026-09-09T07:00:18.145Z"),
+            data: {
+              reasons: [
+                "Relationship status on record is KNOWN.",
+                "Observed price is 9.50 USDC.",
+                "No previous interactions on record.",
+                "This record is seeded demonstration data, not a relationship this operator has had.",
+              ],
+              summary: "Selected the highest-ranked counterparty",
+              counterparty_key: "virtuals:agent:beta",
+              authorization_mode: "OPERATOR_APPROVAL",
+            },
+          },
+          {
+            eventId: "b4b8b78c-49ab-4a96-b21d-9091ddfd8694",
+            runId: demoRunId,
+            sequence: 4,
+            type: "approval.requested",
+            eventTime: new Date("2026-09-09T07:00:18.149Z"),
+            data: {
+              action: "Fund the job at 9.50 USDC",
+              summary: "Funding this counterparty needs an operator decision",
+              amount_usdc: "9.50",
+              ceiling_usdc: "25.000000",
+              counterparty_key: "virtuals:agent:beta",
+              authorization_mode: "OPERATOR_APPROVAL",
+            },
+          },
+        ])
+        .onConflictDoNothing();
+      console.log(`[db] demo run ${demoRunId} seeded successfully.`);
+    }
   } catch (err) {
     console.warn("[db] could not seed initial defaults:", err);
   }

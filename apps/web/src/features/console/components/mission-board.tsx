@@ -148,7 +148,7 @@ export function MissionBoard({
             <Button
               size="sm"
               variant="secondary"
-              onClick={() => router.push("/runs/0634b7dc-9c69-454a-b68a-81fea8bc3f08")}
+              onClick={() => router.push("/runs/3c2dc36a-dc44-4abd-9fe0-8386e55cd677")}
               label="Open live run"
               icon={<ExternalLink size={13} />}
             />

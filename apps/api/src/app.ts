@@ -14,6 +14,7 @@ import { health } from "./routes/health.js";
 import { mcpRoute } from "./routes/mcp.js";
 import { policies } from "./routes/policies.js";
 import { runs } from "./routes/runs.js";
+import { ensureDatabaseSeeded } from "./services/seed-defaults.js";
 
 export const app = new Hono();
 
@@ -60,6 +61,14 @@ app.route("/api/counterparties", counterpartyMemory);
 app.route("/api/memory", memory);
 app.route("/api/policies", policies);
 app.route("/api/commitments", commitments);
+app.post("/api/seed", async (c) => {
+  await ensureDatabaseSeeded();
+  return c.json({ ok: true, message: "Database seeded successfully" });
+});
+app.get("/api/seed", async (c) => {
+  await ensureDatabaseSeeded();
+  return c.json({ ok: true, message: "Database seeded successfully" });
+});
 
 app.notFound((c) =>
   c.json(errorBody("not_found", `No route for ${c.req.method} ${c.req.path}`), 404),

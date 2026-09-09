@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { AppShell } from "@astryxdesign/core/AppShell";
 import { BottomSheet } from "@astryxdesign/core/BottomSheet";
 import { Layout, LayoutContent, LayoutPanel } from "@astryxdesign/core/Layout";
@@ -23,7 +23,7 @@ import {
 import { ConsoleNavigation } from "./console-navigation";
 import type { ReadinessState } from "./console-status";
 import { ConsoleTopbar } from "./console-topbar";
-import { Web3WalletProvider, WalletGateOverlay, useWeb3Wallet } from "@/features/web3";
+import { Web3WalletProvider } from "@/features/web3";
 
 export interface ConsoleShellProps {
   /** The destination the operator is on, for navigation and the context bar. */
@@ -98,8 +98,6 @@ function ConsoleChatRegion({
   );
 }
 
-const emptySubscribe = () => () => {};
-
 function ConsoleShellInner({
   surface,
   readiness,
@@ -108,15 +106,6 @@ function ConsoleShellInner({
   grounding,
   children,
 }: ConsoleShellProps) {
-  const { isConnected, isBaseSepolia } = useWeb3Wallet();
-  const mounted = useSyncExternalStore(
-    emptySubscribe,
-    () => true,
-    () => false,
-  );
-  const isTest = typeof process !== "undefined" && process.env.NODE_ENV === "test";
-  const isGated = mounted && (!isConnected || !isBaseSepolia) && !isTest;
-
   const chatOpen = useChatOpen();
   const chatTouched = useChatTouched();
   const narrow = useMediaQuery(NARROW);
@@ -142,15 +131,8 @@ function ConsoleShellInner({
         <Layout
           content={
             <LayoutContent padding={6} tabIndex={0}>
-              <div className="relative w-full min-h-[580px] flex flex-col flex-1">
-                <div
-                  className={`cs__workspace transition-all duration-300 ${
-                    isGated ? "filter blur-md pointer-events-none select-none opacity-20" : ""
-                  }`}
-                >
-                  {children}
-                </div>
-                {isGated && <WalletGateOverlay />}
+              <div className="cs__workspace relative w-full min-h-[580px] flex flex-col flex-1">
+                {children}
               </div>
             </LayoutContent>
           }
@@ -162,9 +144,7 @@ function ConsoleShellInner({
                 padding={4}
                 role="complementary"
                 label={console_.chat.dock.label}
-                className={`cs__chat-dock transition-all duration-300 ${
-                  isGated ? "filter blur-sm pointer-events-none opacity-30" : ""
-                }`}
+                className="cs__chat-dock"
               >
                 <ConsoleChatRegion runId={runRef} grounding={grounding} />
               </LayoutPanel>
