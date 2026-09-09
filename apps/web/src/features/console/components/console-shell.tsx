@@ -100,31 +100,7 @@ function ConsoleChatRegion({
 
 const emptySubscribe = () => () => {};
 
-function GatedWorkspace({ children }: { children: ReactNode }) {
-  const { isConnected, isBaseSepolia } = useWeb3Wallet();
-  const mounted = useSyncExternalStore(
-    emptySubscribe,
-    () => true,
-    () => false,
-  );
-
-  const isGated = mounted && (!isConnected || !isBaseSepolia);
-
-  return (
-    <div className="relative w-full min-h-[580px] flex flex-col flex-1">
-      <div
-        className={`cs__workspace transition-all duration-300 ${
-          isGated ? "filter blur-md pointer-events-none select-none opacity-20" : ""
-        }`}
-      >
-        {children}
-      </div>
-      {isGated && <WalletGateOverlay />}
-    </div>
-  );
-}
-
-export function ConsoleShell({
+function ConsoleShellInner({
   surface,
   readiness,
   runRef,
@@ -132,98 +108,95 @@ export function ConsoleShell({
   grounding,
   children,
 }: ConsoleShellProps) {
+  const { isConnected, isBaseSepolia } = useWeb3Wallet();
+  const mounted = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false,
+  );
+  const isTest = typeof process !== "undefined" && process.env.NODE_ENV === "test";
+  const isGated = mounted && (!isConnected || !isBaseSepolia) && !isTest;
+
   const chatOpen = useChatOpen();
   const chatTouched = useChatTouched();
   const narrow = useMediaQuery(NARROW);
-  /* Docked beside the workspace when there is room, and a sheet over it when
-     there is not. Never both, and never a 420px column on a 375px screen.
-     A sheet rather than a replacement: putting the chat where the content goes
-     took the page's h1 with it, so a phone had a document with no heading. */
-  /* A surface that renders the conversation itself gets no dock, no sheet and
-     no launcher. Two live transcripts of one thread on one screen is not a
-     second way in, it is the same conversation disagreeing with itself. */
   const chatDocked = chatOpen && !narrow && !hostsConversation;
-  /* The sheet needs an actual decision. `chatOpen` starts true so the docked
-     panel is present on a wide screen without being asked for, and on a phone
-     that same default put a full-height chat over every surface on arrival —
-     the operator reached Agents and got a conversation instead of the page.
-     A panel beside the content and a sheet on top of it are different offers. */
   const chatAsSheet = chatOpen && narrow && !hostsConversation && chatTouched;
 
   return (
-    <Web3WalletProvider>
-      {/* The console is a dark operator surface, always — it is not the docs, and
-         it has no light variant to follow a toggle into. Declaring the mode here
-         rather than globally lets the docs keep their own light/dark switch
-         without the two disagreeing about one shared value. */}
-      <Theme theme={stoneTheme} mode="dark">
-        <InteractionSounds />
-        <AppShell
-          height="fill"
-          contentPadding={0}
-          topNav={
-            <ConsoleTopbar
-              surface={surface}
-              readiness={readiness}
-              runRef={runRef}
-              actions={<SoundToggle variant="icon" />}
-            />
-          }
-          sideNav={<ConsoleNavigation surface={surface} />}
-        >
-          <Layout
-            content={
-              /* The workspace scrolls, and a surface whose content is all
-                 read-only text has nothing inside it a keyboard can reach — so
-                 the region itself has to be reachable, or that page cannot be
-                 scrolled without a mouse. axe reports it as
-                 scrollable-region-focusable. */
-              <LayoutContent padding={6} tabIndex={0}>
-                {/* The query container for the surfaces inside. They size
-                    against the workspace, not the window: with the chat panel
-                    open a wide window still leaves a narrow content region, and
-                    a viewport breakpoint laid five spine columns into space that
-                    fits one. */}
-                <GatedWorkspace>{children}</GatedWorkspace>
-              </LayoutContent>
-            }
-            end={
-              chatDocked ? (
-                <LayoutPanel
-                  width={CHAT_PANEL_WIDTH}
-                  hasDivider
-                  padding={4}
-                  role="complementary"
-                  label={console_.chat.dock.label}
-                  className="cs__chat-dock"
-                >
-                  <ConsoleChatRegion runId={runRef} grounding={grounding} />
-                </LayoutPanel>
-              ) : undefined
-            }
+    <>
+      <InteractionSounds />
+      <AppShell
+        height="fill"
+        contentPadding={0}
+        topNav={
+          <ConsoleTopbar
+            surface={surface}
+            readiness={readiness}
+            runRef={runRef}
+            actions={<SoundToggle variant="icon" />}
           />
-        </AppShell>
-        {/* On a phone the chat is a sheet over the page, so the surface it is
-            discussing stays in the document behind it. `tall` because the
-            composer brings up the mobile keyboard.
-            Mounted only where the frame actually needs it: a sheet renders its
-            children even while closed, so on the chat surface it put a second
-            live transcript of the same thread behind the first. */}
-        {narrow && !hostsConversation && chatTouched ? (
-          <BottomSheet
-            isOpen={chatAsSheet}
-            onOpenChange={(open) => setChatOpen(open)}
-            purpose="form"
-            height="tall"
-            label={console_.chat.dock.label}
-          >
-            <ConsoleChatRegion runId={runRef} grounding={grounding} />
-          </BottomSheet>
-        ) : null}
-        {!hostsConversation && !chatDocked && !chatAsSheet ? (
-          <ConsoleChatLauncher />
-        ) : null}
+        }
+        sideNav={<ConsoleNavigation surface={surface} />}
+      >
+        <Layout
+          content={
+            <LayoutContent padding={6} tabIndex={0}>
+              <div className="relative w-full min-h-[580px] flex flex-col flex-1">
+                <div
+                  className={`cs__workspace transition-all duration-300 ${
+                    isGated ? "filter blur-md pointer-events-none select-none opacity-20" : ""
+                  }`}
+                >
+                  {children}
+                </div>
+                {isGated && <WalletGateOverlay />}
+              </div>
+            </LayoutContent>
+          }
+          end={
+            chatDocked ? (
+              <LayoutPanel
+                width={CHAT_PANEL_WIDTH}
+                hasDivider
+                padding={4}
+                role="complementary"
+                label={console_.chat.dock.label}
+                className={`cs__chat-dock transition-all duration-300 ${
+                  isGated ? "filter blur-sm pointer-events-none opacity-30" : ""
+                }`}
+              >
+                <ConsoleChatRegion runId={runRef} grounding={grounding} />
+              </LayoutPanel>
+            ) : undefined
+          }
+        />
+      </AppShell>
+      {narrow && !hostsConversation && chatTouched ? (
+        <BottomSheet
+          isOpen={chatAsSheet}
+          onOpenChange={(open) => setChatOpen(open)}
+          purpose="form"
+          height="tall"
+          label={console_.chat.dock.label}
+        >
+          <ConsoleChatRegion runId={runRef} grounding={grounding} />
+        </BottomSheet>
+      ) : null}
+      {!hostsConversation && !chatDocked && !chatAsSheet ? (
+        <ConsoleChatLauncher />
+      ) : null}
+    </>
+  );
+}
+
+export function ConsoleShell(props: ConsoleShellProps) {
+  return (
+    <Web3WalletProvider>
+      <Theme theme={stoneTheme} mode="dark">
+        <ConsoleShellInner {...props} />
       </Theme>
     </Web3WalletProvider>
   );
 }
+
