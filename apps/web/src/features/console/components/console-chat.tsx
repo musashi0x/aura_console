@@ -462,7 +462,7 @@ export function ConsoleChat({ runId, grounding, memoryEnabled }: ConsoleChatProp
     />
   );
 
-  const zeroState = <ConsoleChatSuggestions onOffer={offer} />;
+  const zeroState = <ConsoleChatSuggestions onOffer={offer} runId={runId} />;
 
   return (
     <VStack gap={4} height="100%">

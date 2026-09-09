@@ -15,6 +15,7 @@ export interface ConsoleChatSuggestionsProps {
    * cannot run one however the markup is later rearranged.
    */
   onOffer: (text: string) => void;
+  runId?: string;
 }
 
 /**
@@ -71,7 +72,7 @@ const SIBYL_MEMORY_SHOWCASE_PROMPTS = [
   },
 ] as const;
 
-export function ConsoleChatSuggestions({ onOffer }: ConsoleChatSuggestionsProps) {
+export function ConsoleChatSuggestions({ onOffer, runId }: ConsoleChatSuggestionsProps) {
   return (
     <VStack gap={3} padding={2}>
       <VStack gap={1}>
@@ -82,6 +83,86 @@ export function ConsoleChatSuggestions({ onOffer }: ConsoleChatSuggestionsProps)
           {console_.chat.zero.lede}
         </Text>
       </VStack>
+
+      {/* When scoped to a Run, provide prompt cards that explain the running steps */}
+      {runId ? (
+        <VStack gap={1}>
+          <Text as="p" size="xsm" color="secondary" weight="semibold">
+            Mission Execution & Step Explanations
+          </Text>
+          <Grid columns={{ minWidth: 220, max: 2 }} gap={2}>
+            <ClickableCard
+              label="Explain Mission Running Steps"
+              variant="muted"
+              padding={3}
+              onClick={() =>
+                onOffer(
+                  "Explain the recorded execution steps of this mission so far, including memory recall, candidate scoring, and the chosen counterparty.",
+                )
+              }
+            >
+              <VStack gap={0.5}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Text as="p" size="sm" weight="semibold">
+                    Explain Mission Steps
+                  </Text>
+                  <span
+                    style={{
+                      fontSize: "10px",
+                      padding: "1px 5px",
+                      borderRadius: "4px",
+                      background: "color-mix(in srgb, var(--color-success) 15%, transparent)",
+                      color: "var(--color-success)",
+                      letterSpacing: "0.04em",
+                      fontFamily: "var(--font-mono, monospace)",
+                    }}
+                  >
+                    RUN PIPELINE
+                  </span>
+                </div>
+                <Text as="p" size="xsm" color="secondary">
+                  Walk through the causal execution spine: budget ceiling, Sibyl reputation queries, and candidate ranking
+                </Text>
+              </VStack>
+            </ClickableCard>
+
+            <ClickableCard
+              label="Why was this counterparty chosen?"
+              variant="muted"
+              padding={3}
+              onClick={() =>
+                onOffer(
+                  "Why was this counterparty chosen for this mission based on Sibyl relationship memory?",
+                )
+              }
+            >
+              <VStack gap={0.5}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Text as="p" size="sm" weight="semibold">
+                    Why was this chosen?
+                  </Text>
+                  <span
+                    style={{
+                      fontSize: "10px",
+                      padding: "1px 5px",
+                      borderRadius: "4px",
+                      background: "color-mix(in srgb, var(--color-cyan) 15%, transparent)",
+                      color: "var(--color-cyan)",
+                      letterSpacing: "0.04em",
+                      fontFamily: "var(--font-mono, monospace)",
+                    }}
+                  >
+                    DECISION REASONING
+                  </span>
+                </div>
+                <Text as="p" size="xsm" color="secondary">
+                  Inspect Bayesian composite scores, reliability ratings, and past delivery episodes
+                </Text>
+              </VStack>
+            </ClickableCard>
+          </Grid>
+        </VStack>
+      ) : null}
 
       {/* Sibyl Labs 5-Tier Memory Protocol Showcase */}
       <VStack gap={1}>
