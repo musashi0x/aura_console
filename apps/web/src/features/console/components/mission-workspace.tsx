@@ -366,6 +366,9 @@ export function MissionWorkspace({
         spentUsdc={view.spentUsdc ?? undefined}
         memoryStatus={console_.mission.memory[view.retrievalStatus]}
         txHashes={txHashes}
+        entries={view.entries}
+        onJumpTo={jumpTo}
+        onScrubTo={scrubTo}
       />
 
       {view.entries.length <= 1 && !fixtureLabel ? (

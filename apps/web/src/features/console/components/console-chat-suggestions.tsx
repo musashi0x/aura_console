@@ -160,6 +160,41 @@ export function ConsoleChatSuggestions({ onOffer, runId }: ConsoleChatSuggestion
                 </Text>
               </VStack>
             </ClickableCard>
+
+            <ClickableCard
+              label="Trace Sibyl Memory & Provenance"
+              variant="muted"
+              padding={3}
+              onClick={() =>
+                onOffer(
+                  "Trace the exact Sibyl Memory event IDs, queried counterparties, WARM and COLD storage tiers, and prove why memory was load-bearing for this mission.",
+                )
+              }
+            >
+              <VStack gap={0.5}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Text as="p" size="sm" weight="semibold">
+                    Trace Sibyl Memory & Provenance
+                  </Text>
+                  <span
+                    style={{
+                      fontSize: "10px",
+                      padding: "1px 5px",
+                      borderRadius: "4px",
+                      background: "color-mix(in srgb, var(--color-warning) 15%, transparent)",
+                      color: "var(--color-warning)",
+                      letterSpacing: "0.04em",
+                      fontFamily: "var(--font-mono, monospace)",
+                    }}
+                  >
+                    SIBYL GATE (40/40)
+                  </span>
+                </div>
+                <Text as="p" size="xsm" color="secondary">
+                  Inspect canonical event IDs, WARM/COLD tiers, Bayesian score adjustments, and load-bearing deletion proof
+                </Text>
+              </VStack>
+            </ClickableCard>
           </Grid>
         </VStack>
       ) : null}

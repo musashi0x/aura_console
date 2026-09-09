@@ -141,12 +141,13 @@ function ConsoleShellInner({
   const chatTouched = useChatTouched();
   const narrow = useMediaQuery(NARROW);
   const canExpandInline = useMediaQuery("(min-width: 96rem)");
-  const chatDocked = chatOpen && !narrow && !hostsConversation && (!chatExpanded || canExpandInline);
+  const isExpanded = chatOpen && chatExpanded;
+  const chatDocked = chatOpen && !narrow && !hostsConversation && (!isExpanded || canExpandInline);
   const chatAsSheet = chatOpen && narrow && !hostsConversation && chatTouched;
-  const showOverlayDrawer = chatOpen && !hostsConversation && !narrow && chatExpanded && !canExpandInline;
+  const showOverlayDrawer = chatOpen && !hostsConversation && !narrow && isExpanded && !canExpandInline;
 
   useEffect(() => {
-    if (!chatExpanded || canExpandInline) return;
+    if (!isExpanded || canExpandInline) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setChatExpanded(false);
@@ -154,13 +155,7 @@ function ConsoleShellInner({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [chatExpanded, canExpandInline]);
-
-  useEffect(() => {
-    if (!chatOpen && chatExpanded) {
-      setChatExpanded(false);
-    }
-  }, [chatOpen, chatExpanded]);
+  }, [isExpanded, canExpandInline]);
 
   return (
     <>
