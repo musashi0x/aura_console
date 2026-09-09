@@ -6,7 +6,9 @@ import { Button } from "@astryxdesign/core/Button";
 import { HStack } from "@astryxdesign/core/Stack";
 import { Text } from "@astryxdesign/core/Text";
 import {
+  AlertOctagon,
   Bot,
+  CheckCircle2,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -14,9 +16,27 @@ import {
   Pause,
   Play,
   RotateCcw,
+  Scale,
+  ShieldCheck,
   Sparkles,
   Terminal,
+  Zap,
 } from "lucide-react";
+
+export interface FlowStepStorycardItem {
+  label: string;
+  value: string;
+  detail?: string;
+  tone?: "success" | "danger" | "info" | "neutral" | "warning";
+}
+
+export interface FlowStepStorycard {
+  badge: string;
+  badgeTone?: "green" | "blue" | "purple" | "yellow" | "red" | "cyan";
+  headline: string;
+  items: FlowStepStorycardItem[];
+  verdictNote: string;
+}
 
 export interface FlowStep {
   step: number;
@@ -27,6 +47,7 @@ export interface FlowStep {
   statusTone: "blue" | "purple" | "yellow" | "green" | "cyan" | "red";
   takeaway?: string;
   whyItMatters?: string;
+  storycard?: FlowStepStorycard;
   narrative: string;
   agentThought: string;
   terminalLog: string[];
@@ -51,6 +72,32 @@ export const FLOW_STEPS: FlowStep[] = [
     statusTone: "blue",
     takeaway: "Agent locks an unbreachable 25.00 USDC budget ceiling before querying suppliers — eliminating blind autonomous spend.",
     whyItMatters: "Fail-closed safety guarantee: autonomous tasks cannot execute without a declared ceiling.",
+    storycard: {
+      badge: "FAIL-CLOSED SPEND CEILING",
+      badgeTone: "blue",
+      headline: "Objective Declared · Budget Guardrail Enforced",
+      items: [
+        {
+          label: "Budget Ceiling",
+          value: "25.00 USDC",
+          detail: "Hard economic ceiling declared before counterparty discovery",
+          tone: "info",
+        },
+        {
+          label: "Candidates Discovered",
+          value: "2 Autonomous Agents",
+          detail: "virtuals:agent:alpha ($9.00 quote) & virtuals:agent:beta ($18.50 quote)",
+          tone: "neutral",
+        },
+        {
+          label: "Safety Guardrail",
+          value: "Zero Blind Spend",
+          detail: "Agent cannot commit funds without verified reputation history",
+          tone: "success",
+        },
+      ],
+      verdictNote: "Safety Guarantee: Spend is capped and candidates are isolated before any financial commitment.",
+    },
     narrative: "Declare economic objective and set non-negotiable budget ceiling.",
     agentThought:
       "Received mission objective: 'Procure verified decentralized market intelligence dataset'. Budget ceiling set to 25.00 USDC. Initiating counterparty discovery and reputation query.",
@@ -88,6 +135,32 @@ export const FLOW_STEPS: FlowStep[] = [
     statusTone: "purple",
     takeaway: "Queries persistent SQLite store (~/.sibyl-memory/memory.db) and recalls Alpha's past deliverable schema failure (Episode #b2039125).",
     whyItMatters: "Load-bearing recall: past failure history is retrieved before treasury is committed.",
+    storycard: {
+      badge: "EPISODIC MEMORY RECALL",
+      badgeTone: "purple",
+      headline: "Queried ~/.sibyl-memory/memory.db",
+      items: [
+        {
+          label: "virtuals:agent:alpha",
+          value: "8 Episodes · 1 SLA Breach",
+          detail: "Episode #b2039125: Schema validation delivery failure",
+          tone: "danger",
+        },
+        {
+          label: "virtuals:agent:beta",
+          value: "29 Episodes · 0 Failures",
+          detail: "100% on-time verified delivery track record",
+          tone: "success",
+        },
+        {
+          label: "Memory Provenance",
+          value: "WARM + COLD Tiers",
+          detail: "SQLite FTS5 + append-only journal queried before spend",
+          tone: "info",
+        },
+      ],
+      verdictNote: "Load-Bearing Proof: Past delivery failures are retrieved from disk before treasury is committed.",
+    },
     narrative: "Query persistent SQLite database (~/.sibyl-memory/memory.db) for counterparty SLA history.",
     agentThought:
       "Consulting Sibyl relationship memory before committing treasury. Querying historical delivery records, schema validation results, and breach logs for both candidates.",
@@ -143,6 +216,32 @@ export const FLOW_STEPS: FlowStep[] = [
     statusTone: "yellow",
     takeaway: "Bayesian SLA scoring slashes Alpha to 28/100 (Quarantined) and selects Beta at 94/100 despite higher price — the Decision Flip!",
     whyItMatters: "Flips the decision away from the cheap but unreliable actor to the verified supplier.",
+    storycard: {
+      badge: "THE DECISION FLIP",
+      badgeTone: "yellow",
+      headline: "Bayesian SLA Reliability Scoring",
+      items: [
+        {
+          label: "Alpha Research ($9.00 quote)",
+          value: "Score: 28 / 100",
+          detail: "❌ QUARANTINED (Severe risk penalty for prior SLA breach)",
+          tone: "danger",
+        },
+        {
+          label: "Beta Labs ($18.50 quote)",
+          value: "Score: 94 / 100",
+          detail: "✅ SELECTED (100% delivery track record confirmed)",
+          tone: "success",
+        },
+        {
+          label: "Causal Outcome",
+          value: "Decision Flipped",
+          detail: "Cheapest quote rejected in favor of verified delivery track record",
+          tone: "warning",
+        },
+      ],
+      verdictNote: "Crucial Defense: Sibyl flips selection away from the cheap but unreliable actor to protect treasury.",
+    },
     narrative: "Compute Bayesian SLA reliability scores and quarantine unverified or breached actors.",
     agentThought:
       "Applying Bayesian formula: Alpha has a recent SLA breach within 30 days -> reliability drops from 0.88 to 0.67, with risk penalty resulting in score 28/100 (QUARANTINED). Beta has 100% verified deliveries -> score 94/100 (PREFERRED). Recommending Beta despite higher quote ($18.50 vs $9.00).",
@@ -197,6 +296,32 @@ export const FLOW_STEPS: FlowStep[] = [
     statusTone: "green",
     takeaway: "Spend bounds validated under operator policy ($6.50 treasury saved); execution pauses for explicit human authorization.",
     whyItMatters: "Human-in-the-loop governance ensures high-value expenditures are approved before escrow.",
+    storycard: {
+      badge: "HUMAN-IN-THE-LOOP",
+      badgeTone: "green",
+      headline: "Policy Ceiling & Operator Approval",
+      items: [
+        {
+          label: "Ceiling Verification",
+          value: "18.50 <= 25.00 USDC",
+          detail: "Quote safely bounded within declared ceiling (PASS)",
+          tone: "success",
+        },
+        {
+          label: "Treasury Surplus",
+          value: "+$6.50 USDC Saved",
+          detail: "Surplus retained inside mission treasury ($25.00 - $18.50)",
+          tone: "success",
+        },
+        {
+          label: "Operator Checkpoint",
+          value: "Signature Granted",
+          detail: "Operator cryptographic signature 0x89ab...71ef received",
+          tone: "info",
+        },
+      ],
+      verdictNote: "Governance: High-value spend movements pause at policy gate for verifiable human authorization.",
+    },
     narrative: "Validate spend against 25.00 USDC ceiling and pause at policy gate for operator approval.",
     agentThought:
       "Autonomous safety checkpoint: The proposed quote of 18.50 USDC is below the 25.00 USDC ceiling. However, policy requires human sign-off for any fund movement over 10.00 USDC. Halting execution and requesting operator grant.",
@@ -239,6 +364,32 @@ export const FLOW_STEPS: FlowStep[] = [
     statusTone: "cyan",
     takeaway: "Locks 18.50 USDC into on-chain escrow smart contract on Base Sepolia L2 (84532) — funds are protected on-chain.",
     whyItMatters: "Funds are locked in decentralized escrow until deliverable passes automated verification.",
+    storycard: {
+      badge: "BASE SEPOLIA ESCROW",
+      badgeTone: "cyan",
+      headline: "L2 Smart Contract Funding (84532)",
+      items: [
+        {
+          label: "Escrow Deposit",
+          value: "18.50 USDC Locked",
+          detail: "EscrowContract: 0x7a83d47c92b8491029c78201b8923a41b401c90a",
+          tone: "info",
+        },
+        {
+          label: "On-Chain Tx Hash",
+          value: "0x4f8b...2d3e",
+          detail: "Confirmed in Base Sepolia Block #21940129",
+          tone: "neutral",
+        },
+        {
+          label: "Release Condition",
+          value: "Deterministic Proof",
+          detail: "Escrow funds held until independent automated verifier passes",
+          tone: "success",
+        },
+      ],
+      verdictNote: "Decentralized Escrow: Counterparty cannot withdraw funds without cryptographic verification.",
+    },
     narrative: "Lock 18.50 USDC into on-chain escrow smart contract on Base Sepolia L2 (84532).",
     agentThought:
       "Submitting escrow funding transaction to Base Sepolia smart contract. Counterparty funds are locked safely in escrow until the deliverable passes automated verification.",
@@ -282,6 +433,32 @@ export const FLOW_STEPS: FlowStep[] = [
     statusTone: "green",
     takeaway: "Runs deliverable inside ephemeral worker sandbox; independent Verifier confirms 100% test pass rate (3/3 checks green).",
     whyItMatters: "Automated verification gates escrow payout so unverified work is never paid for.",
+    storycard: {
+      badge: "AUTOMATED VERIFIER",
+      badgeTone: "green",
+      headline: "Ephemeral Sandbox Execution & Validation",
+      items: [
+        {
+          label: "JSON Schema Conformity",
+          value: "PASS (100%)",
+          detail: "Oracle dataset conforms to required schema fields",
+          tone: "success",
+        },
+        {
+          label: "Cryptographic Signatures",
+          value: "PASS (100%)",
+          detail: "Oracle signature verified against publisher public key",
+          tone: "success",
+        },
+        {
+          label: "Data Freshness",
+          value: "PASS (12s elapsed)",
+          detail: "Delivered within required 30s freshness window SLA",
+          tone: "success",
+        },
+      ],
+      verdictNote: "Automated Quality Gate: 3/3 tests passed with 100% acceptance. Escrow release authorized.",
+    },
     narrative: "Execute counterparty job inside ephemeral sandbox and run deterministic verifier tests.",
     agentThought:
       "Worker completed data synthesis. Spawning independent Verifier Agent to audit schema conformity, signature integrity, and dataset completeness. Verifier exit code 0: 100% tests passed.",
@@ -324,6 +501,32 @@ export const FLOW_STEPS: FlowStep[] = [
     statusTone: "cyan",
     takeaway: "Records successful episode in Sibyl SQLite and commits salted Keccak256 memory diff root to Base Sepolia (v12 → v13, +5 Pts).",
     whyItMatters: "Closes the causal feedback loop: future missions remember this verified delivery forever.",
+    storycard: {
+      badge: "STATE COMMITMENT",
+      badgeTone: "cyan",
+      headline: "Sibyl Evolution & Base Sepolia Diff Anchor",
+      items: [
+        {
+          label: "Sibyl Memory Evolution",
+          value: "v12 → v13 (+5 Pts)",
+          detail: "Recorded positive delivery episode to ~/.sibyl-memory/memory.db",
+          tone: "success",
+        },
+        {
+          label: "Salted Keccak256 Hash",
+          value: "0x76b2...e4be",
+          detail: "Salted hash computed over updated counterparty state",
+          tone: "neutral",
+        },
+        {
+          label: "Base Sepolia State Root",
+          value: "Tx 0x91d4...a7b8",
+          detail: "State root committed on-chain for verifiable public audit",
+          tone: "info",
+        },
+      ],
+      verdictNote: "Closed-Loop Governance: Future autonomous missions inherit this verified track record forever.",
+    },
     narrative: "Record episode in Sibyl SQLite and publish salted Keccak256 memory diff root to Base Sepolia.",
     agentThought:
       "Finalizing mission: Recording positive delivery episode to Sibyl SQLite. Updating Beta's Bayesian confidence (+5 Pts). Generating salted Keccak256 hash of new memory state and committing root to Base Sepolia contract for public verifiable auditability.",
@@ -595,6 +798,7 @@ export function SibylFlowSimulator({ onStepChange, className = "" }: SibylFlowSi
             onClick={() => setIsTechExpanded((p) => !p)}
             className="mw__flow-sim-tech-toggle"
             aria-expanded={isTechExpanded}
+            aria-label={isTechExpanded ? "Hide technical proofs panel" : "Toggle technical proofs panel"}
           >
             <HStack gap={2} align="center">
               <Terminal size={14} className="mw__flow-sim-term-icon" />
@@ -657,19 +861,83 @@ export function SibylFlowSimulator({ onStepChange, className = "" }: SibylFlowSi
                   </pre>
                 </motion.div>
               </AnimatePresence>
+              <div className="mw__flow-sim-story-footer mt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsTechExpanded(false)}
+                  className="mw__flow-sim-inspect-btn"
+                >
+                  <Sparkles size={12} className="text-emerald-400" />
+                  <span>← Back to Visual Storycard</span>
+                </button>
+              </div>
             </>
           ) : (
-            <div className="p-4 rounded-lg bg-neutral-950/40 border border-dashed border-neutral-800/80 text-center flex flex-col items-center justify-center gap-2">
-              <p className="text-xs text-neutral-400 max-w-sm">
-                Technical logs and JSON-RPC calldata are cleanly tucked away for non-technical judges.
-              </p>
-              <button
-                type="button"
-                onClick={() => setIsTechExpanded(true)}
-                className="text-xs text-cyan-400 hover:text-cyan-300 font-mono underline cursor-pointer"
-              >
-                Click to Inspect Technical Calldata & Logs →
-              </button>
+            <div className="mw__flow-sim-storycard" data-testid="flow-sim-storycard">
+              {activeStep.storycard ? (
+                <>
+                  <div className="mw__flow-sim-story-head">
+                    <span
+                      className={`mw__flow-sim-story-badge mw__flow-sim-story-badge--${activeStep.storycard.badgeTone ?? "blue"}`}
+                    >
+                      {activeStep.storycard.badge}
+                    </span>
+                    <h3 className="mw__flow-sim-story-headline">
+                      {activeStep.storycard.headline}
+                    </h3>
+                  </div>
+
+                  <div className="mw__flow-sim-story-grid">
+                    {activeStep.storycard.items.map((item, iIdx) => (
+                      <div
+                        key={iIdx}
+                        className={`mw__flow-sim-story-item mw__flow-sim-story-item--${item.tone ?? "neutral"}`}
+                      >
+                        <div className="mw__flow-sim-story-item-top">
+                          <div className="flex items-center gap-1.5">
+                            {item.tone === "success" && (
+                              <CheckCircle2 size={13} className="text-emerald-400 flex-shrink-0" />
+                            )}
+                            {item.tone === "danger" && (
+                              <AlertOctagon size={13} className="text-red-400 flex-shrink-0" />
+                            )}
+                            {item.tone === "warning" && (
+                              <Scale size={13} className="text-amber-400 flex-shrink-0" />
+                            )}
+                            {item.tone === "info" && (
+                              <Zap size={13} className="text-cyan-400 flex-shrink-0" />
+                            )}
+                            {(!item.tone || item.tone === "neutral") && (
+                              <ShieldCheck size={13} className="text-neutral-400 flex-shrink-0" />
+                            )}
+                            <span className="mw__flow-sim-story-item-label">{item.label}</span>
+                          </div>
+                          <span className="mw__flow-sim-story-item-val">{item.value}</span>
+                        </div>
+                        {item.detail ? (
+                          <span className="mw__flow-sim-story-item-detail">{item.detail}</span>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mw__flow-sim-story-verdict">
+                    <Sparkles size={13} className="text-emerald-400 flex-shrink-0" />
+                    <span>{activeStep.storycard.verdictNote}</span>
+                  </div>
+                </>
+              ) : null}
+
+              <div className="mw__flow-sim-story-footer">
+                <button
+                  type="button"
+                  onClick={() => setIsTechExpanded(true)}
+                  className="mw__flow-sim-inspect-btn"
+                >
+                  <Terminal size={12} className="text-cyan-400" />
+                  <span>Inspect Technical Calldata & Logs →</span>
+                </button>
+              </div>
             </div>
           )}
         </div>

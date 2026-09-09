@@ -33,6 +33,51 @@ describe("Sibyl Studio Components", () => {
       expect(screen.getByText("memory_recall_counterparty")).toBeInTheDocument();
     });
 
+    it("renders visual storycard by default and toggles technical proofs", async () => {
+      const user = userEvent.setup();
+      render(<SibylFlowSimulator />);
+
+      // Storycard should be visible by default
+      const storycard = screen.getByTestId("flow-sim-storycard");
+      expect(storycard).toBeInTheDocument();
+      expect(screen.getByText("FAIL-CLOSED SPEND CEILING")).toBeInTheDocument();
+      expect(screen.getByText("Objective Declared · Budget Guardrail Enforced")).toBeInTheDocument();
+      expect(screen.getByText("25.00 USDC")).toBeInTheDocument();
+
+      // Technical terminal screen should NOT be open yet
+      expect(screen.queryByText(/MCP RPC: mission_initialize/i)).not.toBeInTheDocument();
+
+      // Click to inspect technical calldata & logs
+      const inspectBtn = screen.getByRole("button", { name: /Inspect Technical Calldata & Logs/i });
+      await user.click(inspectBtn);
+
+      // Now technical proofs and terminal are expanded
+      expect(screen.getByText(/MCP RPC: mission_initialize/i)).toBeInTheDocument();
+      expect(screen.getByText(/0182f7c0-291a-4d2b-9801-b8471cd699ef/i)).toBeInTheDocument();
+
+      // Click back to visual storycard
+      const backBtn = screen.getByRole("button", { name: /Back to Visual Storycard/i });
+      await user.click(backBtn);
+
+      // Storycard is restored
+      expect(screen.getByTestId("flow-sim-storycard")).toBeInTheDocument();
+      expect(screen.queryByText(/MCP RPC: mission_initialize/i)).not.toBeInTheDocument();
+    });
+
+    it("displays the decision flip storycard on step 3", async () => {
+      const user = userEvent.setup();
+      render(<SibylFlowSimulator />);
+
+      const step3Btn = screen.getByRole("tab", { name: /3\. Score/i });
+      await user.click(step3Btn);
+
+      expect(screen.getByText(/Step 3 of 7: Bayesian Scoring & Quarantine/i)).toBeInTheDocument();
+      expect(screen.getByText("THE DECISION FLIP")).toBeInTheDocument();
+      expect(screen.getByText("Score: 28 / 100")).toBeInTheDocument();
+      expect(screen.getByText("Score: 94 / 100")).toBeInTheDocument();
+      expect(screen.getByText(/Crucial Defense: Sibyl flips selection away/i)).toBeInTheDocument();
+    });
+
     it("has no axe violations", async () => {
       const { container } = render(<SibylFlowSimulator />);
       await expectNoAxeViolations(container);

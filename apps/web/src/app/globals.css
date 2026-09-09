@@ -4506,6 +4506,182 @@ input[type="range"].fluid-slider::-moz-range-thumb {
   opacity: 0.9;
 }
 
+.mw__flow-sim-storycard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.mw__flow-sim-story-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--space-2);
+}
+
+.mw__flow-sim-story-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  width: fit-content;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.mw__flow-sim-story-badge--blue {
+  background: color-mix(in srgb, var(--color-cyan) 12%, transparent);
+  color: var(--color-cyan);
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 25%, transparent);
+}
+
+.mw__flow-sim-story-badge--purple {
+  background: color-mix(in srgb, var(--color-accent-stone) 15%, transparent);
+  color: var(--color-accent-stone);
+  border: 1px solid color-mix(in srgb, var(--color-accent-stone) 30%, transparent);
+}
+
+.mw__flow-sim-story-badge--yellow {
+  background: color-mix(in srgb, var(--color-warning) 12%, transparent);
+  color: var(--color-warning);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 25%, transparent);
+}
+
+.mw__flow-sim-story-badge--green {
+  background: color-mix(in srgb, var(--color-success) 12%, transparent);
+  color: var(--color-success);
+  border: 1px solid color-mix(in srgb, var(--color-success) 25%, transparent);
+}
+
+.mw__flow-sim-story-badge--cyan {
+  background: color-mix(in srgb, var(--color-cyan) 12%, transparent);
+  color: var(--color-cyan);
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 25%, transparent);
+}
+
+.mw__flow-sim-story-badge--red {
+  background: color-mix(in srgb, var(--color-error) 12%, transparent);
+  color: var(--color-error);
+  border: 1px solid color-mix(in srgb, var(--color-error) 25%, transparent);
+}
+
+.mw__flow-sim-story-headline {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.mw__flow-sim-story-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.mw__flow-sim-story-item {
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mw__flow-sim-story-item--success {
+  background: color-mix(in srgb, var(--color-success) 8%, var(--color-surface-raised));
+  border: 1px solid color-mix(in srgb, var(--color-success) 25%, transparent);
+}
+
+.mw__flow-sim-story-item--danger {
+  background: color-mix(in srgb, var(--color-error) 8%, var(--color-surface-raised));
+  border: 1px solid color-mix(in srgb, var(--color-error) 25%, transparent);
+}
+
+.mw__flow-sim-story-item--info {
+  background: color-mix(in srgb, var(--color-cyan) 8%, var(--color-surface-raised));
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 25%, transparent);
+}
+
+.mw__flow-sim-story-item--warning {
+  background: color-mix(in srgb, var(--color-warning) 8%, var(--color-surface-raised));
+  border: 1px solid color-mix(in srgb, var(--color-warning) 25%, transparent);
+}
+
+.mw__flow-sim-story-item--neutral {
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+}
+
+.mw__flow-sim-story-item-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.mw__flow-sim-story-item-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.mw__flow-sim-story-item-val {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.mw__flow-sim-story-item-detail {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  line-height: 1.35;
+}
+
+.mw__flow-sim-story-verdict {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-2);
+  line-height: 1.4;
+}
+
+.mw__flow-sim-story-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-top: var(--space-1);
+}
+
+.mw__flow-sim-inspect-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-cyan);
+  background: color-mix(in srgb, var(--color-cyan) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 25%, transparent);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.mw__flow-sim-inspect-btn:hover {
+  background: color-mix(in srgb, var(--color-cyan) 16%, transparent);
+}
+
 .mw__hero-card {
   background: var(--color-surface);
   border: 1px solid var(--color-border-strong);
