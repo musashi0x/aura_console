@@ -42,6 +42,21 @@
   --color-warning: #ffbe63;
   --color-error: #ff6b7a;
 
+  /* Landing page semantic tokens (Light/Default) */
+  --background: #0d0c12;
+  --foreground: #f4f4f7;
+  --muted: #15141c;
+  --muted-foreground: #8d8c97;
+  --border: #23222c;
+  --ring: #a8d946;
+  --frame: #121118;
+  --accent: #a8d946;
+  --card-primary: #171620;
+  --card-secondary: #131219;
+  --card-foreground: #f4f4f7;
+  --card-foreground-muted: #9e9da9;
+  --phone-screen: #0d0c12;
+
   /* Spacing, 4pt scale */
   --space-1: 0.25rem;
   --space-2: 0.5rem;

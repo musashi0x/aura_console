@@ -1,0 +1,22 @@
+{
+  "name": "Aura Memory — Persistent Reputation for Autonomous Agents",
+  "short_name": "Aura Memory",
+  "description": "The persistent relationship memory layer and fail-closed command console for autonomous AI agents.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111015",
+  "theme_color": "#a8d946",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/apple-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
