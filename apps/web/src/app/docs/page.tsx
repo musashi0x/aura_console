@@ -37,6 +37,11 @@ const guides = [
     body: "Which dependencies answered, and what stays unavailable when one does not.",
   },
   {
+    title: "Sibyl Memory Setup",
+    href: "/docs/installation",
+    body: "Give your AI a memory in two minutes: install sibyl-memory-cli[mcp], run sibyl init & setup, connect Claude Code, Codex, Hermes, and verify cold-start memory.",
+  },
+  {
     title: "AI agents",
     href: "/docs/ai-agents",
     body: "How a coding agent should read and extend this catalog.",

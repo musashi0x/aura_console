@@ -17,6 +17,7 @@ import {
   Scale,
   ShieldAlert,
   ShieldCheck,
+  Terminal,
   Zap,
 } from "lucide-react";
 
@@ -24,6 +25,7 @@ import { SibylFlowSimulator } from "./sibyl-flow-simulator";
 import { SibylCounterfactualSimulator } from "./sibyl-counterfactual-simulator";
 import { SibylDatabaseInspector } from "./sibyl-database-inspector";
 import { SibylDeletionDemo } from "./sibyl-deletion-demo";
+import { SibylCliWalkthrough } from "./sibyl-cli-walkthrough";
 
 export interface McpExecutiveOverviewProps {
   runId?: string;
@@ -31,10 +33,10 @@ export interface McpExecutiveOverviewProps {
   spentUsdc?: string | null;
   onJumpToTool?: (toolName: string) => void;
   className?: string;
-  defaultStudioTab?: "simulator" | "counterfactual" | "database" | "deletion" | "none";
+  defaultStudioTab?: "simulator" | "counterfactual" | "database" | "deletion" | "walkthrough" | "none";
 }
 
-type StudioTab = "simulator" | "counterfactual" | "database" | "deletion";
+type StudioTab = "simulator" | "counterfactual" | "database" | "deletion" | "walkthrough";
 
 const MCP_TOOLS = [
   {
@@ -279,6 +281,18 @@ export function McpExecutiveOverview({
               <ShieldAlert size={13} />
               <span>🚨 Deletion Test Proof</span>
             </motion.button>
+            <motion.button
+              type="button"
+              role="tab"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              aria-selected={activeTab === "walkthrough"}
+              className={`mw__studio-tab-btn ${activeTab === "walkthrough" ? "mw__studio-tab-btn--active" : ""}`}
+              onClick={() => setActiveTab("walkthrough")}
+            >
+              <Terminal size={13} />
+              <span>⚡ 2-Min CLI Walkthrough</span>
+            </motion.button>
           </div>
         ) : null}
 
@@ -299,6 +313,9 @@ export function McpExecutiveOverview({
                 {activeTab === "counterfactual" && <SibylCounterfactualSimulator />}
                 {activeTab === "database" && <SibylDatabaseInspector />}
                 {activeTab === "deletion" && <SibylDeletionDemo />}
+                {activeTab === "walkthrough" && (
+                  <SibylCliWalkthrough onJumpToTool={onJumpToTool} />
+                )}
               </motion.div>
             </AnimatePresence>
           </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useReducer, useRef } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 
 import { readProgress, writeProgress } from "../acknowledgement";
 import { copy } from "../copy";
@@ -24,8 +24,15 @@ export interface OnboardingFlowProps {
 
 export function OnboardingFlow({ onFinish, onSkip }: OnboardingFlowProps) {
   const [state, dispatch] = useReducer(onboardingReducer, initialState);
+  const [copiedCommand, setCopiedCommand] = useState<string | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const restored = useRef(false);
+
+  const copyCommand = (cmd: string, key: string) => {
+    void navigator.clipboard?.writeText?.(cmd);
+    setCopiedCommand(key);
+    setTimeout(() => setCopiedCommand(null), 2000);
+  };
 
   // Resume where the operator left off, before anything is rendered as new.
   useEffect(() => {
@@ -243,6 +250,177 @@ export function OnboardingFlow({ onFinish, onSkip }: OnboardingFlowProps) {
             {copy.complete.title}
           </h1>
           <p>{copy.complete.body}</p>
+
+          <div
+            style={{
+              marginTop: "1.25rem",
+              marginBottom: "1.25rem",
+              padding: "1rem",
+              borderRadius: "0.75rem",
+              border: "1px solid var(--color-border)",
+              background: "var(--color-surface-raised)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: "0.5rem",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  color: "var(--color-text)",
+                }}
+              >
+                ✦ Sibyl Memory CLI Setup (2-Minute Walkthrough)
+              </span>
+              <a
+                href="/docs/installation"
+                style={{
+                  fontSize: "0.75rem",
+                  color: "var(--color-accent)",
+                  textDecoration: "underline",
+                }}
+              >
+                Full Docs &rarr;
+              </a>
+            </div>
+            <p
+              style={{
+                fontSize: "0.75rem",
+                color: "var(--color-text-muted)",
+                marginBottom: "0.75rem",
+                lineHeight: "1.4",
+              }}
+            >
+              Connect Claude Code, Codex, Hermes, or Aura to persistent Sibyl memory:
+            </p>
+            <div
+              style={{
+                display: "grid",
+                gap: "0.5rem",
+                fontSize: "0.75rem",
+                fontFamily: "var(--font-mono, monospace)",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "0.375rem 0.5rem",
+                  borderRadius: "0.375rem",
+                  background: "var(--color-surface)",
+                  border: "1px solid var(--color-border-subtle)",
+                }}
+              >
+                <span style={{ color: "var(--color-accent)" }}>
+                  1. pip install &apos;sibyl-memory-cli[mcp]&apos;
+                </span>
+                <button
+                  type="button"
+                  className="btn"
+                  style={{
+                    padding: "0.125rem 0.375rem",
+                    fontSize: "0.7rem",
+                    height: "auto",
+                  }}
+                  onClick={() =>
+                    copyCommand("pip install 'sibyl-memory-cli[mcp]'", "cmd-install")
+                  }
+                >
+                  {copiedCommand === "cmd-install" ? "Copied" : "Copy"}
+                </button>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "0.375rem 0.5rem",
+                  borderRadius: "0.375rem",
+                  background: "var(--color-surface)",
+                  border: "1px solid var(--color-border-subtle)",
+                }}
+              >
+                <span style={{ color: "var(--color-accent)" }}>2. sibyl init</span>
+                <button
+                  type="button"
+                  className="btn"
+                  style={{
+                    padding: "0.125rem 0.375rem",
+                    fontSize: "0.7rem",
+                    height: "auto",
+                  }}
+                  onClick={() => copyCommand("sibyl init", "cmd-init")}
+                >
+                  {copiedCommand === "cmd-init" ? "Copied" : "Copy"}
+                </button>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "0.375rem 0.5rem",
+                  borderRadius: "0.375rem",
+                  background: "var(--color-surface)",
+                  border: "1px solid var(--color-border-subtle)",
+                }}
+              >
+                <span style={{ color: "var(--color-accent)" }}>3. sibyl setup</span>
+                <button
+                  type="button"
+                  className="btn"
+                  style={{
+                    padding: "0.125rem 0.375rem",
+                    fontSize: "0.7rem",
+                    height: "auto",
+                  }}
+                  onClick={() => copyCommand("sibyl setup", "cmd-setup")}
+                >
+                  {copiedCommand === "cmd-setup" ? "Copied" : "Copy"}
+                </button>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "0.375rem 0.5rem",
+                  borderRadius: "0.375rem",
+                  background: "var(--color-surface)",
+                  border: "1px solid var(--color-border-subtle)",
+                }}
+              >
+                <span style={{ color: "var(--color-text-muted)" }}>
+                  4. &quot;remember that I like short, direct answers.&quot;
+                </span>
+                <button
+                  type="button"
+                  className="btn"
+                  style={{
+                    padding: "0.125rem 0.375rem",
+                    fontSize: "0.7rem",
+                    height: "auto",
+                  }}
+                  onClick={() =>
+                    copyCommand(
+                      "remember that I like short, direct answers.",
+                      "cmd-test",
+                    )
+                  }
+                >
+                  {copiedCommand === "cmd-test" ? "Copied" : "Copy"}
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div className="onboarding__actions">
             <button type="button" className="btn btn--primary" onClick={() => onFinish?.("run")}>
               {copy.complete.primary}
@@ -265,6 +443,21 @@ export function OnboardingFlow({ onFinish, onSkip }: OnboardingFlowProps) {
           ))}
         </ul>
         <p className="onboarding__note">{copy.aside.footnote}</p>
+
+        <div style={{ marginTop: "1.5rem", paddingTop: "1rem", borderTop: "1px solid var(--color-border)" }}>
+          <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.625rem", textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--color-text-muted)", display: "block", marginBottom: "0.25rem" }}>
+            TERMINAL WALKTHROUGH
+          </span>
+          <p style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", lineHeight: "1.4", marginBottom: "0.5rem" }}>
+            Looking for CLI instructions? Install Sibyl Memory and connect your AI in two minutes.
+          </p>
+          <a
+            href="/docs/installation"
+            style={{ fontSize: "0.75rem", color: "var(--color-accent)", textDecoration: "underline", fontWeight: 500 }}
+          >
+            Open setup walkthrough &rarr;
+          </a>
+        </div>
       </aside>
     </div>
   );

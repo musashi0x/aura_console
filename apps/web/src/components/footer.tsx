@@ -10,6 +10,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useState, type ReactNode, type FormEvent } from "react";
+import { AuraIcon } from "./aura-logo";
 
 const footerLinks = {
   architecture: [
@@ -26,6 +27,10 @@ const footerLinks = {
     {
       label: "2-Min Evaluation Guide",
       href: "https://github.com/musashi0x/aura_memory#readme",
+    },
+    {
+      label: "Sibyl Setup Walkthrough",
+      href: "/docs/installation",
     },
     { label: "Model Context Protocol", href: "#mcp" },
     {
@@ -193,26 +198,11 @@ export function Footer(): ReactNode {
             <div className="flex flex-col gap-3">
               <a
                 href="#"
-                className="flex items-center gap-2.5"
+                className="flex items-center gap-2.5 group"
                 aria-label="Aura Memory home"
               >
-                <div className="bg-foreground text-background flex h-8 w-8 items-center justify-center rounded-xl shadow-sm">
-                  <svg
-                    className="text-accent h-5 w-5"
-                    viewBox="0 0 32 32"
-                    fill="none"
-                    stroke="currentColor"
-                  >
-                    <circle
-                      cx="16"
-                      cy="16"
-                      r="10"
-                      strokeWidth="2"
-                      strokeDasharray="4 2"
-                    />
-                    <circle cx="16" cy="16" r="5" strokeWidth="2.5" />
-                    <circle cx="16" cy="16" r="2" fill="currentColor" />
-                  </svg>
+                <div className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-neutral-900 border border-neutral-700/60 shadow-inner overflow-hidden transition-transform group-hover:scale-105 group-hover:border-emerald-500/50">
+                  <AuraIcon size={22} />
                 </div>
                 <span className="text-foreground text-xl font-bold tracking-tight">
                   Aura Memory

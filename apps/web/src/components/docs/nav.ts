@@ -36,8 +36,8 @@ export const docsNav: NavSection[] = [
     title: "Getting started",
     items: [
       { name: "Documentation home", href: "/docs" },
+      { name: "Installation & Setup", href: "/docs/installation" },
       { name: "Onboarding", href: "/onboarding" },
-      { name: "Installation", href: "/docs/installation" },
       { name: "Changelog", href: "/docs/changelog" },
     ],
   },

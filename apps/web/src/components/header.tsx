@@ -4,6 +4,7 @@ import { ArrowDownRight, ChevronDown, Github } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
+import { AuraIcon } from "./aura-logo";
 
 const menus = {
   architecture: [
@@ -38,6 +39,11 @@ const menus = {
       label: "Model Context Protocol",
       description: "Native MCP server for Claude Code, Cursor & swarms",
       href: "#mcp",
+    },
+    {
+      label: "Sibyl 2-Min Setup Walkthrough",
+      description: "Install sibyl-memory-cli, sibyl init, sibyl setup & cold recall",
+      href: "/docs/installation",
     },
     {
       label: "Bayesian Reputation FSM",
@@ -234,30 +240,15 @@ export function Header({ ready = true }: { ready?: boolean }): ReactNode {
           href="#"
           className="group ml-2 flex items-center gap-2.5 max-[850px]:ml-0"
         >
-          <div className="bg-foreground text-background relative flex h-8 w-8 items-center justify-center rounded-xl shadow-sm transition-transform group-hover:scale-105">
-            <svg
-              className="text-accent h-5 w-5"
-              viewBox="0 0 32 32"
-              fill="none"
-              stroke="currentColor"
-            >
-              <circle
-                cx="16"
-                cy="16"
-                r="10"
-                strokeWidth="2"
-                strokeDasharray="4 2"
-              />
-              <circle cx="16" cy="16" r="5" strokeWidth="2.5" />
-              <circle cx="16" cy="16" r="2" fill="currentColor" />
-            </svg>
+          <div className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-neutral-900 border border-neutral-700/60 shadow-inner overflow-hidden transition-transform group-hover:scale-105 group-hover:border-emerald-500/50">
+            <AuraIcon size={22} />
           </div>
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5">
               <span className="text-foreground text-base leading-tight font-semibold tracking-tight">
                 Aura Memory
               </span>
-              <span className="bg-accent/20 text-foreground rounded px-1.5 py-0.5 font-mono text-[10px] font-medium">
+              <span className="bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border border-emerald-500/20 rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold">
                 v1.0
               </span>
               <span className="sr-only">
@@ -297,6 +288,12 @@ export function Header({ ready = true }: { ready?: boolean }): ReactNode {
           >
             Tiers
           </a>
+          <Link
+            href="/docs/installation"
+            className="text-foreground/80 hover:text-foreground hover:bg-foreground/5 rounded-full px-4 py-2 text-sm font-medium transition-colors max-[1200px]:px-3"
+          >
+            Setup
+          </Link>
         </nav>
 
         <div className="flex items-center gap-2.5 max-[850px]:hidden">

@@ -7,6 +7,7 @@ import { SibylFlowSimulator } from "./sibyl-flow-simulator";
 import { SibylCounterfactualSimulator } from "./sibyl-counterfactual-simulator";
 import { SibylDatabaseInspector } from "./sibyl-database-inspector";
 import { SibylDeletionDemo } from "./sibyl-deletion-demo";
+import { SibylCliWalkthrough } from "./sibyl-cli-walkthrough";
 
 describe("Sibyl Studio Components", () => {
   describe("SibylFlowSimulator", () => {
@@ -95,6 +96,71 @@ describe("Sibyl Studio Components", () => {
 
     it("has no axe violations", async () => {
       const { container } = render(<SibylDeletionDemo />);
+      await expectNoAxeViolations(container);
+    });
+  });
+
+  describe("SibylCliWalkthrough", () => {
+    it("renders the 4-step setup walkthrough with official commands", () => {
+      render(<SibylCliWalkthrough />);
+
+      expect(screen.getByText(/Give your AI a memory, in about two minutes/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/pip install 'sibyl-memory-cli\[mcp\]'/i).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText(/Install Sibyl Memory CLI & MCP/i).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByText(/Option A \(pip\)/i)).toBeInTheDocument();
+      expect(screen.getByText(/Option B \(curl one-liner\)/i)).toBeInTheDocument();
+    });
+
+    it("toggles between pip and curl options on step 1", async () => {
+      const user = userEvent.setup();
+      render(<SibylCliWalkthrough />);
+
+      const curlBtn = screen.getByRole("button", { name: /Option B \(curl one-liner\)/i });
+      await user.click(curlBtn);
+
+      expect(screen.getByText(/curl -fsSL https:\/\/sibyllabs.org\/install \| sh/i)).toBeInTheDocument();
+    });
+
+    it("navigates forward through all 4 steps", async () => {
+      const user = userEvent.setup();
+      const onJumpToTool = vi.fn();
+      render(<SibylCliWalkthrough onJumpToTool={onJumpToTool} />);
+
+      // Step 1 -> Step 2
+      const nextBtn = screen.getByRole("button", { name: /Next: Sign in/i });
+      await user.click(nextBtn);
+
+      expect(screen.getByText(/Sign in \(Free Tier, No Card Needed\)/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/sibyl init/i).length).toBeGreaterThanOrEqual(1);
+
+      // Step 2 -> Step 3
+      const nextToStep3 = screen.getByRole("button", { name: /Next: Connect it to your AI/i });
+      await user.click(nextToStep3);
+
+      expect(screen.getByText(/Connect it to your AI \(Claude, Codex, Hermes, Aura\)/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/sibyl setup/i).length).toBeGreaterThanOrEqual(1);
+
+      // Step 3 -> Step 4
+      const nextToStep4 = screen.getByRole("button", { name: /Next: Test it works/i });
+      await user.click(nextToStep4);
+
+      expect(screen.getByText(/Test it works \(Stateful Cold Recall\)/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/remember that I like short, direct answers\./i).length).toBeGreaterThanOrEqual(1);
+    });
+
+    it("toggles troubleshooting guide", async () => {
+      const user = userEvent.setup();
+      render(<SibylCliWalkthrough />);
+
+      const toggleBtn = screen.getByRole("button", { name: /Show troubleshooting/i });
+      await user.click(toggleBtn);
+
+      expect(screen.getByText(/Externally managed environment/i)).toBeInTheDocument();
+      expect(screen.getByText(/python3 -m venv ~\/\.sibyl-memory\/venv/i)).toBeInTheDocument();
+    });
+
+    it("has no axe violations", async () => {
+      const { container } = render(<SibylCliWalkthrough />);
       await expectNoAxeViolations(container);
     });
   });
