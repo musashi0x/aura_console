@@ -10,7 +10,7 @@ export type StatusTone = "neutral" | "ready" | "pending" | "warning" | "error";
 const GLYPH: Record<StatusTone, string> = {
   neutral: "–",
   ready: "✓",
-  pending: "…",
+  pending: "●",
   warning: "!",
   error: "✕",
 };

@@ -1656,25 +1656,30 @@ a.cs__brand,
 }
 
 .run__objective {
-  font-size: var(--text-2xl);
-  letter-spacing: -0.02em;
-  line-height: 1.2;
+  font-size: clamp(1.125rem, 2vw, 1.35rem);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.35;
   margin: 0 0 var(--space-2);
-  text-wrap: balance;
+  text-wrap: pretty;
+  color: var(--color-text);
 }
 
 .run__meta {
   display: flex;
-  gap: var(--space-4);
   flex-wrap: wrap;
-  margin: 0;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
 }
 
 .run__states {
   display: flex;
-  gap: var(--space-2);
   flex-wrap: wrap;
-  margin: 0;
+  gap: var(--space-2);
+  align-items: center;
 }
 
 .run__fixture {
@@ -1685,13 +1690,13 @@ a.cs__brand,
 
 .run__facts {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
   gap: var(--space-3);
-  margin: var(--space-6) 0;
-  padding: var(--space-2);
+  margin: var(--space-3) 0;
+  padding: var(--space-3) var(--space-4);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: var(--color-glass);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
 }
 
 .run__facts dt {

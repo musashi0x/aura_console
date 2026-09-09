@@ -92,7 +92,7 @@ export function LandingPage({ ready }: { ready: boolean }) {
           <FeaturesBento />
           <CounterfactualMatrix />
           <HowItWorks />
-          <section id="go-deeper" className="relative w-full overflow-hidden border-y border-border/40 my-16 bg-[#0a0a0a]">
+          <section id="go-deeper" className="relative w-full overflow-hidden border-y border-border/40 my-16 bg-[#0a0a0a] scroll-mt-32 sm:scroll-mt-40">
             <Ravine
               className="h-[520px] w-full"
               speed={1}

@@ -23,6 +23,7 @@ import {
 import { Citation } from "@astryxdesign/core/Citation";
 import { CodeBlock } from "@astryxdesign/core/CodeBlock";
 import { HoverCard } from "@astryxdesign/core/HoverCard";
+import { Markdown } from "@astryxdesign/core/Markdown";
 import {
   createStaticSource,
   TypeaheadItem,
@@ -544,13 +545,46 @@ export function ConsoleChat({ runId, grounding, memoryEnabled }: ConsoleChatProp
         <ChatMessageList emptyState={zeroState} isStreaming={busy} align="top">
           {messages.map((message) => {
             const live = message.id === liveId;
-            const body = live ? streamText : message.text;
+            const body = live ? (streamText || message.text) : message.text;
             const pending =
               message.role === "agent" && body === ""
                 ? connection.kind === "unavailable"
                   ? console_.chat.unavailableBody
                   : console_.chat.connecting
                 : null;
+
+            const renderBody = () => {
+              if (message.role === "agent") {
+                if (!message.complete) {
+                  return (
+                    <TextLoader
+                      text={body}
+                      variant="redact"
+                      color="var(--color-text)"
+                      paused={!live}
+                    />
+                  );
+                }
+                return (
+                  <div className="cs__chat-markdown leading-relaxed text-sm text-[var(--color-text,#f4f7fb)]">
+                    <Markdown density="compact" headingLevelStart={4}>
+                      {body}
+                    </Markdown>
+                  </div>
+                );
+              }
+              return <div className="leading-relaxed text-sm whitespace-pre-wrap">{body}</div>;
+            };
+
+            const renderPending = () => (
+              <div className="flex items-center gap-2 py-1 px-1 text-xs text-[var(--color-text-secondary,#8d9aaf)]">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span className="font-mono text-xs">{pending}</span>
+              </div>
+            );
 
             const hasToolCalls =
               message.role === "agent" &&
@@ -611,9 +645,9 @@ export function ConsoleChat({ runId, grounding, memoryEnabled }: ConsoleChatProp
                               label="Memory Citation Preview"
                               content={
                                 <CounterpartyMemoryHoverCard
-                                  counterpartyKey={citation.counterpartyKey}
-                                  displayName={citation.label}
-                                  summary={citation.summary}
+                                   counterpartyKey={citation.counterpartyKey}
+                                   displayName={citation.label}
+                                   summary={citation.summary}
                                 />
                               }
                             >
@@ -643,20 +677,7 @@ export function ConsoleChat({ runId, grounding, memoryEnabled }: ConsoleChatProp
                           runId={proposalRunId}
                         />
                       ) : null}
-                      {body ? (
-                        message.role === "agent" ? (
-                          <TextLoader
-                            text={body}
-                            variant="redact"
-                            color="var(--color-text)"
-                            paused={!live}
-                          />
-                        ) : (
-                          <div>{body}</div>
-                        )
-                      ) : pending ? (
-                        <div>{pending}</div>
-                      ) : null}
+                      {body ? renderBody() : pending ? renderPending() : null}
                     </VStack>
                   ) : isProposalReady ? (
                     <VStack gap={2} align="stretch">
@@ -666,31 +687,13 @@ export function ConsoleChat({ runId, grounding, memoryEnabled }: ConsoleChatProp
                         rationale={proposalRationale}
                         runId={proposalRunId}
                       />
-                      {body ? (
-                        message.role === "agent" ? (
-                          <TextLoader
-                            text={body}
-                            variant="redact"
-                            color="var(--color-text)"
-                            paused={!live}
-                          />
-                        ) : (
-                          <div>{body}</div>
-                        )
-                      ) : pending ? (
-                        <div>{pending}</div>
-                      ) : null}
+                      {body ? renderBody() : pending ? renderPending() : null}
                     </VStack>
-                  ) : message.role === "agent" && body ? (
-                    <TextLoader
-                      text={body}
-                      variant="redact"
-                      color="var(--color-text)"
-                      paused={!live}
-                    />
-                  ) : (
-                    pending ?? body
-                  )}
+                  ) : body ? (
+                    renderBody()
+                  ) : pending ? (
+                    renderPending()
+                  ) : null}
                 </ChatMessageBubble>
               </ChatMessageRow>
             );

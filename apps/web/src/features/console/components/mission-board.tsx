@@ -238,6 +238,7 @@ export function MissionBoard({
                 value={progressPercent}
                 max={100}
                 label="Mission execution progress"
+                isLabelHidden
                 variant={progressPercent === 100 ? "success" : "accent"}
               />
             </VStack>

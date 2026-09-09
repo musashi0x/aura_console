@@ -24,7 +24,7 @@ export function CounterfactualMatrix(): ReactNode {
   return (
     <section
       id="replay-matrix"
-      className="bg-frame border-border/60 w-full border-t border-b px-6 py-24 dark:border-neutral-800/80 dark:bg-[#0e0d13]"
+      className="bg-frame border-border/60 w-full scroll-mt-32 border-t border-b px-6 py-24 sm:scroll-mt-40 dark:border-neutral-800/80 dark:bg-[#0e0d13]"
     >
       <div className="mx-auto max-w-5xl">
         <div className="mb-12 text-center">

@@ -67,10 +67,10 @@ const MEMORY_TIERS = [
 function MemoryArchitectureCard(): ReactNode {
   return (
     <motion.div
-      id="architecture"
+      id="storage-hierarchy"
       {...cardAnimation}
       transition={getCardTransition(0)}
-      className="group border-border bg-frame/90 hover:border-accent/40 relative flex min-h-140 flex-col justify-between overflow-hidden rounded-4xl border p-6 shadow-xl transition-all sm:p-8 md:col-span-2 lg:col-span-1 lg:row-span-2 dark:border-neutral-800 dark:bg-neutral-900/80"
+      className="group border-border bg-frame/90 hover:border-accent/40 relative flex h-full min-h-[540px] scroll-mt-32 flex-col justify-between overflow-hidden rounded-4xl border p-6 shadow-xl transition-all sm:scroll-mt-40 sm:p-7 md:col-span-2 lg:col-span-1 lg:row-span-2 dark:border-neutral-800 dark:bg-neutral-900/80"
     >
       <div className="relative z-10 transition-transform duration-500 ease-out group-hover:scale-[1.01]">
         <div className="mb-3 flex items-center justify-between">
@@ -90,29 +90,29 @@ function MemoryArchitectureCard(): ReactNode {
         <h3 className="text-foreground mb-2 text-2xl leading-tight font-medium sm:text-3xl">
           5-Tier Dynamic Storage Architecture
         </h3>
-        <p className="text-muted-foreground text-sm leading-relaxed sm:text-base">
+        <p className="text-muted-foreground text-sm leading-relaxed">
           Specifically engineered for autonomous decision-making, caching, and
           cryptographic audit across process restarts. Powered by Sibyl Memory (
-          <code className="bg-muted text-foreground rounded px-1.5 py-0.5 font-mono text-xs font-semibold">
+          <code className="bg-muted text-foreground inline-block rounded px-1.5 py-0.5 font-mono text-xs font-semibold whitespace-nowrap">
             ~/.sibyl-memory/memory.db
           </code>
           ).
         </p>
       </div>
 
-      <div id="storage-tiers" className="my-5 space-y-2.5">
+      <div id="storage-tiers" className="my-4 scroll-mt-32 space-y-2 sm:scroll-mt-40">
         {MEMORY_TIERS.map((tier) => (
           <div
             key={tier.name}
-            className="border-border bg-muted/60 hover:border-accent/30 rounded-2xl border p-3 backdrop-blur-xs transition-all dark:bg-neutral-950/60"
+            className="border-border bg-muted/60 hover:border-accent/30 rounded-2xl border p-2.5 backdrop-blur-xs transition-all dark:bg-neutral-950/60"
           >
-            <div className="mb-1 flex items-center justify-between">
+            <div className="mb-1 flex items-center justify-between gap-2">
               <span
-                className={`rounded border px-2 py-0.5 font-mono text-[10px] font-bold ${tier.color}`}
+                className={`shrink-0 rounded border px-2 py-0.5 font-mono text-[10px] font-bold ${tier.color}`}
               >
                 {tier.name} TIER
               </span>
-              <span className="text-muted-foreground max-w-[200px] truncate font-mono text-[10px]">
+              <span className="text-muted-foreground truncate font-mono text-[10px]">
                 {tier.fn}
               </span>
             </div>
@@ -140,7 +140,7 @@ function DeletionTestCard(): ReactNode {
       id="deletion-test"
       {...cardAnimation}
       transition={getCardTransition(0.1)}
-      className="group border-border bg-frame/90 hover:border-accent/40 relative flex min-h-72 flex-col justify-between overflow-hidden rounded-4xl border p-6 shadow-xl transition-all sm:p-8 dark:border-neutral-800 dark:bg-neutral-900/80"
+      className="group border-border bg-frame/90 hover:border-accent/40 relative flex h-full min-h-72 scroll-mt-32 flex-col justify-between overflow-hidden rounded-4xl border p-6 shadow-xl transition-all sm:scroll-mt-40 sm:p-7 dark:border-neutral-800 dark:bg-neutral-900/80"
     >
       <div className="relative z-10 transition-transform duration-500 ease-out group-hover:scale-[1.01]">
         <div className="mb-3 flex items-center justify-between">
@@ -200,7 +200,7 @@ function BaseSepoliaCard(): ReactNode {
       id="base-sepolia"
       {...cardAnimation}
       transition={getCardTransition(0.15)}
-      className="group border-border bg-frame/90 hover:border-accent/40 relative flex min-h-72 flex-col justify-between overflow-hidden rounded-4xl border p-6 shadow-xl transition-all sm:p-8 dark:border-neutral-800 dark:bg-neutral-900/80"
+      className="group border-border bg-frame/90 hover:border-accent/40 relative flex h-full min-h-72 scroll-mt-32 flex-col justify-between overflow-hidden rounded-4xl border p-6 shadow-xl transition-all sm:scroll-mt-40 sm:p-7 dark:border-neutral-800 dark:bg-neutral-900/80"
     >
       <div className="transition-transform duration-500 ease-out group-hover:scale-[1.01]">
         <div className="mb-3 flex items-center justify-between">
@@ -250,7 +250,7 @@ function VirtualsAcpCard(): ReactNode {
       id="virtuals-acp"
       {...cardAnimation}
       transition={getCardTransition(0.2)}
-      className="group border-border bg-frame/90 hover:border-accent/40 relative flex min-h-72 flex-col justify-between overflow-hidden rounded-4xl border p-6 shadow-xl transition-all sm:p-8 dark:border-neutral-800 dark:bg-neutral-900/80"
+      className="group border-border bg-frame/90 hover:border-accent/40 relative flex h-full min-h-72 scroll-mt-32 flex-col justify-between overflow-hidden rounded-4xl border p-6 shadow-xl transition-all sm:scroll-mt-40 sm:p-7 dark:border-neutral-800 dark:bg-neutral-900/80"
     >
       <div className="transition-transform duration-500 ease-out group-hover:scale-[1.01]">
         <div className="mb-3 flex items-center justify-between">
@@ -304,7 +304,7 @@ function ReputationFsmCard(): ReactNode {
       id="reputation-fsm"
       {...cardAnimation}
       transition={getCardTransition(0.25)}
-      className="group border-border bg-frame/90 hover:border-accent/40 relative flex min-h-72 flex-col justify-between overflow-hidden rounded-4xl border p-6 shadow-xl transition-all sm:p-8 dark:border-neutral-800 dark:bg-neutral-900/80"
+      className="group border-border bg-frame/90 hover:border-accent/40 relative flex h-full min-h-72 scroll-mt-32 flex-col justify-between overflow-hidden rounded-4xl border p-6 shadow-xl transition-all sm:scroll-mt-40 sm:p-7 dark:border-neutral-800 dark:bg-neutral-900/80"
     >
       <div className="transition-transform duration-500 ease-out group-hover:scale-[1.01]">
         <div className="mb-3 flex items-center justify-between">
@@ -358,49 +358,49 @@ function McpCard(): ReactNode {
       id="mcp"
       {...cardAnimation}
       transition={getCardTransition(0.3)}
-      className="group border-border bg-frame/90 hover:border-accent/40 relative flex min-h-72 flex-col justify-between overflow-hidden rounded-4xl border p-6 shadow-xl transition-all sm:p-8 dark:border-neutral-800 dark:bg-neutral-900/80"
+      className="group border-border bg-frame/90 hover:border-accent/40 relative flex scroll-mt-32 flex-col justify-between overflow-hidden rounded-4xl border p-6 shadow-xl transition-all sm:scroll-mt-40 sm:p-8 md:col-span-2 lg:col-span-3 dark:border-neutral-800 dark:bg-neutral-900/80"
     >
-      <div className="transition-transform duration-500 ease-out group-hover:scale-[1.01]">
-        <div className="mb-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="rounded-xl bg-purple-500/15 p-2.5 text-purple-500">
-              <Cpu className="h-5 w-5" />
+      <div className="flex w-full flex-col items-start justify-between gap-6 lg:flex-row lg:items-center">
+        <div className="max-w-2xl">
+          <div className="mb-2 flex items-center gap-2">
+            <span className="rounded-xl bg-purple-500/15 p-2 text-purple-500">
+              <Cpu className="h-4 w-4" />
             </span>
             <span className="text-muted-foreground font-mono text-xs font-semibold tracking-wider uppercase">
               Model Context Protocol
             </span>
+            <span className="rounded-full border border-purple-500/30 bg-purple-500/15 px-2.5 py-0.5 font-mono text-[10px] font-bold text-purple-600 dark:text-purple-400">
+              ANTHROPIC MCP
+            </span>
           </div>
-          <span className="rounded-full border border-purple-500/30 bg-purple-500/15 px-2.5 py-0.5 font-mono text-[10px] font-bold text-purple-600 dark:text-purple-400">
-            ANTHROPIC MCP
-          </span>
+
+          <h3 className="text-foreground text-xl font-medium tracking-tight sm:text-2xl">
+            Multi-Agent MCP Coordination
+          </h3>
+          <p className="text-muted-foreground mt-1 text-xs leading-relaxed sm:text-sm">
+            Native stdio &amp; HTTP MCP server. External agents in Claude Code,
+            Cursor, or autonomous worker fleets recall memory with structured
+            verdict codes.
+          </p>
         </div>
 
-        <h3 className="text-foreground mb-1 text-xl leading-tight font-medium sm:text-2xl">
-          Multi-Agent MCP Coordination
-        </h3>
-        <p className="text-muted-foreground text-xs leading-relaxed sm:text-sm">
-          Native stdio &amp; HTTP MCP server. External agents in Claude Code,
-          Cursor, or autonomous worker fleets recall memory with structured
-          verdict codes.
-        </p>
-      </div>
-
-      <div className="mt-4 space-y-1.5 font-mono text-xs">
-        <div className="border-border bg-muted/60 flex items-center justify-between rounded-xl border p-2 dark:bg-neutral-950/60">
-          <span className="text-foreground text-[11px] font-semibold">
-            memory_recall_counterparty
-          </span>
-          <span className="bg-foreground text-background rounded px-1.5 py-0.5 text-[10px]">
-            ok / gated
-          </span>
-        </div>
-        <div className="border-border bg-muted/60 flex items-center justify-between rounded-xl border p-2 dark:bg-neutral-950/60">
-          <span className="text-foreground text-[11px] font-semibold">
-            memory_journal
-          </span>
-          <span className="bg-foreground text-background rounded px-1.5 py-0.5 text-[10px]">
-            provenance log
-          </span>
+        <div className="flex w-full shrink-0 flex-col gap-2.5 font-mono text-xs sm:w-auto sm:flex-row sm:items-center">
+          <div className="border-border bg-muted/60 flex items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 shadow-xs dark:bg-neutral-950/60">
+            <span className="text-foreground text-xs font-semibold">
+              memory_recall_counterparty
+            </span>
+            <span className="bg-foreground text-background rounded px-1.5 py-0.5 text-[10px] font-bold">
+              ok / gated
+            </span>
+          </div>
+          <div className="border-border bg-muted/60 flex items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 shadow-xs dark:bg-neutral-950/60">
+            <span className="text-foreground text-xs font-semibold">
+              memory_journal
+            </span>
+            <span className="bg-foreground text-background rounded px-1.5 py-0.5 text-[10px] font-bold">
+              provenance log
+            </span>
+          </div>
         </div>
       </div>
     </motion.div>
@@ -409,8 +409,11 @@ function McpCard(): ReactNode {
 
 export function FeaturesBento(): ReactNode {
   return (
-    <section id="architecture" className="bg-background mb-32 w-full px-6">
-      <div className="mx-auto max-w-5xl">
+    <section
+      id="architecture"
+      className="bg-background mb-28 w-full scroll-mt-32 px-4 sm:mb-36 sm:scroll-mt-40 sm:px-6 lg:px-8"
+    >
+      <div className="mx-auto max-w-6xl">
         <div className="mb-12 text-center">
           <span className="text-accent font-mono text-xs font-semibold tracking-widest uppercase">
             ✦ Core Architecture

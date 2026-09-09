@@ -128,7 +128,7 @@ export const console_ = {
     scopeLabel: "Scoped to Run",
     noScope: "No Run selected. Open a Run to ask about it.",
     placeholder: "Why was this counterparty chosen?",
-    connecting: "CONNECTING",
+    connecting: "Thinking...",
     /* The agent surface has no endpoint behind it yet. Saying "unavailable" is
        the whole point: a placeholder answer here would be the console inventing
        agent reasoning, which is the failure this product exists to prevent. */

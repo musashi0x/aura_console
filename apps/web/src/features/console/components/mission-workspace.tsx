@@ -176,7 +176,10 @@ export function MissionWorkspace({
   return (
     <section className="mw" aria-labelledby="mission-heading">
       <header className="run__head">
-        <div>
+        <div className="max-w-3xl">
+          <span className="text-[10px] font-mono tracking-wider uppercase px-2 py-0.5 rounded bg-[var(--color-surface-raised)] text-[var(--color-text-secondary)] border border-[var(--color-border)] inline-block mb-1.5">
+            Mission Objective
+          </span>
           <h1 id="mission-heading" className="run__objective">
             {view.objective}
           </h1>
@@ -220,21 +223,21 @@ export function MissionWorkspace({
       />
 
       {view.entries.length <= 1 && !fixtureLabel ? (
-        <div className="p-4 rounded-2xl bg-[var(--color-surface-raised,#1b1b1f)] border border-[var(--color-accent)]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 my-3 shadow-sm">
+        <div className="p-4 rounded-2xl bg-[var(--color-surface-raised)] border border-[var(--color-accent)]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 my-3 shadow-sm">
           <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[var(--color-surface,#111015)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-accent)] flex-shrink-0 mt-0.5">
+            <div className="w-8 h-8 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-accent)] flex-shrink-0 mt-0.5">
               <Bot size={18} />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-[var(--color-text,#f4f7fb)]">
+                <span className="text-sm font-semibold text-[var(--color-text)]">
                   Autonomous Agent Pipeline
                 </span>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950/80 text-emerald-400 border border-emerald-800/60">
                   READY TO EVALUATE
                 </span>
               </div>
-              <p className="text-xs text-[var(--color-text-muted,#8d9aaf)] mt-0.5">
+              <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
                 Economic objective and budget ceiling are declared. Trigger autonomous evaluation to recall Sibyl memory, rank counterparties, and generate spend approval.
               </p>
             </div>
@@ -243,7 +246,7 @@ export function MissionWorkspace({
             type="button"
             disabled={evaluating}
             onClick={handleStartEvaluation}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-medium bg-[var(--color-accent)] hover:opacity-90 text-[var(--color-accent-contrast,#ffffff)] transition-opacity disabled:opacity-50 self-start sm:self-auto flex-shrink-0 cursor-pointer"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-medium bg-[var(--color-accent)] hover:opacity-90 text-[var(--color-accent-contrast)] transition-opacity disabled:opacity-50 self-start sm:self-auto flex-shrink-0 cursor-pointer"
           >
             <Play size={13} className={evaluating ? "animate-spin" : ""} />
             <span>{evaluating ? "Evaluating Counterparties..." : "Start Agent Evaluation"}</span>
