@@ -599,12 +599,140 @@ function planDeterministicTurn(
     };
   }
 
-  // 9. Default General Assistance
+  // 9. On-Chain Base Sepolia Commitment Verification
+  const asksVerifyCommitment =
+    norm.includes("verify") && (norm.includes("commitment") || norm.includes("cam kết") || norm.includes("hash") || norm.includes("base"));
+  if (asksVerifyCommitment) {
+    const cpKey = norm.includes("beta") ? "virtuals:agent:beta" : "virtuals:agent:alpha";
+    if (!hasExecuted("memory_verify_commitment")) {
+      return {
+        thought: `Verifying cryptographic salted memory commitment on Base Sepolia for ${cpKey}.`,
+        parts: [
+          {
+            functionCall: {
+              name: "memory_verify_commitment",
+              args: { counterpartyKey: cpKey },
+            },
+          },
+        ],
+      };
+    }
+    const verifyRes = getResponse("memory_verify_commitment") as Record<string, unknown> | undefined;
+    return {
+      thought: `Commitment verified against Sibyl WARM and REFERENCE tiers. Formatting cryptographic proof.`,
+      parts: [
+        {
+          text: `**Base Sepolia Cryptographic Commitment Verification**:\n- **Counterparty**: \`${verifyRes?.counterpartyKey ?? cpKey}\`\n- **Status**: ${verifyRes?.verified ? "✓ VERIFIED (100% Cryptographic Match)" : "✕ MISMATCH / UNVERIFIED"}\n- **Computed Keccak256 Hash**: \`${verifyRes?.computedCommitment ?? "0x..."}\`\n- **Salt Found**: ${verifyRes?.saltFound ? "Yes (in Sibyl REFERENCE tier)" : "No"}\n\n*Proof Details*: ${verifyRes?.details ?? "Commitment hash computed from canonical profile and private salt."}`,
+        },
+      ],
+    };
+  }
+
+  // 10. Remember / Update Counterparty Profile in WARM Memory
+  const asksRemember =
+    norm.includes("remember") || norm.includes("memorize") || norm.includes("ghi nhớ") || norm.includes("update counterparty");
+  if (asksRemember) {
+    const cpKey = norm.includes("beta") ? "virtuals:agent:beta" : "virtuals:agent:alpha";
+    if (!hasExecuted("memory_remember_counterparty")) {
+      const relScore = norm.includes("0.33") || norm.includes("low") || norm.includes("failure") || norm.includes("failed") ? 0.33 : 0.85;
+      const status = relScore < 0.5 ? "WATCH" : "PREFERRED";
+      const note = norm.includes("failure") || norm.includes("failed")
+        ? "Deliverable SLA failure recorded: reduced reliability."
+        : "Operator verified high quality deliverable.";
+      return {
+        thought: `Recording updated relationship knowledge for ${cpKey} in Sibyl WARM tier.`,
+        parts: [
+          {
+            functionCall: {
+              name: "memory_remember_counterparty",
+              args: {
+                counterpartyKey: cpKey,
+                overallReliability: relScore,
+                relationshipStatus: status,
+                riskNote: note,
+              },
+            },
+          },
+        ],
+      };
+    }
+    const remRes = getResponse("memory_remember_counterparty") as Record<string, unknown> | undefined;
+    return {
+      thought: `WARM tier profile updated. Formatting confirmation.`,
+      parts: [
+        {
+          text: `Successfully remembered counterparty update in Sibyl WARM tier:\n- **Counterparty**: \`${remRes?.counterpartyKey ?? cpKey}\`\n- **Status**: Updated to active memory\n- **Details**: ${JSON.stringify(remRes?.updated ?? {})}`,
+        },
+      ],
+    };
+  }
+
+  // 11. Read Memory Journal (COLD Tier)
+  const asksJournal =
+    norm.includes("journal") || norm.includes("nhật ký") || norm.includes("audit log") || norm.includes("episodes");
+  if (asksJournal) {
+    if (!hasExecuted("memory_journal")) {
+      const cpKey = norm.includes("alpha") ? "virtuals:agent:alpha" : norm.includes("beta") ? "virtuals:agent:beta" : undefined;
+      return {
+        thought: `Reading immutable interaction episodes from Sibyl COLD memory journal.`,
+        parts: [
+          {
+            functionCall: {
+              name: "memory_journal",
+              args: cpKey ? { counterpartyKey: cpKey, limit: 10 } : { limit: 10 },
+            },
+          },
+        ],
+      };
+    }
+    const jRes = getResponse("memory_journal") as Record<string, unknown> | undefined;
+    const episodesCount = (jRes?.episodes as unknown[])?.length ?? 0;
+    return {
+      thought: `Journal episodes retrieved from Sibyl COLD tier.`,
+      parts: [
+        {
+          text: `**Sibyl Memory Journal (COLD Tier)**:\nFound **${episodesCount}** recorded episodes in the immutable audit log.\n\nAll interactions are verified with actor provenance and tamper-evident history.`,
+        },
+      ],
+    };
+  }
+
+  // 12. Search Entities (WARM FTS5)
+  const asksSearch =
+    norm.includes("search") && (norm.includes("memory") || norm.includes("bộ nhớ") || norm.includes("entities") || norm.includes("fts5"));
+  if (asksSearch) {
+    if (!hasExecuted("memory_search_entities")) {
+      const q = norm.replace(/^(?:please\s+)?search\s+(?:memory\s+)?(?:for\s+)?/i, "").trim() || "research";
+      return {
+        thought: `Performing FTS5 BM25 search in Sibyl Memory with query "${q}".`,
+        parts: [
+          {
+            functionCall: {
+              name: "memory_search_entities",
+              args: { query: q, limit: 5 },
+            },
+          },
+        ],
+      };
+    }
+    const sRes = getResponse("memory_search_entities") as Record<string, unknown> | undefined;
+    const count = (sRes?.entities as unknown[])?.length ?? 0;
+    return {
+      thought: `FTS5 search completed in Sibyl. Formatting matches.`,
+      parts: [
+        {
+          text: `**Sibyl Memory Search Results (FTS5 BM25)**:\n- **Query**: "${sRes?.query ?? "query"}"\n- **Verdict**: \`${sRes?.verdict ?? "ok"}\`\n- **Matches**: ${count} entities found in WARM memory.`,
+        },
+      ],
+    };
+  }
+
+  // 13. Default General Assistance
   return {
     thought: `Evaluating operator query in context of active console services, policies, and mission memory.`,
     parts: [
       {
-        text: `I am Aura, connected to Aura Console with MCP tools. You can ask me to navigate (e.g. "go to missions", "guardrails"), check readiness ("system health"), inspect counterparty memory ("Why was this counterparty chosen?"), or propose spend approvals ("Why should we hire Beta Labs and what would it cost to draft a 10 USDC spend?").`,
+        text: `I am Aura, connected to Aura Console with MCP tools. You can ask me to navigate (e.g. "go to missions", "guardrails"), check readiness ("system health"), recall counterparty memory ("Why was this counterparty chosen?"), search memory ("search memory for research"), update/remember notes ("remember that Alpha failed delivery"), verify on-chain Base Sepolia commitments ("verify commitment for Alpha"), or propose spend approvals.`,
       },
     ],
   };
@@ -615,18 +743,25 @@ function planDeterministicTurn(
  * or the autonomous deterministic planner.
  */
 const AURA_SYSTEM_INSTRUCTION = `You are Aura, the autonomous operator AI agent in Aura Console.
-You operate on an autonomous agent runtime that manages missions, spend guardrails, and counterparty reputation memory.
+You operate on an autonomous agent runtime that manages missions, spend guardrails, and counterparty reputation memory across Sibyl Labs 5-Tier Architecture and Base Sepolia L2 smart contracts.
 You have access to Model Context Protocol (MCP) tools:
 - mission_create: Create an autonomous mission / run with an objective, budget ceiling in USDC, and source.
 - console_list_missions: Query recent missions and execution runs.
 - console_navigate: Navigate to a console route (/runs, /runs/new, /system, /policies, /counterparties, /chat).
 - console_get_readiness: Check health and latency of Postgres, Sibyl memory, and ADK agent.
 - guardrails_get_policies: Inspect active guardrails, auto-spend limits, and reliability thresholds.
-- memory_recall_counterparty: Query Sibyl memory for counterparty reputation, reliability score, and past episodes.
+- memory_recall_counterparty: (WARM tier) Query Sibyl memory for counterparty reputation, reliability score, and past episodes.
+- memory_search_entities: (WARM tier) Search Sibyl memory using FTS5 BM25 search across counterparties and entities.
+- memory_remember_counterparty: (WARM tier) Remember or update an agent's counterparty profile, reliability score, status, or risk notes.
+- memory_record_episode: (COLD tier) Record an interaction episode (accepted/rejected/disputed) into Sibyl COLD memory journal.
+- memory_journal: (COLD tier) Read the immutable Sibyl memory journal / audit trail with actor provenance.
+- memory_manage_state: (HOT tier) Inspect or store active mission state documents across restarts.
+- memory_manage_reference: (REFERENCE tier) Inspect or store reference policies and cryptographic salts.
+- memory_archive_entity: (ARCHIVE tier) Archive and decommission a counterparty with an audit reason.
+- memory_verify_commitment: (Base Sepolia) Cryptographically verify the salted Keccak256 memory commitment on Base Sepolia.
 - mission_propose_approval: Propose a formal spend approval for a counterparty under guardrails.
 
-When asked to create or set a random mission, use mission_create with a creative objective and reasonable USDC budget.
-When asked about counterparties (e.g. Beta Labs, Alpha Studio), inspect memory with memory_recall_counterparty.
+When asked about counterparties, memory, or history, always use the appropriate Sibyl memory tools.
 When asked to navigate or check readiness, use console_navigate or console_get_readiness.
 Always ground your answers in actual tool responses. Keep your tone concise, direct, and professional.`;
 

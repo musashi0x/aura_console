@@ -17,7 +17,7 @@ module.exports = {
         'line-strong': 'var(--docs-line-strong)',
         ink: 'var(--docs-ink)',
         muted: 'var(--docs-muted)',
-        accent: 'var(--docs-accent)',
+        accent: 'var(--accent)',
         success: 'var(--color-success)',
         warning: 'var(--color-warning)',
         danger: 'var(--color-error)',

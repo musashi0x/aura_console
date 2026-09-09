@@ -470,14 +470,13 @@ describe("ConsoleChat - Milestone 2 Empirical Stress Testing", () => {
 
       await waitFor(() => {
         expect(screen.getByTestId("hovercard-memory-preview")).toBeInTheDocument();
+        expect(screen.getByText("Zeta Syndicate")).toBeInTheDocument();
+        expect(screen.getByText("BLOCKED")).toBeInTheDocument();
+        expect(screen.getByText("12.0%")).toBeInTheDocument();
+        expect(screen.getByText("95.0%")).toBeInTheDocument();
+        expect(screen.getByText("28")).toBeInTheDocument();
+        expect(screen.getByText(/Disqualified due to protocol breach/)).toBeInTheDocument();
       });
-
-      expect(screen.getByText("Zeta Syndicate")).toBeInTheDocument();
-      expect(screen.getByText("BLOCKED")).toBeInTheDocument();
-      expect(screen.getByText("12.0%")).toBeInTheDocument();
-      expect(screen.getByText("95.0%")).toBeInTheDocument();
-      expect(screen.getByText("28")).toBeInTheDocument();
-      expect(screen.getByText(/Disqualified due to protocol breach/)).toBeInTheDocument();
     });
 
     it("recovers gracefully if async counterparty memory fetch fails", async () => {

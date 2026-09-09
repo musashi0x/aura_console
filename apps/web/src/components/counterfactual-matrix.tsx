@@ -24,7 +24,7 @@ export function CounterfactualMatrix(): ReactNode {
   return (
     <section
       id="replay-matrix"
-      className="bg-frame border-border/60 w-full scroll-mt-36 border-t border-b px-6 py-24 sm:scroll-mt-44 dark:border-neutral-800/80 dark:bg-[#0e0d13]"
+      className="bg-frame border-border/60 w-full border-t border-b px-6 py-24 dark:border-neutral-800/80 dark:bg-[#0e0d13]"
     >
       <div className="mx-auto max-w-5xl">
         <div className="mb-12 text-center">
@@ -126,22 +126,13 @@ export function CounterfactualMatrix(): ReactNode {
             className="flex flex-col justify-between rounded-3xl border border-neutral-800 bg-[#111016] p-6 text-white shadow-xl sm:p-8"
           >
             <div>
-              {/* Astryx Shell Status Header */}
-              <div className="mb-4 flex items-center justify-between border-b border-neutral-800/80 pb-2.5 font-mono text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-xs" />
-                  <span className="font-mono text-xs font-semibold text-neutral-300">replay://eval/branch/memory-active</span>
-                </div>
-                <span className="font-mono text-[10px] text-emerald-400 font-semibold">SIBYL WARM ACTIVE</span>
-              </div>
-
               <div className="mb-4 flex items-center justify-between">
                 <span className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/20 px-3 py-1 font-mono text-xs font-bold text-emerald-400">
                   <CheckCircle2 className="h-3.5 w-3.5" />
                   MEMORY AVAILABLE
                 </span>
                 <span className="font-mono text-[11px] text-neutral-400">
-                  Bayesian Trust: 0.89
+                  Sibyl WARM Active
                 </span>
               </div>
 
@@ -205,22 +196,13 @@ export function CounterfactualMatrix(): ReactNode {
             className="flex flex-col justify-between rounded-3xl border border-amber-900/40 bg-[#120f0a] p-6 text-white shadow-xl sm:p-8"
           >
             <div>
-              {/* Astryx Shell Status Header */}
-              <div className="mb-4 flex items-center justify-between border-b border-amber-900/40 pb-2.5 font-mono text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-amber-500 shadow-xs" />
-                  <span className="font-mono text-xs font-semibold text-neutral-300">replay://eval/branch/memory-missing</span>
-                </div>
-                <span className="font-mono text-[10px] text-amber-400 font-bold">FAIL-CLOSED INVARIANT</span>
-              </div>
-
               <div className="mb-4 flex items-center justify-between">
                 <span className="flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/20 px-3 py-1 font-mono text-xs font-bold text-amber-400">
                   <AlertTriangle className="h-3.5 w-3.5" />
                   MEMORY UNAVAILABLE
                 </span>
                 <span className="font-mono text-[11px] text-neutral-400">
-                  Treasury: Zero Exposure
+                  Fail-Closed Invariant
                 </span>
               </div>
 

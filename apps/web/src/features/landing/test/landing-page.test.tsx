@@ -5,12 +5,13 @@ import { expectNoAxeViolations } from "@/test-support/axe";
 import { LandingPage } from "../components/landing-page";
 
 describe("LandingPage architecture", () => {
-  it("renders the hero headline and zero-state command console", () => {
+  it("renders the hero headline and mission telemetry console", () => {
     render(<LandingPage ready />);
     expect(
       screen.getByRole("heading", { level: 1, name: /autonomous agents that/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/zero-state entry composer/i)).toBeInTheDocument();
+    expect(screen.getByText(/AURA CONSOLE — MISSION TELEMETRY/i)).toBeInTheDocument();
+    expect(screen.getByText(/Session A \(Execution\)/i)).toBeInTheDocument();
   });
 
   it("renders the 5-tier dynamic storage Bento section", () => {
