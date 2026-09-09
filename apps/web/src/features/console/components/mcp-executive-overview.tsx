@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { Button } from "@astryxdesign/core/Button";
 import { HStack } from "@astryxdesign/core/Stack";
 import { Text } from "@astryxdesign/core/Text";
@@ -134,7 +135,11 @@ export function McpExecutiveOverview({
         {/* 4-Stat Impact Matrix (The Counterfactual Proof) */}
         <div className="mw__hero-impact-grid" aria-label="Executive Impact Summary">
           {/* Stat 1: Treasury Safeguard */}
-          <div className="mw__hero-stat-card mw__hero-stat-card--treasury">
+          <motion.div
+            whileHover={{ y: -2 }}
+            transition={{ duration: 0.15 }}
+            className="mw__hero-stat-card mw__hero-stat-card--treasury"
+          >
             <div className="mw__hero-stat-top">
               <span className="mw__hero-stat-icon-wrap mw__hero-stat-icon-wrap--green">
                 <ShieldCheck size={16} />
@@ -151,10 +156,14 @@ export function McpExecutiveOverview({
               </span>
               <span className="mw__hero-stat-note">Quoted price locked inside ceiling</span>
             </div>
-          </div>
+          </motion.div>
 
           {/* Stat 2: Rogue Agent Blocked */}
-          <div className="mw__hero-stat-card mw__hero-stat-card--blocked">
+          <motion.div
+            whileHover={{ y: -2 }}
+            transition={{ duration: 0.15 }}
+            className="mw__hero-stat-card mw__hero-stat-card--blocked"
+          >
             <div className="mw__hero-stat-top">
               <span className="mw__hero-stat-icon-wrap mw__hero-stat-icon-wrap--red">
                 <AlertOctagon size={16} />
@@ -170,10 +179,14 @@ export function McpExecutiveOverview({
               </span>
               <span className="mw__hero-stat-note">Sibyl recalled prior SLA delivery breach</span>
             </div>
-          </div>
+          </motion.div>
 
           {/* Stat 3: Trusted Partner Selected */}
-          <div className="mw__hero-stat-card mw__hero-stat-card--selected">
+          <motion.div
+            whileHover={{ y: -2 }}
+            transition={{ duration: 0.15 }}
+            className="mw__hero-stat-card mw__hero-stat-card--selected"
+          >
             <div className="mw__hero-stat-top">
               <span className="mw__hero-stat-icon-wrap mw__hero-stat-icon-wrap--cyan">
                 <CheckCircle2 size={16} />
@@ -189,10 +202,14 @@ export function McpExecutiveOverview({
               </span>
               <span className="mw__hero-stat-note">30 verified deliveries in Sibyl memory</span>
             </div>
-          </div>
+          </motion.div>
 
           {/* Stat 4: Memory Evolution on Base Sepolia */}
-          <div className="mw__hero-stat-card mw__hero-stat-card--memory">
+          <motion.div
+            whileHover={{ y: -2 }}
+            transition={{ duration: 0.15 }}
+            className="mw__hero-stat-card mw__hero-stat-card--memory"
+          >
             <div className="mw__hero-stat-top">
               <span className="mw__hero-stat-icon-wrap mw__hero-stat-icon-wrap--purple">
                 <Database size={16} />
@@ -208,64 +225,82 @@ export function McpExecutiveOverview({
               </span>
               <span className="mw__hero-stat-note">Base Sepolia escrow settlement anchored</span>
             </div>
-          </div>
+          </motion.div>
         </div>
 
         {/* Interactive Sibyl Memory Studio Tabs */}
         {isDetailsExpanded ? (
           <div className="mw__studio-tabs-bar" role="tablist" aria-label="Sibyl Studio modes">
-            <button
+            <motion.button
               type="button"
               role="tab"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               aria-selected={activeTab === "simulator"}
               className={`mw__studio-tab-btn ${activeTab === "simulator" ? "mw__studio-tab-btn--active" : ""}`}
               onClick={() => setActiveTab("simulator")}
             >
               <Play size={13} />
               <span>⚡ Live Flow Simulator</span>
-            </button>
-            <button
+            </motion.button>
+            <motion.button
               type="button"
               role="tab"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               aria-selected={activeTab === "counterfactual"}
               className={`mw__studio-tab-btn ${activeTab === "counterfactual" ? "mw__studio-tab-btn--active" : ""}`}
               onClick={() => setActiveTab("counterfactual")}
             >
               <Scale size={13} />
               <span>⚖️ Stateless vs. Sibyl</span>
-            </button>
-            <button
+            </motion.button>
+            <motion.button
               type="button"
               role="tab"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               aria-selected={activeTab === "database"}
               className={`mw__studio-tab-btn ${activeTab === "database" ? "mw__studio-tab-btn--active" : ""}`}
               onClick={() => setActiveTab("database")}
             >
               <Database size={13} />
               <span>🗄️ Sibyl SQLite & 5-Tier Map</span>
-            </button>
-            <button
+            </motion.button>
+            <motion.button
               type="button"
               role="tab"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               aria-selected={activeTab === "deletion"}
               className={`mw__studio-tab-btn ${activeTab === "deletion" ? "mw__studio-tab-btn--active" : ""}`}
               onClick={() => setActiveTab("deletion")}
             >
               <ShieldAlert size={13} />
               <span>🚨 Deletion Test Proof</span>
-            </button>
+            </motion.button>
           </div>
         ) : null}
 
         {/* Active Studio Tab Content */}
         {isDetailsExpanded ? (
           <div className="mw__studio-content">
-            {activeTab === "simulator" && (
-              <SibylFlowSimulator onStepChange={() => onJumpToTool?.("simulator")} />
-            )}
-            {activeTab === "counterfactual" && <SibylCounterfactualSimulator />}
-            {activeTab === "database" && <SibylDatabaseInspector />}
-            {activeTab === "deletion" && <SibylDeletionDemo />}
+            <AnimatePresence>
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.18 }}
+              >
+                {activeTab === "simulator" && (
+                  <SibylFlowSimulator onStepChange={() => onJumpToTool?.("simulator")} />
+                )}
+                {activeTab === "counterfactual" && <SibylCounterfactualSimulator />}
+                {activeTab === "database" && <SibylDatabaseInspector />}
+                {activeTab === "deletion" && <SibylDeletionDemo />}
+              </motion.div>
+            </AnimatePresence>
           </div>
         ) : null}
 
@@ -292,8 +327,10 @@ export function McpExecutiveOverview({
               {MCP_TOOLS.map((tool, idx) => {
                 const isActive = activeToolIndex === idx;
                 return (
-                  <div
+                  <motion.div
                     key={tool.name}
+                    whileHover={{ y: -2 }}
+                    whileTap={{ scale: 0.99 }}
                     className={`mw__tool-step-card ${isActive ? "mw__tool-step-card--active" : ""}`}
                     onClick={() => {
                       setActiveToolIndex(isActive ? null : idx);
@@ -323,12 +360,20 @@ export function McpExecutiveOverview({
                       <span>{tool.result}</span>
                     </div>
 
-                    {isActive ? (
-                      <div className="mw__tool-step-code-preview">
-                        <pre><code>{tool.codeSample}</code></pre>
-                      </div>
-                    ) : null}
-                  </div>
+                    <AnimatePresence>
+                      {isActive ? (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.18 }}
+                          className="mw__tool-step-code-preview overflow-hidden"
+                        >
+                          <pre><code>{tool.codeSample}</code></pre>
+                        </motion.div>
+                      ) : null}
+                    </AnimatePresence>
+                  </motion.div>
                 );
               })}
             </div>

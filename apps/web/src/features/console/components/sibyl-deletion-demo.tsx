@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { Button } from "@astryxdesign/core/Button";
 import { HStack } from "@astryxdesign/core/Stack";
 import { Text } from "@astryxdesign/core/Text";
@@ -47,94 +48,114 @@ export function SibylDeletionDemo({ className = "" }: { className?: string }) {
 
         {/* State Toggle Buttons */}
         <div className="mw__del-toggle-group">
-          <button
+          <motion.button
             type="button"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             className={`mw__del-toggle-btn ${memoryState === "deleted" ? "mw__del-toggle-btn--active mw__del-toggle-btn--bad" : ""}`}
             onClick={() => setMemoryState("deleted")}
           >
             <Trash2 size={13} />
             <span>Memory Deleted / Offline</span>
-          </button>
-          <button
+          </motion.button>
+          <motion.button
             type="button"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             className={`mw__del-toggle-btn ${memoryState === "online" ? "mw__del-toggle-btn--active mw__del-toggle-btn--good" : ""}`}
             onClick={() => setMemoryState("online")}
           >
             <Database size={13} />
             <span>Memory Online (Active)</span>
-          </button>
+          </motion.button>
         </div>
       </div>
 
       {/* Interactive Simulation Result */}
       <div className="mw__del-body">
-        {memoryState === "deleted" ? (
-          /* Half A: Memory Offline */
-          <div className="mw__del-panel mw__del-panel--blocked">
-            <div className="mw__del-panel-head">
-              <div className="flex items-center gap-2">
-                <span className="mw__del-icon-pill mw__del-icon-pill--bad">
-                  <AlertOctagon size={16} />
-                </span>
-                <div>
-                  <h4 className="mw__del-panel-title">HALF A: SIBYL MEMORY OFFLINE</h4>
-                  <span className="mw__del-panel-sub">Fail-Closed Invariant Activated</span>
+        <AnimatePresence>
+          {memoryState === "deleted" ? (
+            /* Half A: Memory Offline */
+            <motion.div
+              key="panel-offline"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.18 }}
+              className="mw__del-panel mw__del-panel--blocked"
+            >
+              <div className="mw__del-panel-head">
+                <div className="flex items-center gap-2">
+                  <span className="mw__del-icon-pill mw__del-icon-pill--bad">
+                    <AlertOctagon size={16} />
+                  </span>
+                  <div>
+                    <h4 className="mw__del-panel-title">HALF A: SIBYL MEMORY OFFLINE</h4>
+                    <span className="mw__del-panel-sub">Fail-Closed Invariant Activated</span>
+                  </div>
                 </div>
+                <Token label="RUN.BLOCKED" size="sm" color="red" />
               </div>
-              <Token label="RUN.BLOCKED" size="sm" color="red" />
-            </div>
 
-            <p className="mw__del-desc">
-              When <code>~/.sibyl-memory/memory.db</code> is unmounted or unreachable, Aura refuses to blindly guess counterparties or risk treasury capital. The mission halts immediately.
-            </p>
+              <p className="mw__del-desc">
+                When <code>~/.sibyl-memory/memory.db</code> is unmounted or unreachable, Aura refuses to blindly guess counterparties or risk treasury capital. The mission halts immediately.
+              </p>
 
-            <div className="mw__del-event-flow">
-              <div className="mw__del-event-pill mw__del-event-pill--normal">1. run.created</div>
-              <span className="mw__del-arrow">→</span>
-              <div className="mw__del-event-pill mw__del-event-pill--blocked">2. run.blocked (HALT)</div>
-            </div>
+              <div className="mw__del-event-flow">
+                <div className="mw__del-event-pill mw__del-event-pill--normal">1. run.created</div>
+                <span className="mw__del-arrow">→</span>
+                <div className="mw__del-event-pill mw__del-event-pill--blocked">2. run.blocked (HALT)</div>
+              </div>
 
-            <div className="mw__del-callout mw__del-callout--bad">
-              <strong>Fail-Closed Safety Guarantee:</strong> Zero dollars moved. No unvetted counterparties hired. Treasury protected from blind spend.
-            </div>
-          </div>
-        ) : (
-          /* Half B: Memory Online */
-          <div className="mw__del-panel mw__del-panel--success">
-            <div className="mw__del-panel-head">
-              <div className="flex items-center gap-2">
-                <span className="mw__del-icon-pill mw__del-icon-pill--good">
-                  <CheckCircle2 size={16} />
-                </span>
-                <div>
-                  <h4 className="mw__del-panel-title">HALF B: SIBYL MEMORY ONLINE</h4>
-                  <span className="mw__del-panel-sub">Autonomous Evaluation & Policy Gate</span>
+              <div className="mw__del-callout mw__del-callout--bad">
+                <strong>Fail-Closed Safety Guarantee:</strong> Zero dollars moved. No unvetted counterparties hired. Treasury protected from blind spend.
+              </div>
+            </motion.div>
+          ) : (
+            /* Half B: Memory Online */
+            <motion.div
+              key="panel-online"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.18 }}
+              className="mw__del-panel mw__del-panel--success"
+            >
+              <div className="mw__del-panel-head">
+                <div className="flex items-center gap-2">
+                  <span className="mw__del-icon-pill mw__del-icon-pill--good">
+                    <CheckCircle2 size={16} />
+                  </span>
+                  <div>
+                    <h4 className="mw__del-panel-title">HALF B: SIBYL MEMORY ONLINE</h4>
+                    <span className="mw__del-panel-sub">Autonomous Evaluation & Policy Gate</span>
+                  </div>
                 </div>
+                <Token label="APPROVAL.REQUESTED" size="sm" color="green" />
               </div>
-              <Token label="APPROVAL.REQUESTED" size="sm" color="green" />
-            </div>
 
-            <p className="mw__del-desc">
-              When Sibyl SQLite memory is available, the agent successfully queries past SLA episodes, ranks candidates, quarantines Alpha, selects Beta, and requests human sign-off.
-            </p>
+              <p className="mw__del-desc">
+                When Sibyl SQLite memory is available, the agent successfully queries past SLA episodes, ranks candidates, quarantines Alpha, selects Beta, and requests human sign-off.
+              </p>
 
-            <div className="mw__del-event-flow">
-              <div className="mw__del-event-pill mw__del-event-pill--normal">1. run.created</div>
-              <span className="mw__del-arrow">→</span>
-              <div className="mw__del-event-pill mw__del-event-pill--normal">2. memory.retrieved</div>
-              <span className="mw__del-arrow">→</span>
-              <div className="mw__del-event-pill mw__del-event-pill--normal">3. candidate.scored</div>
-              <span className="mw__del-arrow">→</span>
-              <div className="mw__del-event-pill mw__del-event-pill--normal">4. decision.made</div>
-              <span className="mw__del-arrow">→</span>
-              <div className="mw__del-event-pill mw__del-event-pill--good">5. approval.requested</div>
-            </div>
+              <div className="mw__del-event-flow">
+                <div className="mw__del-event-pill mw__del-event-pill--normal">1. run.created</div>
+                <span className="mw__del-arrow">→</span>
+                <div className="mw__del-event-pill mw__del-event-pill--normal">2. memory.retrieved</div>
+                <span className="mw__del-arrow">→</span>
+                <div className="mw__del-event-pill mw__del-event-pill--normal">3. candidate.scored</div>
+                <span className="mw__del-arrow">→</span>
+                <div className="mw__del-event-pill mw__del-event-pill--normal">4. decision.made</div>
+                <span className="mw__del-arrow">→</span>
+                <div className="mw__del-event-pill mw__del-event-pill--good">5. approval.requested</div>
+              </div>
 
-            <div className="mw__del-callout mw__del-callout--good">
-              <strong>Reputation-Guided Execution:</strong> Alpha quarantined (score 28). Beta hired (score 94). Safe execution under operator ceiling.
-            </div>
-          </div>
-        )}
+              <div className="mw__del-callout mw__del-callout--good">
+                <strong>Reputation-Guided Execution:</strong> Alpha quarantined (score 28). Beta hired (score 94). Safe execution under operator ceiling.
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Verifiable CLI Command Card */}
         <div className="mw__del-cli-card">

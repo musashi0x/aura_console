@@ -300,24 +300,21 @@ textarea:focus-visible,
 .readiness__row {
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--color-border);
-  /* A left rule keyed to status: a second, redundant cue beside the glyph and
-     the word, never the only one. The row still reads correctly in monochrome
-     and to a screen reader. */
-  border-left-width: 2px;
   border-radius: var(--radius-md);
   background: var(--color-surface);
+  transition: border-color 0.2s ease;
 }
 
 .readiness__row[data-status="ready"] {
-  border-left-color: var(--color-success);
+  border-color: color-mix(in srgb, var(--color-success) 35%, var(--color-border));
 }
 
 .readiness__row[data-status="unavailable"] {
-  border-left-color: var(--color-error);
+  border-color: color-mix(in srgb, var(--color-error) 35%, var(--color-border));
 }
 
 .readiness__row[data-status="checking"] {
-  border-left-color: var(--color-cyan);
+  border-color: color-mix(in srgb, var(--color-cyan) 35%, var(--color-border));
 }
 
 .readiness__ordinal {
@@ -4807,11 +4804,11 @@ input[type="range"].fluid-slider::-moz-range-thumb {
 }
 
 .mw__flow-sim-thought-bubble {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-left: 3px solid var(--color-cyan);
-  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-cyan) 4%, var(--color-surface));
+  border: 1px solid color-mix(in srgb, var(--color-cyan) 25%, var(--color-border));
+  border-radius: var(--radius-md);
   padding: var(--space-3);
+  transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
 .mw__flow-sim-thought-header {

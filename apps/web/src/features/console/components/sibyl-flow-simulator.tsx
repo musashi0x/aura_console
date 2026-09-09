@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { Button } from "@astryxdesign/core/Button";
 import { HStack } from "@astryxdesign/core/Stack";
 import { Text } from "@astryxdesign/core/Text";
@@ -464,19 +465,25 @@ export function SibylFlowSimulator({ onStepChange, className = "" }: SibylFlowSi
           const isActive = idx === currentStepIdx;
           const isCompleted = idx < currentStepIdx;
           return (
-            <button
+            <motion.button
               key={s.step}
               type="button"
               role="tab"
               aria-selected={isActive}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               className={`mw__flow-sim-step-btn ${isActive ? "mw__flow-sim-step-btn--active" : ""} ${isCompleted ? "mw__flow-sim-step-btn--done" : ""}`}
               onClick={() => handleStepSelect(idx)}
             >
-              <span className="mw__flow-sim-step-dot">
+              <motion.span
+                className="mw__flow-sim-step-dot"
+                animate={{ scale: isActive ? 1.15 : 1 }}
+                transition={{ duration: 0.2 }}
+              >
                 {isCompleted ? "✓" : s.step}
-              </span>
+              </motion.span>
               <span className="mw__flow-sim-step-label">{s.title}</span>
-            </button>
+            </motion.button>
           );
         })}
       </div>
@@ -485,39 +492,55 @@ export function SibylFlowSimulator({ onStepChange, className = "" }: SibylFlowSi
       <div className="mw__flow-sim-body">
         {/* Left Column: Agent Monologue & Step Details */}
         <div className="mw__flow-sim-narrative-card">
-          <div className="mw__flow-sim-card-header">
-            <HStack gap={2} align="center">
-              <Bot size={16} className="mw__flow-sim-bot-icon" />
-              <span className="mw__flow-sim-role-pill">{activeStep.role}</span>
-              <code className="mw__flow-sim-tool-code">{activeStep.mcpTool}</code>
-            </HStack>
-          </div>
+          <AnimatePresence>
+            <motion.div
+              key={`narrative-${activeStep.step}`}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.18 }}
+              className="flex flex-col gap-3"
+            >
+              <div className="mw__flow-sim-card-header">
+                <HStack gap={2} align="center">
+                  <Bot size={16} className="mw__flow-sim-bot-icon" />
+                  <span className="mw__flow-sim-role-pill">{activeStep.role}</span>
+                  <code className="mw__flow-sim-tool-code">{activeStep.mcpTool}</code>
+                </HStack>
+              </div>
 
-          <p className="mw__flow-sim-lead-text">{activeStep.narrative}</p>
+              <p className="mw__flow-sim-lead-text">{activeStep.narrative}</p>
 
-          <div className="mw__flow-sim-thought-bubble">
-            <div className="mw__flow-sim-thought-header">
-              <Sparkles size={13} className="mw__flow-sim-thought-icon" />
-              <span>AGENT AUTONOMOUS REASONING</span>
-            </div>
-            <p className="mw__flow-sim-thought-text">&ldquo;{activeStep.agentThought}&rdquo;</p>
-          </div>
+              <motion.div
+                className="mw__flow-sim-thought-bubble"
+                initial={{ opacity: 0, scale: 0.99 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.2, delay: 0.04 }}
+              >
+                <div className="mw__flow-sim-thought-header">
+                  <Sparkles size={13} className="mw__flow-sim-thought-icon" />
+                  <span>AGENT AUTONOMOUS REASONING</span>
+                </div>
+                <p className="mw__flow-sim-thought-text">&ldquo;{activeStep.agentThought}&rdquo;</p>
+              </motion.div>
 
-          {/* Quick Metrics Bar */}
-          <div className="mw__flow-sim-metrics-bar">
-            <div className="mw__flow-sim-metric-item">
-              <span className="mw__flow-sim-metric-label">Treasury Status</span>
-              <span className="mw__flow-sim-metric-val">{activeStep.metrics.treasuryState}</span>
-            </div>
-            <div className="mw__flow-sim-metric-item">
-              <span className="mw__flow-sim-metric-label">Sibyl Memory Version</span>
-              <span className="mw__flow-sim-metric-val">{activeStep.metrics.sibylVersion}</span>
-            </div>
-            <div className="mw__flow-sim-metric-item">
-              <span className="mw__flow-sim-metric-label">Autonomous Decision</span>
-              <span className="mw__flow-sim-metric-val">{activeStep.metrics.decision}</span>
-            </div>
-          </div>
+              {/* Quick Metrics Bar */}
+              <div className="mw__flow-sim-metrics-bar">
+                <div className="mw__flow-sim-metric-item">
+                  <span className="mw__flow-sim-metric-label">Treasury Status</span>
+                  <span className="mw__flow-sim-metric-val">{activeStep.metrics.treasuryState}</span>
+                </div>
+                <div className="mw__flow-sim-metric-item">
+                  <span className="mw__flow-sim-metric-label">Sibyl Memory Version</span>
+                  <span className="mw__flow-sim-metric-val">{activeStep.metrics.sibylVersion}</span>
+                </div>
+                <div className="mw__flow-sim-metric-item">
+                  <span className="mw__flow-sim-metric-label">Autonomous Decision</span>
+                  <span className="mw__flow-sim-metric-val">{activeStep.metrics.decision}</span>
+                </div>
+              </div>
+            </motion.div>
+          </AnimatePresence>
         </div>
 
         {/* Right Column: Live Terminal Log & MCP JSON-RPC Payload */}
@@ -532,23 +555,48 @@ export function SibylFlowSimulator({ onStepChange, className = "" }: SibylFlowSi
 
           {/* Simulated Terminal Output */}
           <div className="mw__flow-sim-terminal-screen">
-            {activeStep.terminalLog.map((line, lIdx) => (
-              <div key={lIdx} className="mw__flow-sim-term-line">
-                <span className="mw__flow-sim-term-prompt">&gt;</span>
-                <span>{line}</span>
-              </div>
-            ))}
+            <AnimatePresence>
+              <motion.div
+                key={`term-lines-${activeStep.step}`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+              >
+                {activeStep.terminalLog.map((line, lIdx) => (
+                  <motion.div
+                    key={lIdx}
+                    className="mw__flow-sim-term-line"
+                    initial={{ opacity: 0, x: -6 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.14, delay: lIdx * 0.035 }}
+                  >
+                    <span className="mw__flow-sim-term-prompt">&gt;</span>
+                    <span>{line}</span>
+                  </motion.div>
+                ))}
+              </motion.div>
+            </AnimatePresence>
           </div>
 
           {/* Expandable MCP Request/Response Inspector */}
-          <div className="mw__flow-sim-payload-block">
-            <div className="mw__flow-sim-payload-title">
-              <span>MCP RPC: {activeStep.mcpTool}</span>
-            </div>
-            <pre className="mw__flow-sim-payload-json">
-              <code>{JSON.stringify(activeStep.toolPayload, null, 2)}</code>
-            </pre>
-          </div>
+          <AnimatePresence>
+            <motion.div
+              key={`payload-${activeStep.step}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              className="mw__flow-sim-payload-block"
+            >
+              <div className="mw__flow-sim-payload-title">
+                <span>MCP RPC: {activeStep.mcpTool}</span>
+              </div>
+              <pre className="mw__flow-sim-payload-json">
+                <code>{JSON.stringify(activeStep.toolPayload, null, 2)}</code>
+              </pre>
+            </motion.div>
+          </AnimatePresence>
         </div>
       </div>
     </div>

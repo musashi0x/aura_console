@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { Button } from "@astryxdesign/core/Button";
 import { Text } from "@astryxdesign/core/Text";
 import {
@@ -90,19 +91,31 @@ export function SibylCounterfactualSimulator({ className = "" }: { className?: s
       </div>
 
       {/* Simulation Live Status Banner */}
-      {simulationResult ? (
-        <div className={`mw__cf-result-banner ${activeSimulation === "stateless" ? "mw__cf-result-banner--error" : "mw__cf-result-banner--success"}`}>
-          <span className="mw__cf-result-icon">
-            {activeSimulation === "stateless" ? <AlertTriangle size={15} /> : <CheckCircle2 size={15} />}
-          </span>
-          <span className="mw__cf-result-text">{simulationResult}</span>
-        </div>
-      ) : null}
+      <AnimatePresence>
+        {simulationResult ? (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.2 }}
+            className={`mw__cf-result-banner ${activeSimulation === "stateless" ? "mw__cf-result-banner--error" : "mw__cf-result-banner--success"}`}
+          >
+            <span className="mw__cf-result-icon">
+              {activeSimulation === "stateless" ? <AlertTriangle size={15} /> : <CheckCircle2 size={15} />}
+            </span>
+            <span className="mw__cf-result-text">{simulationResult}</span>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
       {/* Side-by-Side Comparison Grid */}
       <div className="mw__cf-grid">
         {/* Left Column: Without Sibyl */}
-        <div className={`mw__cf-col mw__cf-col--stateless ${activeSimulation === "sibyl" ? "mw__cf-col--dimmed" : ""}`}>
+        <motion.div
+          whileHover={{ y: -2 }}
+          transition={{ duration: 0.15 }}
+          className={`mw__cf-col mw__cf-col--stateless ${activeSimulation === "sibyl" ? "mw__cf-col--dimmed" : ""}`}
+        >
           <div className="mw__cf-col-header mw__cf-col-header--bad">
             <div className="mw__cf-col-title-wrap">
               <span className="mw__cf-col-status-icon mw__cf-col-status-icon--bad">
@@ -166,10 +179,14 @@ export function SibylCounterfactualSimulator({ className = "" }: { className?: s
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Right Column: With Sibyl */}
-        <div className={`mw__cf-col mw__cf-col--sibyl ${activeSimulation === "stateless" ? "mw__cf-col--dimmed" : ""}`}>
+        <motion.div
+          whileHover={{ y: -2 }}
+          transition={{ duration: 0.15 }}
+          className={`mw__cf-col mw__cf-col--sibyl ${activeSimulation === "stateless" ? "mw__cf-col--dimmed" : ""}`}
+        >
           <div className="mw__cf-col-header mw__cf-col-header--good">
             <div className="mw__cf-col-title-wrap">
               <span className="mw__cf-col-status-icon mw__cf-col-status-icon--good">
@@ -235,7 +252,7 @@ export function SibylCounterfactualSimulator({ className = "" }: { className?: s
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
     </div>
   );

@@ -72,6 +72,130 @@ describe("AIChatPage — Stone Theme & Conversational Workspace", () => {
     expect(allCss).toContain("var(--color-surface)");
   });
 
+  it("hydrates saved messages from localStorage on mount", async () => {
+    const savedMessages = [
+      {
+        id: "persisted-operator-1",
+        role: "operator",
+        text: "Please recall memory for Alpha",
+        complete: true,
+        citations: [],
+      },
+      {
+        id: "persisted-agent-1",
+        role: "agent",
+        text: "Alpha Research has 98% reliability score.",
+        complete: true,
+        citations: [],
+      },
+    ];
+    localStorage.setItem("aura:ai-chat:messages:v2", JSON.stringify(savedMessages));
+
+    render(<AIChatPage />);
+    expect(await screen.findByText("Please recall memory for Alpha")).toBeInTheDocument();
+    expect(await screen.findByText("Alpha Research has 98% reliability score.")).toBeInTheDocument();
+    localStorage.removeItem("aura:ai-chat:messages:v2");
+  });
+
+  it("renders MissionCard when mission_create is present in message tool calls", async () => {
+    const savedWithMission = [
+      {
+        id: "op-1",
+        role: "operator",
+        text: "Create a mission to audit pool liquidity",
+        complete: true,
+        citations: [],
+      },
+      {
+        id: "agent-1",
+        role: "agent",
+        text: "Mission created successfully.",
+        complete: true,
+        citations: [],
+        toolCalls: [
+          {
+            name: "mission_create",
+            args: {
+              objective: "Audit pool liquidity on Base Sepolia",
+              budgetUsdc: "15.00",
+              source: "AGENT",
+            },
+            result: {
+              created: true,
+              runId: "run-test-abc-123",
+              objective: "Audit pool liquidity on Base Sepolia",
+              budgetUsdc: "15.000000",
+              destination: "/runs/run-test-abc-123",
+            },
+          },
+        ],
+      },
+    ];
+    localStorage.setItem("aura:ai-chat:messages:v2", JSON.stringify(savedWithMission));
+
+    render(<AIChatPage />);
+    expect(await screen.findByText("Audit pool liquidity on Base Sepolia")).toBeInTheDocument();
+    expect(await screen.findByText(/run-test-abc-123/)).toBeInTheDocument();
+    expect(await screen.findByText("Open Mission Workspace")).toBeInTheDocument();
+    localStorage.removeItem("aura:ai-chat:messages:v2");
+  });
+
+  it("renders NavigationCard without auto-redirecting when console_navigate is present", async () => {
+    const savedWithNav = [
+      {
+        id: "op-2",
+        role: "operator",
+        text: "go to guardrails",
+        complete: true,
+        citations: [],
+      },
+      {
+        id: "agent-2",
+        role: "agent",
+        text: "Here are the guardrail policies.",
+        complete: true,
+        citations: [],
+        toolCalls: [
+          {
+            name: "console_navigate",
+            args: { destination: "/policies" },
+            result: { action: "navigate", destination: "/policies" },
+          },
+        ],
+      },
+    ];
+    localStorage.setItem("aura:ai-chat:messages:v2", JSON.stringify(savedWithNav));
+
+    render(<AIChatPage />);
+    expect(await screen.findByText("Guardrails & Policies")).toBeInTheDocument();
+    expect(await screen.findByText("Go to View")).toBeInTheDocument();
+    localStorage.removeItem("aura:ai-chat:messages:v2");
+  });
+
+  it("resets messages and clears localStorage when New Chat button is clicked", async () => {
+    const savedMessages = [
+      {
+        id: "temp-msg",
+        role: "operator",
+        text: "Temporary message before clear",
+        complete: true,
+        citations: [],
+      },
+    ];
+    localStorage.setItem("aura:ai-chat:messages:v2", JSON.stringify(savedMessages));
+
+    render(<AIChatPage />);
+    expect(await screen.findByText("Temporary message before clear")).toBeInTheDocument();
+
+    const newChatBtns = screen.getAllByRole("button", { name: /New Chat/i });
+    expect(newChatBtns.length).toBeGreaterThanOrEqual(1);
+    fireEvent.click(newChatBtns[0]!);
+
+    expect(screen.queryByText("Temporary message before clear")).not.toBeInTheDocument();
+    expect(screen.getByText(/Can you review these auth files/i)).toBeInTheDocument();
+    expect(localStorage.getItem("aura:ai-chat:messages:v2")).toBeNull();
+  });
+
   it("passes axe accessibility audits", async () => {
     const { container } = render(<AIChatPage />);
     await expectNoAxeViolations(container);

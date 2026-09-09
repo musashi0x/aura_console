@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { Button } from "@astryxdesign/core/Button";
 import { HStack } from "@astryxdesign/core/Stack";
 import { Text } from "@astryxdesign/core/Text";
@@ -182,112 +183,134 @@ export function SibylDatabaseInspector({ className = "" }: { className?: string 
 
         {/* Counterparty Selector */}
         <div className="mw__db-selector">
-          <button
+          <motion.button
             type="button"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             className={`mw__db-select-btn ${selectedAgentKey === "alpha" ? "mw__db-select-btn--active mw__db-select-btn--alpha" : ""}`}
             onClick={() => setSelectedAgentKey("alpha")}
           >
             <span className="mw__db-btn-dot mw__db-btn-dot--red" />
             <span>virtuals:agent:alpha (Score: 28)</span>
-          </button>
-          <button
+          </motion.button>
+          <motion.button
             type="button"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             className={`mw__db-select-btn ${selectedAgentKey === "beta" ? "mw__db-select-btn--active mw__db-select-btn--beta" : ""}`}
             onClick={() => setSelectedAgentKey("beta")}
           >
             <span className="mw__db-btn-dot mw__db-btn-dot--green" />
             <span>virtuals:agent:beta (Score: 94)</span>
-          </button>
+          </motion.button>
         </div>
       </div>
 
       {/* Main Inspector Body */}
       <div className="mw__db-body">
         {/* Left Column: Bayesian Formula & Entity Profile */}
-        <div className="mw__db-profile-card">
-          <div className="mw__db-profile-header">
-            <div>
-              <span className="mw__db-profile-title">{activeRecord.displayName}</span>
-              <code className="mw__db-profile-key">{activeRecord.counterpartyKey}</code>
+        <AnimatePresence>
+          <motion.div
+            key={`profile-${selectedAgentKey}`}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.18 }}
+            className="mw__db-profile-card"
+          >
+            <div className="mw__db-profile-header">
+              <div>
+                <span className="mw__db-profile-title">{activeRecord.displayName}</span>
+                <code className="mw__db-profile-key">{activeRecord.counterpartyKey}</code>
+              </div>
+              <Token
+                label={activeRecord.status}
+                size="sm"
+                color={activeRecord.status === "PREFERRED" ? "green" : "red"}
+              />
             </div>
-            <Token
-              label={activeRecord.status}
-              size="sm"
-              color={activeRecord.status === "PREFERRED" ? "green" : "red"}
-            />
-          </div>
 
-          {/* Quick Stats Grid */}
-          <div className="mw__db-stat-grid">
-            <div className="mw__db-stat-box">
-              <span className="mw__db-stat-lbl">Bayesian Score</span>
-              <span className={`mw__db-stat-num ${activeRecord.bayesian.finalScore >= 70 ? "mw__db-stat-num--good" : "mw__db-stat-num--bad"}`}>
-                {activeRecord.bayesian.finalScore} / 100
-              </span>
+            {/* Quick Stats Grid */}
+            <div className="mw__db-stat-grid">
+              <div className="mw__db-stat-box">
+                <span className="mw__db-stat-lbl">Bayesian Score</span>
+                <span className={`mw__db-stat-num ${activeRecord.bayesian.finalScore >= 70 ? "mw__db-stat-num--good" : "mw__db-stat-num--bad"}`}>
+                  {activeRecord.bayesian.finalScore} / 100
+                </span>
+              </div>
+              <div className="mw__db-stat-box">
+                <span className="mw__db-stat-lbl">Observed Price</span>
+                <span className="mw__db-stat-num">{activeRecord.observedPriceUsdc} USDC</span>
+              </div>
+              <div className="mw__db-stat-box">
+                <span className="mw__db-stat-lbl">Historical Episodes</span>
+                <span className="mw__db-stat-num">{activeRecord.totalEpisodes} recorded</span>
+              </div>
+              <div className="mw__db-stat-box">
+                <span className="mw__db-stat-lbl">SLA Breaches</span>
+                <span className={`mw__db-stat-num ${activeRecord.breachCount > 0 ? "mw__db-stat-num--bad" : "mw__db-stat-num--good"}`}>
+                  {activeRecord.breachCount} breaches
+                </span>
+              </div>
             </div>
-            <div className="mw__db-stat-box">
-              <span className="mw__db-stat-lbl">Observed Price</span>
-              <span className="mw__db-stat-num">{activeRecord.observedPriceUsdc} USDC</span>
-            </div>
-            <div className="mw__db-stat-box">
-              <span className="mw__db-stat-lbl">Historical Episodes</span>
-              <span className="mw__db-stat-num">{activeRecord.totalEpisodes} recorded</span>
-            </div>
-            <div className="mw__db-stat-box">
-              <span className="mw__db-stat-lbl">SLA Breaches</span>
-              <span className={`mw__db-stat-num ${activeRecord.breachCount > 0 ? "mw__db-stat-num--bad" : "mw__db-stat-num--good"}`}>
-                {activeRecord.breachCount} breaches
-              </span>
-            </div>
-          </div>
 
-          {/* Bayesian Mathematical Engine Breakdown */}
-          <div className="mw__db-bayesian-card">
-            <div className="mw__db-bayesian-title">
-              <Zap size={13} className="mw__db-bayesian-icon" />
-              <span>BAYESIAN BETA-BINOMIAL FORMULA</span>
-            </div>
-            <div className="mw__db-math-formula">
-              <code>P(Reliability) = α / (α + β) - RiskPenalty</code>
-            </div>
-            <div className="mw__db-math-params">
-              <div className="mw__db-math-row">
-                <span>Successes (α): <strong>{activeRecord.bayesian.alphaParam}</strong></span>
-                <span>Failures (β): <strong>{activeRecord.bayesian.betaParam}</strong></span>
+            {/* Bayesian Mathematical Engine Breakdown */}
+            <div className="mw__db-bayesian-card">
+              <div className="mw__db-bayesian-title">
+                <Zap size={13} className="mw__db-bayesian-icon" />
+                <span>BAYESIAN BETA-BINOMIAL FORMULA</span>
               </div>
-              <div className="mw__db-math-row">
-                <span>Base Reliability: <strong>{(activeRecord.bayesian.priorReliability * 100).toFixed(1)}%</strong></span>
-                <span>Risk Penalty: <strong className={activeRecord.bayesian.penalty > 0 ? "mw__db-penalty-bad" : ""}>-{activeRecord.bayesian.penalty} Pts</strong></span>
+              <div className="mw__db-math-formula">
+                <code>P(Reliability) = α / (α + β) - RiskPenalty</code>
               </div>
+              <div className="mw__db-math-params">
+                <div className="mw__db-math-row">
+                  <span>Successes (α): <strong>{activeRecord.bayesian.alphaParam}</strong></span>
+                  <span>Failures (β): <strong>{activeRecord.bayesian.betaParam}</strong></span>
+                </div>
+                <div className="mw__db-math-row">
+                  <span>Base Reliability: <strong>{(activeRecord.bayesian.priorReliability * 100).toFixed(1)}%</strong></span>
+                  <span>Risk Penalty: <strong className={activeRecord.bayesian.penalty > 0 ? "mw__db-penalty-bad" : ""}>-{activeRecord.bayesian.penalty} Pts</strong></span>
+                </div>
+              </div>
+              {activeRecord.lastBreachNote ? (
+                <div className="mw__db-breach-callout">
+                  <AlertTriangle size={14} className="mw__db-breach-icon" />
+                  <span className="mw__db-breach-text">{activeRecord.lastBreachNote}</span>
+                </div>
+              ) : null}
             </div>
-            {activeRecord.lastBreachNote ? (
-              <div className="mw__db-breach-callout">
-                <AlertTriangle size={14} className="mw__db-breach-icon" />
-                <span className="mw__db-breach-text">{activeRecord.lastBreachNote}</span>
-              </div>
-            ) : null}
-          </div>
-        </div>
+          </motion.div>
+        </AnimatePresence>
 
         {/* Right Column: Raw SQLite JSON Document */}
-        <div className="mw__db-json-card">
-          <div className="mw__db-json-header">
-            <HStack gap={2} align="center">
-              <Database size={14} className="mw__db-json-icon" />
-              <span className="mw__db-json-heading">Raw SQLite Entity Record</span>
-            </HStack>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={handleCopyJson}
-              label={copied ? "Copied" : "Copy JSON"}
-              icon={copied ? <Check size={12} /> : <Copy size={12} />}
-            />
-          </div>
-          <pre className="mw__db-json-code">
-            <code>{JSON.stringify(activeRecord.rawJson, null, 2)}</code>
-          </pre>
-        </div>
+        <AnimatePresence>
+          <motion.div
+            key={`json-${selectedAgentKey}`}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.18 }}
+            className="mw__db-json-card"
+          >
+            <div className="mw__db-json-header">
+              <HStack gap={2} align="center">
+                <Database size={14} className="mw__db-json-icon" />
+                <span className="mw__db-json-heading">Raw SQLite Entity Record</span>
+              </HStack>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={handleCopyJson}
+                label={copied ? "Copied" : "Copy JSON"}
+                icon={copied ? <Check size={12} /> : <Copy size={12} />}
+              />
+            </div>
+            <pre className="mw__db-json-code">
+              <code>{JSON.stringify(activeRecord.rawJson, null, 2)}</code>
+            </pre>
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       {/* 5-Tier Memory Architecture Interactive Strip */}
@@ -306,8 +329,10 @@ export function SibylDatabaseInspector({ className = "" }: { className?: string 
           {MEMORY_TIERS.map((tier, idx) => {
             const isSelected = activeTierIdx === idx;
             return (
-              <div
+              <motion.div
                 key={tier.tier}
+                whileHover={{ y: -2 }}
+                whileTap={{ scale: 0.98 }}
                 className={`mw__db-tier-card ${isSelected ? "mw__db-tier-card--active" : ""}`}
                 onClick={() => setActiveTierIdx(idx)}
                 role="button"
@@ -323,7 +348,7 @@ export function SibylDatabaseInspector({ className = "" }: { className?: string 
                 <span className="mw__db-tier-name">{tier.name}</span>
                 <span className="mw__db-tier-loc">{tier.location}</span>
                 <p className="mw__db-tier-role">{tier.role}</p>
-              </div>
+              </motion.div>
             );
           })}
         </div>

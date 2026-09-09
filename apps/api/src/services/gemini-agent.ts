@@ -94,6 +94,9 @@ export function isGeminiAgentConfigured(): boolean {
   if (geminiAgentOverride !== null) {
     return geminiAgentOverride;
   }
+  if (process.env.NODE_ENV === "test") {
+    return false;
+  }
   return Boolean(
     process.env.GEMINI_API_KEY ||
       process.env.GOOGLE_API_KEY ||
@@ -373,7 +376,11 @@ function planDeterministicTurn(
       norm.startsWith("tạo run") ||
       norm.includes("auto tạo mission") ||
       norm.includes("tạo một mission") ||
-      norm.includes("tạo run mới")) &&
+      norm.includes("tạo run mới") ||
+      norm.includes("set a mission") ||
+      norm.includes("set mission") ||
+      norm.includes("random mission") ||
+      norm.includes("mission random")) &&
     !norm.includes("go to") &&
     norm !== "start a mission" &&
     norm !== "start a run";
@@ -761,8 +768,10 @@ You have access to Model Context Protocol (MCP) tools:
 - memory_verify_commitment: (Base Sepolia) Cryptographically verify the salted Keccak256 memory commitment on Base Sepolia.
 - mission_propose_approval: Propose a formal spend approval for a counterparty under guardrails.
 
+When asked to create a mission, use mission_create. Do NOT invoke console_navigate when creating missions or answering informational questions.
+Only invoke console_navigate when the operator explicitly asks to navigate or switch views (e.g. "go to missions", "open policies", "go to network").
 When asked about counterparties, memory, or history, always use the appropriate Sibyl memory tools.
-When asked to navigate or check readiness, use console_navigate or console_get_readiness.
+When asked to check readiness, use console_get_readiness.
 Always ground your answers in actual tool responses. Keep your tone concise, direct, and professional.`;
 
 async function generateTurn(options: {

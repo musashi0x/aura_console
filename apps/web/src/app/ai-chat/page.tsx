@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useCallback, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 
 import {
@@ -52,6 +52,8 @@ import {
   StreamingText,
   ToolChips,
   ApprovalCard,
+  MissionCard,
+  NavigationCard,
   DiffTable,
   RecordsTable,
   InteractionSounds,
@@ -69,6 +71,8 @@ import {
   AtSign,
   Paperclip,
   Sparkles,
+  RotateCcw,
+  Plus,
 } from 'lucide-react';
 import type { IconType } from '@astryxdesign/core/Icon';
 
@@ -79,6 +83,7 @@ const XMarkIcon = X as unknown as IconType;
 const ChevronRightIcon = ChevronRight as unknown as IconType;
 const AtSymbolIcon = AtSign as unknown as IconType;
 const PaperClipIcon = Paperclip as unknown as IconType;
+const PlusIcon = Plus as unknown as IconType;
 
 const DEFAULT_SUGGESTIONS = [
   { label: 'Why hire Beta Labs?', query: 'Why should we hire Beta Labs and what would it cost to draft a 10 USDC spend?' },
@@ -605,8 +610,8 @@ function ChatSidebarContext({
   );
 }
 
-function TokenMeter({ usage }: { usage: TokenUsage }) {
-  const maxContext = 1048576; // 1M context window for Gemini 2.5 Flash
+function TokenMeter({ usage, onNewChat }: { usage: TokenUsage; onNewChat?: () => void }) {
+  const maxContext = 1048576; // 1M context window for Gemini 3.5 Flash
   const percent = Math.min(100, Math.max(0.01, (usage.totalTokens / maxContext) * 100));
 
   return (
@@ -614,7 +619,7 @@ function TokenMeter({ usage }: { usage: TokenUsage }) {
       <div className="ai-chat-token-stats">
         <div className="ai-chat-token-item">
           <Cpu size={13} className="ai-chat-token-icon" />
-          <span className="ai-chat-token-model">Gemini 2.5 Flash</span>
+          <span className="ai-chat-token-model">Gemini 3.5 Flash</span>
         </div>
         <div className="ai-chat-token-divider" />
         <div className="ai-chat-token-item">
@@ -629,7 +634,19 @@ function TokenMeter({ usage }: { usage: TokenUsage }) {
         <div className="ai-chat-token-item">
           <span className="ai-chat-token-pct">{percent.toFixed(2)}% of 1M context</span>
         </div>
-        <div style={{ marginLeft: 'auto' }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {onNewChat && (
+            <button
+              type="button"
+              onClick={onNewChat}
+              data-sound="press"
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium text-[var(--color-text-muted,#8d9aaf)] hover:text-[#f4f7fb] hover:bg-[rgba(255,255,255,0.06)] border border-transparent hover:border-[rgba(216,216,219,0.12)] transition-colors cursor-pointer"
+              title="Start a new chat and reset session"
+            >
+              <RotateCcw size={11} />
+              <span>New Chat</span>
+            </button>
+          )}
           <SoundToggle variant="pill" />
         </div>
       </div>
@@ -674,13 +691,43 @@ const INITIAL_DEMO_MESSAGES: ChatMessage[] = [
 
 // Main component
 
+const STORAGE_KEY_MESSAGES = 'aura:ai-chat:messages:v2';
+const STORAGE_KEY_USAGE = 'aura:ai-chat:usage:v2';
+
 export default function AIChatConversationTemplate() {
   const router = useRouter();
-  const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_DEMO_MESSAGES);
-  const [sessionUsage, setSessionUsage] = useState<TokenUsage>({
-    promptTokens: 840,
-    candidateTokens: 440,
-    totalTokens: 1280,
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    if (typeof window === 'undefined') return INITIAL_DEMO_MESSAGES;
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY_MESSAGES);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch {
+      // Ignore storage parse errors
+    }
+    return INITIAL_DEMO_MESSAGES;
+  });
+
+  const [sessionUsage, setSessionUsage] = useState<TokenUsage>(() => {
+    if (typeof window === 'undefined') {
+      return { promptTokens: 840, candidateTokens: 440, totalTokens: 1280 };
+    }
+    try {
+      const storedUsage = localStorage.getItem(STORAGE_KEY_USAGE);
+      if (storedUsage) {
+        const parsedUsage = JSON.parse(storedUsage);
+        if (parsedUsage && typeof parsedUsage.totalTokens === 'number') {
+          return parsedUsage;
+        }
+      }
+    } catch {
+      // Ignore storage parse errors
+    }
+    return { promptTokens: 840, candidateTokens: 440, totalTokens: 1280 };
   });
   const [draft, setDraft] = useState('');
   const [composerMode, setComposerMode] = useState<'ask' | 'edit'>('ask');
@@ -691,7 +738,7 @@ export default function AIChatConversationTemplate() {
   const [isArtifactOpen, setIsArtifactOpen] = useState(true);
 
   const rootRef = useRef<HTMLDivElement>(null);
-  const counterRef = useRef(0);
+  const counterRef = useRef(messages.length);
   const handleRef = useRef<ChatStreamHandle | null>(null);
 
   const busy = connection.kind === 'connecting' || connection.kind === 'streaming';
@@ -702,6 +749,32 @@ export default function AIChatConversationTemplate() {
     maxSizePx: 960,
     autoSaveId: 'ai-chat-artifact-panel',
   });
+
+  // Save messages to localStorage on change
+  useEffect(() => {
+    try {
+      if (messages === INITIAL_DEMO_MESSAGES) {
+        localStorage.removeItem(STORAGE_KEY_MESSAGES);
+      } else {
+        localStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify(messages));
+      }
+    } catch (e) {
+      console.warn('Failed to save messages to localStorage', e);
+    }
+  }, [messages]);
+
+  // Save session usage to localStorage on change
+  useEffect(() => {
+    try {
+      if (messages === INITIAL_DEMO_MESSAGES) {
+        localStorage.removeItem(STORAGE_KEY_USAGE);
+      } else {
+        localStorage.setItem(STORAGE_KEY_USAGE, JSON.stringify(sessionUsage));
+      }
+    } catch (e) {
+      console.warn('Failed to save session usage to localStorage', e);
+    }
+  }, [sessionUsage, messages]);
 
   const openArtifact = () => {
     setArtifactTab('document');
@@ -718,6 +791,23 @@ export default function AIChatConversationTemplate() {
     handleRef.current = null;
     setConnection({ kind: 'idle' });
   }, []);
+
+  const handleNewChat = useCallback(() => {
+    playInteractionSound('release');
+    stop();
+    setMessages(INITIAL_DEMO_MESSAGES);
+    setSessionUsage({
+      promptTokens: 840,
+      candidateTokens: 440,
+      totalTokens: 1280,
+    });
+    try {
+      localStorage.removeItem(STORAGE_KEY_MESSAGES);
+      localStorage.removeItem(STORAGE_KEY_USAGE);
+    } catch {
+      // Ignore storage errors on clear
+    }
+  }, [stop]);
 
   const ask = useCallback(
     (question: string) => {
@@ -779,9 +869,6 @@ export default function AIChatConversationTemplate() {
             ...m,
             toolCalls: [...(m.toolCalls ?? []), toolCall],
           }));
-          if (toolCall.name === 'console_navigate' && typeof toolCall.args?.destination === 'string') {
-            router.push(toolCall.args.destination);
-          }
           if (toolCall.name === 'mission_propose_approval') {
             setIsArtifactOpen(true);
             setArtifactTab('diffs');
@@ -794,7 +881,7 @@ export default function AIChatConversationTemplate() {
         },
       });
     },
-    [router],
+    [],
   );
 
   const submit = (overrideText?: string) => {
@@ -838,7 +925,18 @@ export default function AIChatConversationTemplate() {
           <ConsoleTopbar
             surface="Chat Console"
             readiness="ready"
-            actions={<SoundToggle variant="icon" />}
+            actions={
+              <HStack gap={2} vAlign="center">
+                <Button
+                  label="New Chat"
+                  variant="ghost"
+                  size="sm"
+                  icon={<Icon icon={PlusIcon} size="sm" />}
+                  onClick={handleNewChat}
+                />
+                <SoundToggle variant="icon" />
+              </HStack>
+            }
           />
         }
         sideNav={
@@ -858,7 +956,7 @@ export default function AIChatConversationTemplate() {
           <HStack height="100%">
             {/* Chat column — flexes to fill the space the artifact leaves */}
             <VStack style={chatColumn}>
-              <TokenMeter usage={sessionUsage} />
+              <TokenMeter usage={sessionUsage} onNewChat={handleNewChat} />
               <ChatLayout
                 density="spacious"
                 style={chatLayout}
@@ -1016,23 +1114,72 @@ export default function AIChatConversationTemplate() {
                               isComplete={message.complete}
                               defaultExpanded={true}
                             />
-                            {message.toolCalls.some((tc) => tc.name === 'mission_propose_approval') && (
-                              <ApprovalCard
-                                runId="demo-run-1"
-                                counterpartyKey={
-                                  (message.toolCalls.find((tc) => tc.name === 'mission_propose_approval')?.args?.counterpartyKey as string) ||
-                                  'virtuals:agent:beta'
-                                }
-                                amountUsdc={
-                                  (message.toolCalls.find((tc) => tc.name === 'mission_propose_approval')?.args?.amountUsdc as string) ||
-                                  '10.00'
-                                }
-                                reason={
-                                  (message.toolCalls.find((tc) => tc.name === 'mission_propose_approval')?.args?.reason as string) ||
-                                  'Draft exploratory research engagement under active guardrail limits'
-                                }
-                              />
-                            )}
+                            {message.toolCalls.map((tc, idx) => {
+                              if (tc.name === 'mission_create') {
+                                const res = tc.result as Record<string, unknown> | undefined;
+                                const runId =
+                                  (res?.runId as string) ||
+                                  (tc.args?.runId as string) ||
+                                  'created-mission';
+                                const obj =
+                                  (res?.objective as string) ||
+                                  (tc.args?.objective as string) ||
+                                  'Autonomous agent mission executed via MCP';
+                                const budget =
+                                  (res?.budgetUsdc as string) ||
+                                  (tc.args?.budgetUsdc as string) ||
+                                  '25.00';
+                                const src =
+                                  (res?.source as string) ||
+                                  (tc.args?.source as string) ||
+                                  'AGENT';
+                                const dest =
+                                  (res?.destination as string) || `/runs/${runId}`;
+                                return (
+                                  <MissionCard
+                                    key={`mission-${idx}-${runId}`}
+                                    runId={runId}
+                                    objective={obj}
+                                    budgetUsdc={budget}
+                                    source={src}
+                                    destination={dest}
+                                    onNavigate={(d) => router.push(d)}
+                                  />
+                                );
+                              }
+                              if (
+                                tc.name === 'console_navigate' &&
+                                typeof tc.args?.destination === 'string'
+                              ) {
+                                return (
+                                  <NavigationCard
+                                    key={`nav-${idx}-${tc.args.destination}`}
+                                    destination={tc.args.destination}
+                                    onNavigate={(d) => router.push(d)}
+                                  />
+                                );
+                              }
+                              if (tc.name === 'mission_propose_approval') {
+                                return (
+                                  <ApprovalCard
+                                    key={`approval-${idx}`}
+                                    runId="demo-run-1"
+                                    counterpartyKey={
+                                      (tc.args?.counterpartyKey as string) ||
+                                      'virtuals:agent:beta'
+                                    }
+                                    amountUsdc={
+                                      (tc.args?.amountUsdc as string) || '10.00'
+                                    }
+                                    reason={
+                                      (tc.args?.reason as string) ||
+                                      'Draft exploratory research engagement under active guardrail limits'
+                                    }
+                                  />
+                                );
+                              }
+                              return null;
+                            })}
                           </div>
                         )}
 
