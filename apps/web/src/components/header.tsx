@@ -48,11 +48,6 @@ const menus = {
       description: "Frozen decision context & counterfactual evaluation",
       href: "#replay-matrix",
     },
-    {
-      label: "Verified PMF Partners",
-      description: "DAO treasury pilots across Base & Virtuals networks",
-      href: "#partners",
-    },
   ],
 };
 
@@ -301,12 +296,6 @@ export function Header({ ready = true }: { ready?: boolean }): ReactNode {
           >
             Tiers
           </a>
-          <a
-            href="#partners"
-            className="text-foreground/80 hover:text-foreground hover:bg-foreground/5 rounded-full px-4 py-2 text-sm font-medium transition-colors max-[1200px]:px-3"
-          >
-            Partners
-          </a>
         </nav>
 
         <div className="flex items-center gap-3 max-[850px]:hidden">
@@ -382,13 +371,6 @@ export function Header({ ready = true }: { ready?: boolean }): ReactNode {
                   onClick={closeMobile}
                 >
                   Tiers
-                </a>
-                <a
-                  href="#partners"
-                  className="text-foreground border-foreground/10 flex items-center justify-between border-b py-4 text-base font-medium"
-                  onClick={closeMobile}
-                >
-                  Verified Partners
                 </a>
                 <a
                   href="#faq"

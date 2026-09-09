@@ -10,7 +10,6 @@ import { Hero } from "@/components/hero";
 import { HowItWorks } from "@/components/how-it-works";
 import { Pricing } from "@/components/pricing";
 import { Providers } from "@/components/providers";
-import { Testimonials } from "@/components/testimonials";
 import { ThemeSwitch } from "@/components/theme-switch";
 import { SkipLink } from "@/components/skip-link";
 import Ravine from "@/components/ravine";
@@ -123,7 +122,6 @@ export function LandingPage({ ready }: { ready: boolean }) {
             </Ravine>
           </section>
           <Pricing />
-          <Testimonials />
           <FAQ />
           <Footer />
         </main>
