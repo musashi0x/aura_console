@@ -41,7 +41,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={figtree.variable}>
+    <html lang="en" suppressHydrationWarning className={figtree.variable}>
       <body>
         {/* Decorative operator canvas. Hidden from assistive technology and
             never focusable, because it carries no information. */}

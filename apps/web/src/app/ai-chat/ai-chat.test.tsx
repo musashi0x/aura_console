@@ -300,6 +300,26 @@ describe("AIChatPage — Stone Theme & Conversational Workspace", () => {
     localStorage.removeItem("aura:ai-chat:messages:v3");
   });
 
+  it("displays wallet gate overlay with blur when wallet is disconnected", () => {
+    render(<AIChatPage />);
+    expect(screen.getByTestId("wallet-gate-overlay")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Connect Operator Wallet" })).toBeInTheDocument();
+    const workspace = screen.getByTestId("ai-chat-workspace-container");
+    expect(workspace.style.filter).toContain("blur");
+  });
+
+  it("unlocks workspace blur when quick connect simulation is triggered", () => {
+    render(<AIChatPage />);
+    const simBtn = screen.getByTestId("gate-simulate-connect-btn");
+    expect(simBtn).toBeInTheDocument();
+
+    fireEvent.click(simBtn);
+
+    expect(screen.queryByTestId("wallet-gate-overlay")).not.toBeInTheDocument();
+    const workspace = screen.getByTestId("ai-chat-workspace-container");
+    expect(workspace.style.filter).toBe("none");
+  });
+
   it("passes axe accessibility audits", async () => {
     const { container } = render(<AIChatPage />);
     await expectNoAxeViolations(container);

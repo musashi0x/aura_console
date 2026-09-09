@@ -48,6 +48,7 @@ import type { ChatConnection, ChatMessage, TokenUsage } from '@/features/console
 import { env } from '@/lib/env';
 import { matchCommand } from '@/features/console/console-commands';
 import { apiClient } from '@/lib/api-client';
+import { useWeb3Wallet, Web3WalletProvider } from '@/features/web3';
 import {
   ThinkingState,
   StreamingText,
@@ -981,8 +982,16 @@ const INITIAL_SESSION_USAGE: TokenUsage = {
 const STORAGE_KEY_MESSAGES = 'aura:ai-chat:messages:v3';
 const STORAGE_KEY_USAGE = 'aura:ai-chat:usage:v3';
 
-export default function AIChatConversationTemplate() {
+function AIChatInner() {
   const router = useRouter();
+  const {
+    isConnected,
+    isConnecting,
+    isBaseSepolia,
+    connect,
+    switchToBaseSepolia,
+    simulateConnect,
+  } = useWeb3Wallet();
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     if (typeof window === 'undefined') return INITIAL_DEMO_MESSAGES;
     try {
@@ -1462,9 +1471,21 @@ export default function AIChatConversationTemplate() {
           />
         }
       >
-        <div ref={rootRef} style={root} className="ai-chat-root">
+        <div ref={rootRef} style={root} className="ai-chat-root relative">
           <style>{AI_CHAT_CSS}</style>
-          <HStack height="100%">
+          <div
+            data-testid="ai-chat-workspace-container"
+            style={{
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              filter: isConnected && isBaseSepolia ? 'none' : 'blur(8px)',
+              pointerEvents: isConnected && isBaseSepolia ? 'auto' : 'none',
+              transition: 'filter 0.3s ease',
+              userSelect: isConnected && isBaseSepolia ? 'auto' : 'none',
+            }}
+          >
+            <HStack height="100%">
             {/* Chat column — flexes to fill the space the artifact leaves */}
             <VStack style={chatColumn}>
               <TokenMeter usage={sessionUsage} onNewChat={handleNewChat} />
@@ -1913,6 +1934,294 @@ export default function AIChatConversationTemplate() {
               </>
             )}
           </HStack>
+          </div>
+
+          {/* Wallet Gate Blur Overlay */}
+          {!isConnected && (
+            <div
+              className="wallet-gate-overlay"
+              data-testid="wallet-gate-overlay"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                zIndex: 50,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: 'rgba(17, 16, 21, 0.72)',
+                backdropFilter: 'blur(6px)',
+                padding: '1.5rem',
+              }}
+            >
+              <div
+                className="wallet-gate-card"
+                style={{
+                  maxWidth: '460px',
+                  width: '100%',
+                  backgroundColor: '#1b1b1f',
+                  border: '1px solid var(--color-border, rgba(255, 255, 255, 0.12))',
+                  borderRadius: '1rem',
+                  padding: '2rem',
+                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.85)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  textAlign: 'center',
+                  gap: '1.25rem',
+                  pointerEvents: 'auto',
+                }}
+              >
+                <div
+                  style={{
+                    width: '60px',
+                    height: '60px',
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '1.875rem',
+                    position: 'relative',
+                  }}
+                >
+                  <span role="img" aria-label="Wallet">🦊</span>
+                  <span
+                    style={{
+                      position: 'absolute',
+                      bottom: '3px',
+                      right: '3px',
+                      width: '12px',
+                      height: '12px',
+                      borderRadius: '50%',
+                      backgroundColor: '#0052ff',
+                      border: '2px solid #1b1b1f',
+                    }}
+                    title="Base Sepolia"
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.375rem',
+                      alignSelf: 'center',
+                      padding: '0.25rem 0.625rem',
+                      borderRadius: '9999px',
+                      backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                      border: '1px solid rgba(245, 158, 11, 0.3)',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: '#f59e0b',
+                      letterSpacing: '0.04em',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: '6px',
+                        height: '6px',
+                        borderRadius: '50%',
+                        backgroundColor: '#f59e0b',
+                      }}
+                    />
+                    Authentication Required
+                  </div>
+
+                  <h2
+                    style={{
+                      margin: '0.375rem 0 0 0',
+                      fontSize: '1.375rem',
+                      fontWeight: 600,
+                      color: '#f4f4f5',
+                      letterSpacing: '-0.02em',
+                    }}
+                  >
+                    Connect Operator Wallet
+                  </h2>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: '0.875rem',
+                      color: '#a1a1aa',
+                      lineHeight: 1.55,
+                    }}
+                  >
+                    Aura Console enforces cryptographic authorization on Base Sepolia. Connect your Web3 wallet to interact with autonomous agents, inspect counterparty dossiers, and sign spend proposals.
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>
+                  <button
+                    type="button"
+                    onClick={() => connect()}
+                    disabled={isConnecting}
+                    className="cs__wallet-connect-btn"
+                    data-testid="gate-connect-wallet-btn"
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.5rem',
+                      padding: '0.75rem 1rem',
+                      borderRadius: '0.625rem',
+                      fontSize: '0.9375rem',
+                      fontWeight: 600,
+                      backgroundColor: '#f4f4f5',
+                      color: '#18181b',
+                      cursor: isConnecting ? 'wait' : 'pointer',
+                      border: 'none',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <span>{isConnecting ? 'Connecting to Wallet...' : 'Connect Wallet'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => simulateConnect?.()}
+                    data-testid="gate-simulate-connect-btn"
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.5rem',
+                      padding: '0.625rem 1rem',
+                      borderRadius: '0.625rem',
+                      fontSize: '0.8125rem',
+                      fontWeight: 500,
+                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                      color: '#d4d4d8',
+                      border: '1px solid rgba(255, 255, 255, 0.12)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <span>⚡ Quick Connect (Simulate for Demo)</span>
+                  </button>
+                </div>
+
+                <div
+                  style={{
+                    fontSize: '0.75rem',
+                    color: '#71717a',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                  }}
+                >
+                  <span>Network: Base Sepolia (84532)</span>
+                  <span>•</span>
+                  <span>Non-mainnet testnet</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Wrong Network Overlay */}
+          {isConnected && !isBaseSepolia && (
+            <div
+              className="wallet-gate-overlay"
+              data-testid="wallet-wrong-net-overlay"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                zIndex: 50,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: 'rgba(17, 16, 21, 0.72)',
+                backdropFilter: 'blur(6px)',
+                padding: '1.5rem',
+              }}
+            >
+              <div
+                className="wallet-gate-card"
+                style={{
+                  maxWidth: '460px',
+                  width: '100%',
+                  backgroundColor: '#1b1b1f',
+                  border: '1px solid var(--color-border, rgba(255, 255, 255, 0.12))',
+                  borderRadius: '1rem',
+                  padding: '2rem',
+                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.85)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  textAlign: 'center',
+                  gap: '1.25rem',
+                  pointerEvents: 'auto',
+                }}
+              >
+                <div
+                  style={{
+                    width: '60px',
+                    height: '60px',
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '1.875rem',
+                  }}
+                >
+                  ⚠️
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                  <h2
+                    style={{
+                      margin: '0.375rem 0 0 0',
+                      fontSize: '1.375rem',
+                      fontWeight: 600,
+                      color: '#f4f4f5',
+                      letterSpacing: '-0.02em',
+                    }}
+                  >
+                    Switch to Base Sepolia
+                  </h2>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: '0.875rem',
+                      color: '#a1a1aa',
+                      lineHeight: 1.55,
+                    }}
+                  >
+                    Your wallet is connected to a different network. Aura memory commitments and Virtuals ACP contracts are deployed on Base Sepolia testnet.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => switchToBaseSepolia()}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    padding: '0.75rem 1rem',
+                    borderRadius: '0.625rem',
+                    fontSize: '0.9375rem',
+                    fontWeight: 600,
+                    backgroundColor: '#0052ff',
+                    color: '#ffffff',
+                    cursor: 'pointer',
+                    border: 'none',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  Switch Network to Base Sepolia
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </AppShell>
 
@@ -2013,5 +2322,13 @@ export default function AIChatConversationTemplate() {
         />
       </Dialog>
     </Theme>
+  );
+}
+
+export default function AIChatConversationTemplate() {
+  return (
+    <Web3WalletProvider>
+      <AIChatInner />
+    </Web3WalletProvider>
   );
 }

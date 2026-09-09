@@ -182,7 +182,7 @@ export function Hero(): ReactNode {
     >
       {/* Background layer: vibrant BG.jpg across hero */}
       <motion.div
-        className="absolute inset-0 -z-10 rounded-br-4xl rounded-bl-4xl bg-cover bg-center bg-no-repeat brightness-105 transition-opacity duration-500 min-[850px]:inset-2.5 min-[850px]:scale-105 dark:opacity-15 dark:brightness-50"
+        className="absolute inset-0 -z-10 rounded-br-4xl rounded-bl-4xl bg-cover bg-center bg-no-repeat brightness-105 transition-opacity duration-500 min-[850px]:inset-2.5 min-[850px]:scale-105 dark:opacity-50 dark:brightness-85"
         style={{
           backgroundImage: "url(/BG.jpg)",
           x,
