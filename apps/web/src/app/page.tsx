@@ -1,4 +1,3 @@
-import { FirstRunGate } from "@/features/onboarding/components/first-run-gate";
 import { LandingPage } from "@/features/landing/components/landing-page";
 import { apiClient } from "@/lib/api-client";
 
@@ -9,12 +8,5 @@ export const dynamic = "force-dynamic";
 export default async function HomePage() {
   const result = await apiClient.dbHealth();
 
-  return (
-    <>
-      {/* A genuinely new browser session is still routed through onboarding.
-          A returning operator gets the landing page. */}
-      <FirstRunGate />
-      <LandingPage ready={result.ok} />
-    </>
-  );
+  return <LandingPage ready={result.ok} />;
 }

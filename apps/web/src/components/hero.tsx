@@ -4,6 +4,7 @@ import { AuraChatConsole } from "@/components/aura-chat-console";
 import { LogoLoop, type LogoItem } from "@/components/logo-loop";
 import { ArrowDownRight } from "lucide-react";
 import { motion, useMotionValue, useSpring } from "motion/react";
+import Link from "next/link";
 import { useRef, type ReactNode, type MouseEvent } from "react";
 
 const ease = [0.23, 1, 0.32, 1] as const;
@@ -240,8 +241,8 @@ export function Hero(): ReactNode {
             variants={fadeInScale}
             transition={{ duration: 0.8, ease }}
           >
-            <a
-              href="#console-preview"
+            <Link
+              href="/runs"
               className="group relative inline-flex cursor-pointer items-center max-[850px]:w-full"
             >
               <span className="bg-accent absolute inset-y-0 right-0 w-[calc(100%-2rem)] rounded-xl max-[850px]:w-full" />
@@ -251,7 +252,7 @@ export function Hero(): ReactNode {
               <span className="relative -left-px z-10 flex h-11 w-11 items-center justify-center rounded-xl text-black">
                 <ArrowDownRight className="h-5 w-5 transition-transform duration-300 group-hover:-rotate-45" />
               </span>
-            </a>
+            </Link>
 
             <a
               href="#deletion-test"

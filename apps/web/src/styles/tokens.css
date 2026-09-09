@@ -42,20 +42,20 @@
   --color-warning: #ffbe63;
   --color-error: #ff6b7a;
 
-  /* Landing page semantic tokens (Light/Default) */
-  --background: #0d0c12;
-  --foreground: #f4f4f7;
-  --muted: #15141c;
-  --muted-foreground: #8d8c97;
-  --border: #23222c;
+  /* Landing page semantic tokens (Light Default) */
+  --background: #f8f8fa;
+  --foreground: #111015;
+  --muted: #f0f0f4;
+  --muted-foreground: #666572;
+  --border: #e3e3e8;
   --ring: #a8d946;
-  --frame: #121118;
+  --frame: #ffffff;
   --accent: #a8d946;
-  --card-primary: #171620;
-  --card-secondary: #131219;
-  --card-foreground: #f4f4f7;
-  --card-foreground-muted: #9e9da9;
-  --phone-screen: #0d0c12;
+  --card-primary: #ffffff;
+  --card-secondary: #f4f7ec;
+  --card-foreground: #111015;
+  --card-foreground-muted: #5e5d68;
+  --phone-screen: #f8f8fa;
 
   /* Spacing, 4pt scale */
   --space-1: 0.25rem;
@@ -150,7 +150,8 @@
 
 /* The docs shell's dark theme is not a second palette: every value below is the
    Console token it corresponds to, so the two surfaces cannot drift apart. */
-:root.dark {
+:root.dark,
+.dark {
   --docs-canvas: var(--color-canvas);
   --docs-surface: var(--color-surface);
   --docs-raised: var(--color-surface-raised);
@@ -159,4 +160,19 @@
   --docs-ink: var(--color-text);
   --docs-muted: var(--color-text-muted);
   --docs-accent: var(--color-cyan);
+
+  /* Landing page semantic tokens (Dark) */
+  --background: #0d0c12;
+  --foreground: #f4f4f7;
+  --muted: #15141c;
+  --muted-foreground: #8d8c97;
+  --border: #23222c;
+  --ring: #a8d946;
+  --frame: #121118;
+  --accent: #a8d946;
+  --card-primary: #171620;
+  --card-secondary: #131219;
+  --card-foreground: #f4f4f7;
+  --card-foreground-muted: #9e9da9;
+  --phone-screen: #0d0c12;
 }

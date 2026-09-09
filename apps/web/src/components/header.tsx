@@ -2,7 +2,6 @@
 
 import { ArrowDownRight, ChevronDown, Github } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import Link from "next/link";
 import { useState, type ReactNode } from "react";
 
 const menus = {
@@ -232,7 +231,7 @@ export function Header({ ready = true }: { ready?: boolean }): ReactNode {
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.5, ease }}
-      className="bg-frame border-border/40 fixed top-2.5 left-1/2 z-50 w-full max-w-5xl -translate-x-1/2 rounded-b-4xl border-b shadow-2xl/20 max-[1200px]:max-w-4xl max-[850px]:top-0 max-[850px]:right-0 max-[850px]:left-0 max-[850px]:w-full max-[850px]:max-w-none max-[850px]:translate-x-0 max-[850px]:rounded-none max-[850px]:rounded-b-4xl"
+      className="bg-frame border-border/40 fixed top-2.5 left-0 right-0 mx-auto z-50 w-full max-w-5xl rounded-b-4xl border-b shadow-2xl/20 max-[1200px]:max-w-4xl max-[850px]:top-0 max-[850px]:w-full max-[850px]:max-w-none max-[850px]:rounded-none max-[850px]:rounded-b-4xl"
     >
       <div className="flex h-20 items-center justify-between px-4 max-[850px]:h-18 max-[850px]:px-6">
         <a
@@ -265,11 +264,8 @@ export function Header({ ready = true }: { ready?: boolean }): ReactNode {
               <span className="bg-accent/20 text-foreground rounded px-1.5 py-0.5 font-mono text-[10px] font-medium">
                 v1.0
               </span>
-              <span className="flex items-center gap-1 ml-1 px-1.5 py-0.5 rounded font-mono text-[9px] bg-neutral-900 border border-neutral-800">
-                <span className={`h-1.5 w-1.5 rounded-full ${ready ? "bg-emerald-400 animate-pulse" : "bg-amber-400"}`} />
-                <span className={ready ? "text-emerald-400" : "text-amber-400"}>
-                  {ready ? "SYSTEM READY" : "SYSTEM DEGRADED"}
-                </span>
+              <span className="sr-only">
+                {ready ? "SYSTEM READY" : "SYSTEM DEGRADED"}
               </span>
             </div>
             <span className="text-muted-foreground font-mono text-[10px] leading-none tracking-widest uppercase">
@@ -313,14 +309,7 @@ export function Header({ ready = true }: { ready?: boolean }): ReactNode {
           </a>
         </nav>
 
-        <div className="flex items-center gap-2 max-[850px]:hidden">
-          <Link
-            href="/runs"
-            className="text-foreground/90 hover:text-foreground hover:bg-foreground/10 flex items-center gap-1 rounded-xl px-3 py-2 text-xs font-mono font-medium transition-colors border border-border/50"
-            title="Launch Full Console"
-          >
-            Console →
-          </Link>
+        <div className="flex items-center gap-3 max-[850px]:hidden">
           <a
             href="https://github.com/musashi0x/aura_memory"
             target="_blank"
@@ -336,10 +325,10 @@ export function Header({ ready = true }: { ready?: boolean }): ReactNode {
             className="group relative inline-flex items-center"
           >
             <span className="bg-accent absolute inset-y-0 right-0 w-[calc(100%-1.5rem)] rounded-xl" />
-            <span className="bg-foreground text-background relative z-10 rounded-xl px-4 py-2 text-sm font-medium">
+            <span className="bg-foreground text-background relative z-10 rounded-xl px-5 py-2.5 text-sm font-medium">
               Join Pilot
             </span>
-            <span className="relative -left-px z-10 flex h-8 w-8 items-center justify-center rounded-xl text-black">
+            <span className="relative -left-px z-10 flex h-9 w-9 items-center justify-center rounded-xl text-black">
               <ArrowDownRight className="h-4 w-4 transition-transform duration-300 group-hover:-rotate-45" />
             </span>
           </a>

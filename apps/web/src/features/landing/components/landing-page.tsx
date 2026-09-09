@@ -9,14 +9,15 @@ import { Header } from "@/components/header";
 import { Hero } from "@/components/hero";
 import { HowItWorks } from "@/components/how-it-works";
 import { Pricing } from "@/components/pricing";
-import { SmoothScroll } from "@/components/smooth-scroll";
+import { Providers } from "@/components/providers";
 import { Testimonials } from "@/components/testimonials";
+import { ThemeSwitch } from "@/components/theme-switch";
 import { SkipLink } from "@/components/skip-link";
 
 export function LandingPage({ ready }: { ready: boolean }) {
   return (
-    <SmoothScroll>
-      <div className="relative min-h-screen bg-background text-foreground selection:bg-accent selection:text-black">
+    <Providers>
+      <div className="landing-shell relative min-h-screen bg-background text-foreground selection:bg-accent selection:text-black">
         {/* Fixed site frame */}
         <div className="site-frame site-frame--top" aria-hidden="true" />
         <div className="site-frame site-frame--bottom" aria-hidden="true" />
@@ -83,6 +84,7 @@ export function LandingPage({ ready }: { ready: boolean }) {
 
         <SkipLink />
         <Header ready={ready} />
+        <ThemeSwitch />
 
         <main id="main" className="flex-1 relative">
           <Hero />
@@ -97,6 +99,6 @@ export function LandingPage({ ready }: { ready: boolean }) {
 
         <Footer />
       </div>
-    </SmoothScroll>
+    </Providers>
   );
 }
