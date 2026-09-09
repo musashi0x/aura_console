@@ -38,7 +38,6 @@ export default defineConfig({
       NEXT_PUBLIC_API_URL: "http://localhost:3001",
     },
     globals: true,
-    testTimeout: 15000,
     setupFiles: [path.resolve(here, "src/test-support/setup.ts")],
     include: ["src/**/*.test.{ts,tsx}"],
   },

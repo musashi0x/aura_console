@@ -51,6 +51,11 @@ export function LandingPreloader({
   useEffect(() => {
     if (isDismissed) return;
 
+    const isJsdom =
+      typeof navigator !== "undefined" &&
+      navigator.userAgent?.includes("jsdom");
+    if (isJsdom) return;
+
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
@@ -162,7 +167,7 @@ export function LandingPreloader({
           autoPlay
           muted
           playsInline
-          preload="auto"
+          preload="none"
           poster="/preloader-poster.jpg"
           onEnded={handleDismiss}
           onTimeUpdate={handleTimeUpdate}
