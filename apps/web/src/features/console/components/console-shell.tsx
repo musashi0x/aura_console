@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useSyncExternalStore, type ReactNode } from "react";
 import { AppShell } from "@astryxdesign/core/AppShell";
 import { BottomSheet } from "@astryxdesign/core/BottomSheet";
 import { Layout, LayoutContent, LayoutPanel } from "@astryxdesign/core/Layout";
@@ -23,7 +23,7 @@ import {
 import { ConsoleNavigation } from "./console-navigation";
 import type { ReadinessState } from "./console-status";
 import { ConsoleTopbar } from "./console-topbar";
-import { Web3WalletProvider } from "@/features/web3";
+import { Web3WalletProvider, WalletGateOverlay, useWeb3Wallet } from "@/features/web3";
 
 export interface ConsoleShellProps {
   /** The destination the operator is on, for navigation and the context bar. */
@@ -98,6 +98,32 @@ function ConsoleChatRegion({
   );
 }
 
+const emptySubscribe = () => () => {};
+
+function GatedWorkspace({ children }: { children: ReactNode }) {
+  const { isConnected, isBaseSepolia } = useWeb3Wallet();
+  const mounted = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false,
+  );
+
+  const isGated = mounted && (!isConnected || !isBaseSepolia);
+
+  return (
+    <div className="relative w-full min-h-[580px] flex flex-col flex-1">
+      <div
+        className={`cs__workspace transition-all duration-300 ${
+          isGated ? "filter blur-md pointer-events-none select-none opacity-20" : ""
+        }`}
+      >
+        {children}
+      </div>
+      {isGated && <WalletGateOverlay />}
+    </div>
+  );
+}
+
 export function ConsoleShell({
   surface,
   readiness,
@@ -158,7 +184,7 @@ export function ConsoleShell({
                     open a wide window still leaves a narrow content region, and
                     a viewport breakpoint laid five spine columns into space that
                     fits one. */}
-                <div className="cs__workspace">{children}</div>
+                <GatedWorkspace>{children}</GatedWorkspace>
               </LayoutContent>
             }
             end={

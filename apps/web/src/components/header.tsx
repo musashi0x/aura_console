@@ -2,6 +2,7 @@
 
 import { ArrowDownRight, ChevronDown, Github } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import Link from "next/link";
 import { useState, type ReactNode } from "react";
 
 const menus = {
@@ -14,7 +15,7 @@ const menus = {
     {
       label: "5-Tier Dynamic Storage",
       description: "HOT, WARM, COLD, REFERENCE & ARCHIVE layers",
-      href: "#storage-tiers",
+      href: "#architecture",
     },
     {
       label: "Load-Bearing Deletion Test",
@@ -291,14 +292,22 @@ export function Header({ ready = true }: { ready?: boolean }): ReactNode {
             How It Works
           </a>
           <a
-            href="#pricing"
+            href="#architecture"
             className="text-foreground/80 hover:text-foreground hover:bg-foreground/5 rounded-full px-4 py-2 text-sm font-medium transition-colors max-[1200px]:px-3"
           >
             Tiers
           </a>
         </nav>
 
-        <div className="flex items-center gap-3 max-[850px]:hidden">
+        <div className="flex items-center gap-2.5 max-[850px]:hidden">
+          <Link
+            href="/runs"
+            className="flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2 text-xs font-mono font-bold text-black shadow-sm transition-all hover:opacity-90 hover:scale-[1.02]"
+            title="Launch Autonomous Agent Console"
+          >
+            <span>Console</span>
+            <ArrowDownRight className="h-3.5 w-3.5 -rotate-45" />
+          </Link>
           <a
             href="https://github.com/musashi0x/aura_memory"
             target="_blank"
@@ -313,11 +322,11 @@ export function Header({ ready = true }: { ready?: boolean }): ReactNode {
             href="#waitlist"
             className="group relative inline-flex items-center"
           >
-            <span className="bg-accent absolute inset-y-0 right-0 w-[calc(100%-1.5rem)] rounded-xl" />
-            <span className="bg-foreground text-background relative z-10 rounded-xl px-5 py-2.5 text-sm font-medium">
+            <span className="bg-foreground/10 absolute inset-y-0 right-0 w-[calc(100%-1.5rem)] rounded-xl" />
+            <span className="bg-foreground text-background relative z-10 rounded-xl px-4 py-2 text-sm font-medium">
               Join Pilot
             </span>
-            <span className="relative -left-px z-10 flex h-9 w-9 items-center justify-center rounded-xl text-black">
+            <span className="relative -left-px z-10 flex h-8 w-8 items-center justify-center rounded-xl text-black">
               <ArrowDownRight className="h-4 w-4 transition-transform duration-300 group-hover:-rotate-45" />
             </span>
           </a>
@@ -366,7 +375,7 @@ export function Header({ ready = true }: { ready?: boolean }): ReactNode {
                   How It Works
                 </a>
                 <a
-                  href="#pricing"
+                  href="#architecture"
                   className="text-foreground border-foreground/10 flex items-center justify-between border-b py-4 text-base font-medium"
                   onClick={closeMobile}
                 >
@@ -381,30 +390,41 @@ export function Header({ ready = true }: { ready?: boolean }): ReactNode {
                 </a>
               </nav>
 
-              <div className="flex items-center justify-between pt-6 pb-2">
-                <a
-                  href="https://github.com/musashi0x/aura_memory"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-foreground flex items-center gap-2 text-sm font-medium"
+              <div className="flex flex-col gap-3 pt-6 pb-2">
+                <Link
+                  href="/runs"
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-accent py-3 font-mono text-sm font-bold text-black shadow-md transition-all"
                   onClick={closeMobile}
                 >
-                  <Github className="h-4 w-4" />
-                  GitHub Repository
-                </a>
-                <a
-                  href="#waitlist"
-                  className="group relative inline-flex items-center"
-                  onClick={closeMobile}
-                >
-                  <span className="bg-accent absolute inset-y-0 right-0 w-[calc(100%-1.5rem)] rounded-2xl" />
-                  <span className="bg-foreground text-background relative z-10 rounded-2xl px-5 py-2.5 text-sm font-medium">
-                    Join Pilot
-                  </span>
-                  <span className="text-foreground relative -left-px z-10 flex h-9 w-9 items-center justify-center rounded-2xl">
-                    <ArrowDownRight className="h-4 w-4 transition-transform duration-300 group-hover:-rotate-45" />
-                  </span>
-                </a>
+                  <span>Launch Console</span>
+                  <ArrowDownRight className="h-4 w-4 -rotate-45" />
+                </Link>
+
+                <div className="flex items-center justify-between">
+                  <a
+                    href="https://github.com/musashi0x/aura_memory"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-foreground flex items-center gap-2 text-sm font-medium"
+                    onClick={closeMobile}
+                  >
+                    <Github className="h-4 w-4" />
+                    GitHub Repository
+                  </a>
+                  <a
+                    href="#waitlist"
+                    className="group relative inline-flex items-center"
+                    onClick={closeMobile}
+                  >
+                    <span className="bg-foreground/10 absolute inset-y-0 right-0 w-[calc(100%-1.5rem)] rounded-2xl" />
+                    <span className="bg-foreground text-background relative z-10 rounded-2xl px-4 py-2 text-sm font-medium">
+                      Join Pilot
+                    </span>
+                    <span className="text-foreground relative -left-px z-10 flex h-8 w-8 items-center justify-center rounded-2xl">
+                      <ArrowDownRight className="h-4 w-4 transition-transform duration-300 group-hover:-rotate-45" />
+                    </span>
+                  </a>
+                </div>
               </div>
             </div>
           </motion.div>

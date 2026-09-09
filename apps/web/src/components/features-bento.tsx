@@ -190,6 +190,14 @@ function DeletionTestCard(): ReactNode {
           ✓ Invariant: Zero blind treasury commitments
         </div>
       </div>
+
+      <div className="border-border text-muted-foreground flex items-center justify-between border-t pt-3 font-mono text-xs">
+        <span className="flex items-center gap-1.5">
+          <ShieldCheck className="text-amber-500 h-3.5 w-3.5" />
+          Fail-Closed Invariant
+        </span>
+        <span className="text-foreground font-semibold">Zero Blind Spend</span>
+      </div>
     </motion.div>
   );
 }
@@ -239,6 +247,14 @@ function BaseSepoliaCard(): ReactNode {
           <FileCheck2 className="h-3 w-3 text-emerald-400" />
           <span>Independent CLI verification: pnpm memory:verify</span>
         </div>
+      </div>
+
+      <div className="border-border text-muted-foreground flex items-center justify-between border-t pt-3 font-mono text-xs">
+        <span className="flex items-center gap-1.5">
+          <Lock className="text-blue-500 h-3.5 w-3.5" />
+          Base Sepolia (84532)
+        </span>
+        <span className="text-foreground font-semibold">Keccak256 Verified</span>
       </div>
     </motion.div>
   );
@@ -294,6 +310,14 @@ function VirtualsAcpCard(): ReactNode {
           <span className="text-accent font-bold">Simulated + Live</span>
         </div>
       </div>
+
+      <div className="border-border text-muted-foreground flex items-center justify-between border-t pt-3 font-mono text-xs">
+        <span className="flex items-center gap-1.5">
+          <Coins className="text-accent h-3.5 w-3.5" />
+          Autonomous Settlement
+        </span>
+        <span className="text-foreground font-semibold">Base Sepolia ACP</span>
+      </div>
     </motion.div>
   );
 }
@@ -347,6 +371,14 @@ function ReputationFsmCard(): ReactNode {
         <span className="rounded-lg border border-red-500/30 bg-red-500/15 px-2 py-1 font-semibold text-red-600 dark:text-red-400">
           BLOCKED
         </span>
+      </div>
+
+      <div className="border-border text-muted-foreground flex items-center justify-between border-t pt-3 font-mono text-xs">
+        <span className="flex items-center gap-1.5">
+          <TrendingUp className="text-emerald-500 h-3.5 w-3.5" />
+          Beta Conjugate Prior
+        </span>
+        <span className="text-foreground font-semibold">Zero Cold-Start Bias</span>
       </div>
     </motion.div>
   );
@@ -411,7 +443,7 @@ export function FeaturesBento(): ReactNode {
   return (
     <section
       id="architecture"
-      className="bg-background mb-28 w-full scroll-mt-32 px-4 sm:mb-36 sm:scroll-mt-40 sm:px-6 lg:px-8"
+      className="bg-background mb-28 w-full scroll-mt-28 pt-20 px-4 sm:mb-36 sm:scroll-mt-36 sm:pt-28 sm:px-6 lg:px-8"
     >
       <div className="mx-auto max-w-6xl">
         <div className="mb-12 text-center">
