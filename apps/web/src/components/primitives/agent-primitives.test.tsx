@@ -167,6 +167,21 @@ describe("ApprovalCard", () => {
       expect(screen.getByText(/Rejected by Operator/i)).toBeInTheDocument();
     });
   });
+
+  it("renders wallet blur gate overlay when requireWallet is true and wallet is disconnected", () => {
+    render(<ApprovalCard requireWallet={true} />);
+
+    expect(screen.getByTestId("wallet-gate-overlay")).toBeInTheDocument();
+    expect(screen.getByText("Operator Wallet Required")).toBeInTheDocument();
+    expect(screen.getByText("Connect Web3 wallet to authorize spend")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Connect Wallet/i })).toBeInTheDocument();
+
+    // Verify action buttons are disabled while wallet is blocked
+    const approveBtn = screen.getByRole("button", { name: /Approve Spend/i });
+    expect(approveBtn).toBeDisabled();
+    const rejectBtn = screen.getByRole("button", { name: /Reject Proposal/i });
+    expect(rejectBtn).toBeDisabled();
+  });
 });
 
 describe("DiffTable", () => {

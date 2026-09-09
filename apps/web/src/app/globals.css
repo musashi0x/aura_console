@@ -557,13 +557,22 @@ textarea:focus-visible,
   gap: 0.4rem;
 }
 
-main {
+main:not(.landing-main):not(.landing-shell *) {
   /* max-width alone left the column pinned to x=0 with no gutter, so every
      surface that is not the Console or the docs shell rendered flush against
      the viewport edge. */
   max-width: 40rem;
   margin-inline: auto;
   padding-inline: var(--space-6);
+}
+
+.landing-shell,
+.landing-shell main,
+.landing-main {
+  max-width: 100% !important;
+  width: 100% !important;
+  margin-inline: 0 !important;
+  padding-inline: 0 !important;
 }
 
 main:has(.onboarding-shell) {

@@ -67,7 +67,7 @@ const MEMORY_TIERS = [
 function MemoryArchitectureCard(): ReactNode {
   return (
     <motion.div
-      id="storage-tiers"
+      id="architecture"
       {...cardAnimation}
       transition={getCardTransition(0)}
       className="group border-border bg-frame/90 hover:border-accent/40 relative flex min-h-140 flex-col justify-between overflow-hidden rounded-4xl border p-6 shadow-xl transition-all sm:p-8 md:col-span-2 lg:col-span-1 lg:row-span-2 dark:border-neutral-800 dark:bg-neutral-900/80"

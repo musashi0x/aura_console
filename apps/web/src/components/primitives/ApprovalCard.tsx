@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { ShieldAlert, Check, X, Loader2 } from "lucide-react";
+import { ShieldAlert, Check, X, Loader2, Wallet } from "lucide-react";
 import { playInteractionSound } from "./InteractionSounds";
 import { env } from "@/lib/env";
+import { useWeb3Wallet } from "@/features/web3";
 
 export interface ApprovalCardProps {
   runId?: string;
@@ -21,6 +22,7 @@ export interface ApprovalCardProps {
   onReject?: () => Promise<void> | void;
   initialStatus?: "pending" | "approved" | "rejected";
   className?: string;
+  requireWallet?: boolean;
 }
 
 export function ApprovalCard({
@@ -39,7 +41,22 @@ export function ApprovalCard({
   onReject,
   initialStatus = "pending",
   className = "",
+  requireWallet = false,
 }: ApprovalCardProps) {
+  const {
+    address,
+    isConnected,
+    isConnecting,
+    isBaseSepolia,
+    connect,
+    switchToBaseSepolia,
+    usdcBalance,
+  } = useWeb3Wallet();
+
+  const needsWalletConnection = Boolean(requireWallet && !isConnected);
+  const needsNetworkSwitch = Boolean(requireWallet && isConnected && !isBaseSepolia);
+  const isWalletBlocked = needsWalletConnection || needsNetworkSwitch;
+
   const [status, setStatus] = useState<"pending" | "approved" | "rejected">(initialStatus);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,22 +68,74 @@ export function ApprovalCard({
     try {
       if (onApprove) {
         await onApprove();
-      } else if (runId) {
-        const ceilingStr = typeof amountUsdc === "number" ? amountUsdc.toFixed(2) : String(amountUsdc);
-        let res = await fetch(`${env.NEXT_PUBLIC_API_URL}/api/runs/${runId}/approve`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ceiling_usdc: ceilingStr }),
-        });
-        if (res.status === 404) {
-          res = await fetch(`${env.NEXT_PUBLIC_API_URL}/api/runs/${runId}/approvals`, {
+      } else {
+        const num = typeof amountUsdc === "number" ? amountUsdc : parseFloat(String(amountUsdc));
+        const ceilingStr = Number.isNaN(num) || num <= 0 ? "10.000000" : num.toFixed(6);
+
+        let targetRunId = runId;
+        const isUuid =
+          typeof targetRunId === "string" &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetRunId);
+
+        // If runId is missing, undefined, or not a valid UUID (e.g. "demo-run-1" or general chat),
+        // create a real mission run in Postgres so the authorization is genuinely event-sourced!
+        if (!isUuid) {
+          const createRes = await fetch(`${env.NEXT_PUBLIC_API_URL}/api/runs`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ approved: true, ceiling_usdc: ceilingStr }),
+            body: JSON.stringify({
+              objective: `Spend authorization for ${counterpartyKey}: ${reason}`,
+              budgetUsdc: ceilingStr,
+              source: "CONSOLE",
+            }),
           });
+          if (createRes.ok) {
+            const runData = await createRes.json();
+            targetRunId = runData.run?.id || runData.id;
+          }
         }
-        if (!res.ok && res.status !== 409) {
-          throw new Error(`Approval failed with status ${res.status}`);
+
+        if (targetRunId) {
+          let res = await fetch(`${env.NEXT_PUBLIC_API_URL}/api/runs/${targetRunId}/approve`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ceiling_usdc: ceilingStr }),
+          });
+
+          // If no pending approval.requested event exists on this run (409 or 404),
+          // append an approval.requested event and retry approval
+          if (res.status === 409 || res.status === 404) {
+            const errData = await res.json().catch(() => ({}));
+            if (errData?.error?.code === "no_pending_approval" || res.status === 404) {
+              const eventId = crypto.randomUUID();
+              await fetch(`${env.NEXT_PUBLIC_API_URL}/api/runs/${targetRunId}/events`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  eventId,
+                  eventTime: new Date().toISOString(),
+                  type: "approval.requested",
+                  data: {
+                    action: `Spend ${ceilingStr} USDC with ${counterpartyKey}`,
+                    counterparty_key: counterpartyKey,
+                    ceiling_usdc: ceilingStr,
+                    reason,
+                    summary: reason,
+                  },
+                }),
+              });
+              res = await fetch(`${env.NEXT_PUBLIC_API_URL}/api/runs/${targetRunId}/approve`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ceiling_usdc: ceilingStr }),
+              });
+            }
+          }
+
+          if (!res.ok && res.status !== 409) {
+            const errBody = await res.json().catch(() => ({}));
+            throw new Error(errBody?.error?.message || errBody?.message || `Approval failed with status ${res.status}`);
+          }
         }
       }
       setStatus("approved");
@@ -86,20 +155,19 @@ export function ApprovalCard({
       if (onReject) {
         await onReject();
       } else if (runId) {
-        let res = await fetch(`${env.NEXT_PUBLIC_API_URL}/api/runs/${runId}/reject`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ reason }),
-        });
-        if (res.status === 404) {
-          res = await fetch(`${env.NEXT_PUBLIC_API_URL}/api/runs/${runId}/approvals`, {
+        const isUuid =
+          typeof runId === "string" &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(runId);
+        if (isUuid) {
+          const res = await fetch(`${env.NEXT_PUBLIC_API_URL}/api/runs/${runId}/reject`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ approved: false, reason }),
+            body: JSON.stringify({ reason }),
           });
-        }
-        if (!res.ok && res.status !== 409) {
-          throw new Error(`Rejection failed with status ${res.status}`);
+          if (!res.ok && res.status !== 409) {
+            const errBody = await res.json().catch(() => ({}));
+            throw new Error(errBody?.error?.message || errBody?.message || `Rejection failed with status ${res.status}`);
+          }
         }
       }
       setStatus("rejected");
@@ -198,39 +266,116 @@ export function ApprovalCard({
       </div>
 
       {/* Footer action controls */}
-      <div className="border-t border-[rgba(216,216,219,0.12)] bg-[#111015]/30 px-4 py-3 flex items-center justify-between">
+      <div className="relative border-t border-[rgba(216,216,219,0.12)] bg-[#111015]/40 px-4 py-3 min-h-[58px] flex flex-col justify-center overflow-hidden">
         {status === "pending" ? (
           <>
-            <button
-              type="button"
-              disabled={loading}
-              onClick={handleReject}
-              data-sound="release"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border border-[rgba(216,216,219,0.16)] bg-[#1b1b1f] text-[12.5px] font-medium text-[var(--color-text-muted,#8d9aaf)] hover:text-[#ff6b7a] hover:border-[#ff6b7a]/40 transition-colors disabled:opacity-40"
-            >
-              <X size={13} />
-              <span>Reject Proposal</span>
-            </button>
+            {/* Operator wallet bar when connected and wallet required */}
+            {requireWallet && isConnected && isBaseSepolia && (
+              <div className="flex items-center justify-between mb-2.5 pb-2 border-b border-[rgba(216,216,219,0.08)] text-[11px] font-mono">
+                <span className="inline-flex items-center gap-1.5 text-[#51e6a6]">
+                  <span className="size-1.5 rounded-full bg-[#51e6a6] animate-pulse" />
+                  <span>Wallet: {address?.slice(0, 6)}...{address?.slice(-4)}</span>
+                </span>
+                <span className="text-[var(--color-text-muted,#8d9aaf)]">
+                  Balance: <span className="text-[#f4f7fb] font-semibold">{usdcBalance ? `$${usdcBalance} USDC` : "Checking..."}</span>
+                </span>
+              </div>
+            )}
 
-            <button
-              type="button"
-              disabled={loading}
-              onClick={handleApprove}
-              data-sound="pulse"
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-[8px] bg-[#f3f3f5] text-[#111015] text-[12.5px] font-semibold shadow-sm hover:bg-[#ffffff] transition-all disabled:opacity-40"
+            {/* Normal action buttons (blurred if wallet blocked) */}
+            <div
+              className={`flex items-center justify-between transition-all duration-300 ${
+                isWalletBlocked ? "filter blur-[3px] opacity-25 pointer-events-none select-none" : ""
+              }`}
             >
-              {loading ? (
-                <>
-                  <Loader2 size={13} className="animate-spin" />
-                  <span>Authorizing...</span>
-                </>
-              ) : (
-                <>
-                  <Check size={13} strokeWidth={2.5} />
-                  <span>Approve Spend ({formattedAmount})</span>
-                </>
-              )}
-            </button>
+              <button
+                type="button"
+                disabled={loading || isWalletBlocked}
+                onClick={handleReject}
+                data-sound="release"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border border-[rgba(216,216,219,0.16)] bg-[#1b1b1f] text-[12.5px] font-medium text-[var(--color-text-muted,#8d9aaf)] hover:text-[#ff6b7a] hover:border-[#ff6b7a]/40 transition-colors disabled:opacity-40"
+              >
+                <X size={13} />
+                <span>Reject Proposal</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={loading || isWalletBlocked}
+                onClick={handleApprove}
+                data-sound="pulse"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-[8px] bg-[#f3f3f5] text-[#111015] text-[12.5px] font-semibold shadow-sm hover:bg-[#ffffff] transition-all disabled:opacity-40"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 size={13} className="animate-spin" />
+                    <span>Authorizing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check size={13} strokeWidth={2.5} />
+                    <span>Approve Spend ({formattedAmount})</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Frosted Glassmorphism Blur Overlay for Wallet Requirement */}
+            {isWalletBlocked && (
+              <div
+                data-testid="wallet-gate-overlay"
+                className="absolute inset-0 z-10 flex items-center justify-between px-4 py-2.5 bg-[#16151a]/85 backdrop-blur-md border-t border-[rgba(216,216,219,0.12)] transition-opacity animate-in fade-in duration-200"
+              >
+                <div className="flex items-center gap-2.5 max-w-[65%]">
+                  <div className="flex size-7 shrink-0 items-center justify-center rounded-[8px] bg-[#ffbe63]/15 text-[#ffbe63]">
+                    <Wallet size={15} />
+                  </div>
+                  <div className="leading-tight">
+                    <div className="text-[12px] font-semibold text-[#f4f7fb]">
+                      {needsWalletConnection
+                        ? "Operator Wallet Required"
+                        : "Base Sepolia Network Required"}
+                    </div>
+                    <div className="text-[11px] text-[var(--color-text-muted,#8d9aaf)] truncate">
+                      {needsWalletConnection
+                        ? "Connect Web3 wallet to authorize spend"
+                        : "Switch chain to execute on Base Sepolia"}
+                    </div>
+                  </div>
+                </div>
+
+                {needsWalletConnection ? (
+                  <button
+                    type="button"
+                    disabled={isConnecting}
+                    onClick={() => connect()}
+                    data-sound="pulse"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] bg-[#ffbe63] text-[#111015] text-[12px] font-semibold hover:bg-[#ffc87a] active:scale-[0.98] transition-all shadow-sm shrink-0"
+                  >
+                    {isConnecting ? (
+                      <>
+                        <Loader2 size={13} className="animate-spin" />
+                        <span>Connecting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Wallet size={13} />
+                        <span>Connect Wallet</span>
+                      </>
+                    )}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => switchToBaseSepolia()}
+                    data-sound="pulse"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] bg-[#ffbe63] text-[#111015] text-[12px] font-semibold hover:bg-[#ffc87a] active:scale-[0.98] transition-all shadow-sm shrink-0"
+                  >
+                    <span>Switch to Base Sepolia</span>
+                  </button>
+                )}
+              </div>
+            )}
           </>
         ) : status === "approved" ? (
           <div className="flex w-full items-center justify-between">

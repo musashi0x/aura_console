@@ -86,7 +86,7 @@ export function LandingPage({ ready }: { ready: boolean }) {
         <Header ready={ready} />
         <ThemeSwitch />
 
-        <main id="main" className="flex-1 relative">
+        <main id="main" className="landing-main relative flex-1 w-full">
           <Hero />
           <BlurInHeadline />
           <FeaturesBento />
@@ -95,9 +95,8 @@ export function LandingPage({ ready }: { ready: boolean }) {
           <Pricing />
           <Testimonials />
           <FAQ />
+          <Footer />
         </main>
-
-        <Footer />
       </div>
     </Providers>
   );
