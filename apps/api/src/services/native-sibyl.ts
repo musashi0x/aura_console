@@ -138,6 +138,15 @@ export const INITIAL_FIXTURE_ENTITIES: NativeEntity[] = [
 
 let currentDb: DatabaseSync | null = null;
 let currentDbPath: string | null = null;
+let lastStorageError: string | null = null;
+
+export function getLastStorageError(): string | null {
+  return lastStorageError;
+}
+
+export function clearLastStorageError(): void {
+  lastStorageError = null;
+}
 
 export function getNativeStoragePath(): string {
   const envPath =
@@ -229,6 +238,13 @@ export function resetNativeSibylStore(options: ResetStoreOptions = {}): {
 }
 
 function getDb(forWrite = false): DatabaseSync | null {
+  if (process.env.SIBYL_STORAGE_UNAVAILABLE === "true") {
+    if (currentDb) {
+      closeNativeSibylDatabase();
+    }
+    lastStorageError = "Native durable storage unavailable via SIBYL_STORAGE_UNAVAILABLE";
+    return null;
+  }
   const targetPath = getNativeStoragePath();
 
   if (currentDb && currentDbPath !== targetPath) {
@@ -384,6 +400,22 @@ function episodesFrom(body: Record<string, unknown>): SibylEpisode[] {
 
 export function getNativeSibylStatus(): SibylStatus {
   try {
+    if (process.env.SIBYL_STORAGE_UNAVAILABLE === "true") {
+      return {
+        configured: true,
+        reachable: false,
+        backend: "native_durable",
+        fallback_active: false,
+        code: "storage_unreachable",
+        detail: "Native durable storage unavailable via SIBYL_STORAGE_UNAVAILABLE",
+        tier: "embedded",
+        schemaVersion: 4,
+        dbSizeBytes: 0,
+        softCapBytes: 104857600,
+        atOrAboveCap: false,
+        entityCount: 0,
+      };
+    }
     const db = getDb(false);
     if (!db) {
       return {
@@ -451,6 +483,14 @@ export function recallNativeEntities(
   query: string,
   opts: { category?: string; limit?: number } = {},
 ): SibylRecall {
+  if (process.env.SIBYL_STORAGE_UNAVAILABLE === "true") {
+    return {
+      reachable: false,
+      records: [],
+      code: "storage_unreachable",
+      detail: "Native durable storage unavailable via SIBYL_STORAGE_UNAVAILABLE",
+    };
+  }
   const db = getDb(false);
   if (!db) {
     return {
@@ -600,6 +640,15 @@ export function getNativeEntity(category: string, name: string): SibylEntityLook
 }
 
 export function retrieveNativeFromSibyl(counterpartyKey: string): SibylRetrieval {
+  if (process.env.SIBYL_STORAGE_UNAVAILABLE === "true") {
+    return {
+      status: "ERROR",
+      counterpartyKey,
+      retryable: true,
+      code: "storage_unreachable",
+      detail: "Native durable storage unavailable via SIBYL_STORAGE_UNAVAILABLE",
+    };
+  }
   const db = getDb(false);
   if (!db) {
     return {
@@ -684,6 +733,13 @@ export function retrieveNativeFromSibyl(counterpartyKey: string): SibylRetrieval
 }
 
 export function listNativeCounterpartiesFromSibyl(): SibylCounterparties {
+  if (process.env.SIBYL_STORAGE_UNAVAILABLE === "true") {
+    return {
+      ok: false,
+      code: "storage_unreachable",
+      detail: "Native durable storage unavailable via SIBYL_STORAGE_UNAVAILABLE",
+    };
+  }
   const db = getDb(false);
   if (!db) {
     return { ok: true, items: [] };

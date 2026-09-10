@@ -20,6 +20,8 @@
     "demo:seed": "bash scripts/demo-seed.sh",
     "demo:cold-start": "pnpm --filter @aura/api exec tsx ../../scripts/demo-cold-start.ts",
     "test:cold-start": "pnpm --filter @aura/api exec tsx ../../scripts/test-cold-start.ts",
+    "demo:causal-loop": "pnpm --filter @aura/api exec tsx ../../scripts/demo-causal-memory-loop.ts",
+    "test:causal-loop": "pnpm --filter @aura/api exec tsx ../../scripts/test-causal-memory-loop.ts",
     "demo:deletion-test": "pnpm --filter @aura/api exec tsx ../../scripts/demo-deletion-test.ts",
     "demo:restart": "bash scripts/demo-restart.sh",
     "demo:reset": "bash scripts/demo-reset.sh",
