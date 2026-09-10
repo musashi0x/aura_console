@@ -139,6 +139,38 @@ describe("policies", () => {
   });
 });
 
+describe("memory ablation (/api/memory/ablation)", () => {
+  it("serves causal memory ablation proof with answer and walkthrough metrics", async () => {
+    const res = await app.request("/api/memory/ablation");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      ok: boolean;
+      question: string;
+      answer: string;
+      memory_walkthrough: {
+        line_1_what_you_persist: string;
+        line_2_how_fresh_session_recalls_it: string;
+        line_3_decision_or_action_it_changes: string;
+      };
+      memory_primitives_used: string[];
+      matrix: {
+        condition_a_with_memory: { provider_selected: string; verifier_score: number; task_outcome: string };
+        condition_b_memory_deleted: { provider_selected: string; verifier_score: number; task_outcome: string };
+      };
+    };
+
+    expect(body.ok).toBe(true);
+    expect(body.question).toContain("What breaks when memory is deleted?");
+    expect(body.answer).toContain("When memory is deleted, the agent suffers amnesia");
+    expect(body.memory_primitives_used).toContain("recall");
+    expect(body.memory_primitives_used).toContain("reflection");
+    expect(body.matrix.condition_a_with_memory.provider_selected).toBe("virtuals:agent:beta");
+    expect(body.matrix.condition_a_with_memory.verifier_score).toBe(1.0);
+    expect(body.matrix.condition_b_memory_deleted.provider_selected).toBe("virtuals:agent:alpha");
+    expect(body.matrix.condition_b_memory_deleted.verifier_score).toBe(0.0);
+  });
+});
+
 describe("agent chat", () => {
   async function createRun() {
     const res = await app.request("/api/runs", {

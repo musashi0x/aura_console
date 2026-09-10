@@ -182,14 +182,14 @@ export function McpExecutiveOverview({
               <div className="mw__flip-row">
                 <span className="mw__flip-label text-neutral-400">Decision:</span>
                 <span className="mw__flip-val text-neutral-200">
-                  Agent picks <strong>Alpha</strong> ($18.50 quote, cheapest)
+                  Agent picks <strong>Alpha</strong> (9.00 USDC quote, cheapest)
                 </span>
               </div>
               <div className="mw__flip-arrow text-red-500/70" aria-hidden="true">↓</div>
               <div className="mw__flip-row mw__flip-row--danger">
                 <span className="mw__flip-label text-red-400 font-semibold">Outcome:</span>
                 <span className="mw__flip-val text-red-300 font-medium">
-                  Suffers SLA failure (41h late delivery, wasted treasury)
+                  Deliverable Rejected: missing source citations (Score 0.0, wasted treasury)
                 </span>
               </div>
             </div>
@@ -210,14 +210,14 @@ export function McpExecutiveOverview({
               <div className="mw__flip-row">
                 <span className="mw__flip-label text-neutral-400">Decision:</span>
                 <span className="mw__flip-val text-neutral-200">
-                  Recalls Alpha&apos;s prior penalty → Flips decision to <strong>Beta</strong> ($22.00 quote, 100% on-time record)
+                  Recalls Alpha&apos;s prior penalty → Flips decision to <strong>Beta</strong> (12.00 USDC quote, 100% verified track record)
                 </span>
               </div>
               <div className="mw__flip-arrow text-emerald-500/70" aria-hidden="true">↓</div>
               <div className="mw__flip-row mw__flip-row--success">
                 <span className="mw__flip-label text-emerald-400 font-semibold">Outcome:</span>
                 <span className="mw__flip-val text-emerald-300 font-medium">
-                  Mission Succeeds! Verified deliverable accepted
+                  Mission Succeeds! 3 competitors + valid citations verified (Score 1.00)
                 </span>
               </div>
             </div>

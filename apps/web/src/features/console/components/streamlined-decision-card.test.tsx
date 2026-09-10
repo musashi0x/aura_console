@@ -177,6 +177,48 @@ describe("StreamlinedDecisionCard", () => {
     expect(screen.getByText("15.00 USDC")).toBeInTheDocument();
   });
 
+  it("renders 'What breaks when memory is deleted?' milestone section with Causal Outcome Matrix and 3-line walkthrough", () => {
+    render(<StreamlinedDecisionCard />);
+
+    expect(screen.getByText("Hackathon PMF Milestone")).toBeInTheDocument();
+    expect(screen.getByText("What breaks when memory is deleted?")).toBeInTheDocument();
+    expect(screen.getByText("Condition A: With Sibyl Memory")).toBeInTheDocument();
+    expect(screen.getByText("Condition B: Memory Deleted (Amnesia)")).toBeInTheDocument();
+    expect(screen.getByText(/Memory Walkthrough \(Judges score 40% from this\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Counterparty Bayesian reputation parameters/i)).toBeInTheDocument();
+    expect(screen.getByText(/Cold-booted OS process starts with blank V8 heap/i)).toBeInTheDocument();
+    expect(screen.getByText(/Flips selection from price-only Alpha/i)).toBeInTheDocument();
+    expect(screen.getByText("✓ recall")).toBeInTheDocument();
+    expect(screen.getByText("✓ reflection")).toBeInTheDocument();
+  });
+
+  it("supports interactive controlled memory ablation simulation, flipping recommendation to Alpha on price and showing verifier failure", async () => {
+    const user = userEvent.setup();
+    render(<StreamlinedDecisionCard />);
+
+    // Initially with memory: Beta is recommended
+    expect(screen.getByText("Recommended Provider")).toBeInTheDocument();
+    expect(screen.getAllByText(/Beta Research/i).length).toBeGreaterThanOrEqual(1);
+
+    // Click Simulate Memory Deletion
+    const toggleBtn = screen.getByTestId("toggle-ablation-btn");
+    await user.click(toggleBtn);
+
+    // Banner and amnesic state active
+    expect(screen.getByTestId("controlled-ablation-banner")).toBeInTheDocument();
+    expect(screen.getByText("Amnesic Provider Selection")).toBeInTheDocument();
+    expect(screen.getAllByText(/Alpha Research/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("9.00 USDC").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/Deliverable schema validation failed — 3 competitors missing required source citation URLs/i)).toBeInTheDocument();
+    expect(screen.getByText("Blocked: Amnesic Rejection")).toBeInTheDocument();
+
+    // Click Restore Sibyl Memory
+    await user.click(screen.getAllByRole("button", { name: /Restore Sibyl Memory/i })[0]);
+    expect(screen.queryByTestId("controlled-ablation-banner")).not.toBeInTheDocument();
+    expect(screen.getByText("Recommended Provider")).toBeInTheDocument();
+    expect(screen.getAllByText(/Beta Research/i).length).toBeGreaterThanOrEqual(1);
+  });
+
   it("passes accessibility checks with no axe violations", async () => {
     const { container } = render(<StreamlinedDecisionCard />);
     await expectNoAxeViolations(container);

@@ -42,7 +42,7 @@ describe("McpExecutiveOverview", () => {
       screen.getByText(/Without Sibyl Memory \(Amnesia\)/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Suffers SLA failure \(41h late delivery, wasted treasury\)/i),
+      screen.getByText(/Deliverable Rejected: missing source citations \(Score 0\.0, wasted treasury\)/i),
     ).toBeInTheDocument();
     expect(
       screen.getByText(/With Sibyl Memory \(Load-Bearing\)/i),
@@ -51,10 +51,10 @@ describe("McpExecutiveOverview", () => {
       screen.getByText(/Recalls Alpha's prior penalty/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/\$22\.00 quote, 100% on-time record/i),
+      screen.getByText(/12\.00 USDC quote, 100% verified track record/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Mission Succeeds! Verified deliverable accepted/i),
+      screen.getByText(/Mission Succeeds! 3 competitors \+ valid citations verified \(Score 1\.00\)/i),
     ).toBeInTheDocument();
   });
 
