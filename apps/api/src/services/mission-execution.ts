@@ -28,6 +28,11 @@ import {
   verifyCompetitorReportDeliverable,
   DEFAULT_DELIVERABLE_FILENAMES,
 } from "./verifier-agent.js";
+import {
+  analyzeFailureAndReflect,
+  recordReflectionToSibyl,
+} from "./reflection-engine.js";
+import { consolidateEpisodes } from "./consolidation-engine.js";
 
 export interface ExecuteMissionOptions {
   runId: string;
@@ -333,6 +338,30 @@ export class MissionExecutionService {
         });
         sibylRecorded = epResult.ok;
 
+        if (!isPassed) {
+          try {
+            const reflection = analyzeFailureAndReflect({
+              counterpartyKey,
+              runId,
+              evaluation,
+            });
+            await recordReflectionToSibyl(reflection);
+            missionLogs.append(
+              runId,
+              "system",
+              `Reflection recorded [${reflection.failureCategory}]: ${reflection.lesson}`,
+            );
+          } catch (refErr) {
+            console.warn("[mission-execution] Reflection error:", (refErr as Error).message);
+          }
+        }
+
+        try {
+          await consolidateEpisodes(counterpartyKey);
+        } catch (consErr) {
+          console.warn("[mission-execution] Consolidation error:", (consErr as Error).message);
+        }
+
         // 9. Base Sepolia memory commitment
         try {
           const commitmentResult = await commitMemoryToBaseSepolia({
@@ -537,6 +566,30 @@ export class MissionExecutionService {
           occurredAt: new Date().toISOString(),
         });
         sibylRecorded = epResult.ok;
+
+        if (!isPassed) {
+          try {
+            const reflection = analyzeFailureAndReflect({
+              counterpartyKey,
+              runId,
+              evaluation: {
+                score: 0,
+                tests_passed: false,
+                summary: reason ?? "ACP deliverable rejected",
+                failure_reason: reason,
+              },
+            });
+            await recordReflectionToSibyl(reflection);
+          } catch (refErr) {
+            console.warn("[mission-execution] ACP reflection error:", (refErr as Error).message);
+          }
+        }
+
+        try {
+          await consolidateEpisodes(counterpartyKey);
+        } catch (consErr) {
+          console.warn("[mission-execution] ACP consolidation error:", (consErr as Error).message);
+        }
 
         // 5. Computes and commits salted memory to Base Sepolia (commitMemoryToBaseSepolia)
         try {

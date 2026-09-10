@@ -118,6 +118,54 @@ export function EvidenceDrawer({ node, envelope, onClose }: EvidenceDrawerProps)
             )}
           </section>
         ) : null}
+
+        {node.stage === "DECISION" || node.stage === "EVIDENCE" ? (
+          <section className="cs__drawer-envelope" aria-label="Candidate Memory & Risk Evaluation">
+            <h3 className="cs__drawer-subtitle">Candidate Risk Digest & Reflections</h3>
+            <div className="flex flex-col gap-3 pt-2">
+              <div className="p-3 rounded-xl bg-[var(--color-canvas)] border border-[var(--color-border)] flex flex-col gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-semibold text-xs text-[var(--color-text)]">
+                    Alpha Research (Penalized)
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-[var(--color-surface)] text-[var(--color-error)] border border-[var(--color-border)]">
+                      CRITICAL RISK
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-[var(--color-surface)] text-[var(--color-error)] border border-[var(--color-border)]">
+                      MISSING_CITATIONS
+                    </span>
+                  </div>
+                </div>
+                <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
+                  Executive Risk Digest: 1 failure due to unverified citations, 0 successful deliveries. Under WATCH status.
+                </p>
+                <div className="p-2 rounded bg-[var(--color-surface)] border border-[var(--color-border)] text-[11px] text-[var(--color-text-muted)] font-mono">
+                  Lesson: Alpha repeatedly omits mandatory citation sources (competitors.*.sources).
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-[var(--color-canvas)] border border-[var(--color-border)] flex flex-col gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-semibold text-xs text-[var(--color-text)]">
+                    Beta Labs (Selected)
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-[var(--color-surface)] text-[var(--color-success)] border border-[var(--color-border)]">
+                      LOW RISK
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-[var(--color-surface)] text-[var(--color-success)] border border-[var(--color-border)]">
+                      VERIFIED
+                    </span>
+                  </div>
+                </div>
+                <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
+                  Executive Risk Digest: 100% verified deliveries, zero defects, PREFERRED status.
+                </p>
+              </div>
+            </div>
+          </section>
+        ) : null}
       </div>
     </div>
   );

@@ -200,3 +200,109 @@ Implement the on-chain memory commitment flow from Task #35 and `04-partner-stac
 ### Quality & Tests
 - [ ] All tests pass across `@aura/api` and `@aura/web` with 0 failures (`pnpm test`).
 - [ ] Monorepo TypeScript builds compile cleanly with 0 errors (`pnpm typecheck`).
+
+## 2026-09-09T11:40:28Z
+
+Requested team: Full team — to handle backend persistence, verifier, Bayesian scoring state, and demo CLI/UI
+
+Aura helps AI agents choose providers based on past delivery outcomes across separate sessions, using persistent memory (Sibyl) to switch to better providers on subsequent runs.
+
+Working directory: /Users/harryphan/.gemini/antigravity/worktrees/aura_memory/ai_cli_sandbox_reputation
+Integrity mode: demo
+
+## Reference Material
+- Hackathon Rules & Cold Start Requirements: https://hack.sibyllabs.org/rules
+- Product Pitch & Storyboard: /Users/harryphan/Documents/dev/aura_memory/docs/product/pitch-reset.md
+- Audit & Findings: /Users/harryphan/Documents/dev/aura_memory/docs/product/pitch-readiness-audit.md
+
+## Requirements
+
+### R1. Cross-Process Persistent Storage for Memory & State
+Replace in-memory transient Map storage in the native Sibyl service with a durable, disk-backed persistent store (e.g., SQLite or durable JSON store) so all recorded counterparties, episodes, and reputation state survive across independent process terminations and restarts. Ensure the Python Sibyl bridge integrates cleanly when valid credentials exist and reports clear diagnostic statuses rather than silently disguising memory loss.
+
+### R2. Objective Deliverable Verification
+Implement authentic deliverable verification for the competitor research task (validating required competitor entries, websites, and cited sources). Verification must strictly evaluate deliverable quality against objective acceptance criteria, eliminating synthetic test commands (like echo 'tests passed') and fake overrides that convert test failures into passes.
+
+### R3. Cumulative Reputation Rehydration & Scoring
+Persist and restore complete Bayesian reputation state (including alpha, beta parameters, consecutive failure counters, and relationship status) from durable storage. Provider scoring must deterministically penalize verified failures so that past poor delivery changes subsequent selection under identical pricing.
+
+### R4. Automated Two-Session Cold-Start Demonstration
+Provide a deterministic script / CLI runner that executes a complete 2-session lifecycle across two distinct OS processes:
+1. Session 1 (Process A): Selects provider for a competitor report (Alpha chosen on price) -> Alpha delivers defective report -> verifier rejects deliverable -> failure episode and updated reputation written to durable storage -> Process A exits.
+2. Session 2 (Process B - Cold Start): Fresh process launched with identical prompt and quotes -> recalls persisted delivery history -> Provider Beta selected over Provider Alpha -> displays side-by-side comparison of price-only ranking vs. history-aware ranking with inspectable evidence.
+
+## Acceptance Criteria
+
+### Persistence Across Process Boundaries
+- [ ] Process A writes interaction memory and terminates cleanly; an independent Process B starts without shared in-memory state and successfully recalls all recorded episodes and counterparty profiles from disk.
+- [ ] Deletion test: Removing or resetting the durable storage cleanly returns the store to default priors and reports no history without throwing unhandled exceptions.
+
+### Objective Verification
+- [ ] Verifier rejects deliverables missing mandatory sources or competitor fields with explicit error reasons.
+- [ ] No code paths allow a failed verifier check to be converted into a successful delivery.
+
+### Cumulative Learning
+- [ ] Consecutive delivery failures incrementally update Bayesian parameters and status (e.g. WATCH / BLOCKED) without resetting counters to initial values on each mission.
+
+### End-to-End Cold-Start Script
+- [ ] An automated test script (e.g. npm run test:cold-start or runnable script) executes Process A then Process B sequentially and asserts:
+  - Process A selected Alpha and recorded rejection.
+  - Process B selected Beta over Alpha with identical pricing quotes.
+  - Side-by-side output clearly contrasts price-only choice (Alpha) vs. history-adjusted choice (Beta).
+- [ ] Existing core test suites pass without regressions.
+
+## 2026-09-10T09:02:40Z
+
+Requested team: Full team — to implement reflection, consolidation, temporal time-travel, semantic search, and summarization across backend, API, CLI, and Web UI
+
+Implement all 5 remaining Sibyl memory primitives (reflection, consolidation, temporal / time-travel, semantic search, and summarization) into Aura, ensuring 100% authentic, verifiable coverage of all 7 hackathon memory primitives.
+
+Working directory: /Users/harryphan/.gemini/antigravity/worktrees/aura_memory/ai_cli_sandbox_reputation
+Integrity mode: demo
+
+## Reference Material
+- Hackathon Rules & Memory Primitives: https://hack.sibyllabs.org/rules
+- Team Submission Page: https://hack.sibyllabs.org/team/weminal-cdef
+- Product Pitch & Storyboard: /Users/harryphan/Documents/dev/aura_memory/docs/product/pitch-reset.md
+
+## Requirements
+
+### R1. Agent Reflection Engine (`reflection`)
+When a deliverable fails verification, the system must trigger an authentic reflection step that analyzes the verifier's failure notes and schema errors, extracts root-cause lessons (e.g., "Alpha repeatedly omits mandatory source citations"), and persists structured reflection records (`category: "reflection"`) in Sibyl memory linked to the counterparty. Subsequent missions query these reflections before negotiating or hiring.
+
+### R2. Episodic Memory Consolidation (`consolidation`)
+Implement a deterministic consolidation pipeline that rolls up discrete raw execution episodes into a unified counterparty dossier (`category: "dossier"` / "consolidation"). The consolidated record synthesizes cumulative reliability, recurring defect patterns, and probation transitions so ranking does not require re-scanning raw logs on every step.
+
+### R3. Temporal Point-in-Time History & Time-Travel (`temporal / time-travel`)
+Enable point-in-time state reconstruction for counterparties. Given a timestamp or episode index $t$, the system can query and reconstruct the exact counterparty reputation and relationship status as it existed at $t$ (e.g., showing Alpha as `NEW` at $t_0$, `WATCH` at $t_1$, and comparing historical reputation vs. present).
+
+### R4. Semantic & Intent-Based Memory Search (`semantic search`)
+Implement query-based memory retrieval across Sibyl records using semantic tokenization and keyword relevance scoring (e.g. querying "missing citation sources" or "verified deliverable" returns matching episodes and reflection notes for ranking).
+
+### R5. Executive Memory Summarization (`summarization`)
+Add an automated memory summarizer that condenses multi-episode interaction logs into a human- and agent-readable executive risk digest (e.g., "Alpha Research: 1 failure due to unverified citations, 0 successful deliveries, currently under WATCH status").
+
+## Acceptance Criteria
+
+### Reflection
+- [ ] Deliverable verification failure automatically generates and persists a structured reflection memory entry with root-cause analysis and guidance for future sessions.
+- [ ] Subsequent candidate scoring inspects reflected failure patterns and incorporates them into ranking.
+
+### Consolidation
+- [ ] Multiple raw episodes are successfully consolidated into a consolidated dossier record in SQLite.
+- [ ] Consolidation updates incrementally without losing historical audit trails.
+
+### Temporal Querying
+- [ ] An API endpoint (`GET /api/counterparties/:key/temporal?asOf=...`) and CLI helper reconstruct counterparty state at a past point in time with deterministic accuracy.
+
+### Semantic Search
+- [ ] An API endpoint (`GET /api/memory/search?q=...`) and service function return ranked memory records based on query relevance across episodes and reflections.
+
+### Summarization
+- [ ] Counterparty detail and Console drawer display a dynamically generated or persisted executive summary of historical delivery performance.
+
+### Verification & Regression
+- [ ] Automated tests for all 5 primitives pass with 100% success rate.
+- [ ] CLI runner (`pnpm demo:causal-loop`) and test runner (`pnpm test:causal-loop`) demonstrate all 5 primitives.
+- [ ] Monorepo test suite (`pnpm test`) passes with zero regressions.
+

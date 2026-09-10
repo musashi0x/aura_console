@@ -28,6 +28,11 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 
+import { reconstructCounterpartyStateAt } from "../apps/api/src/services/temporal-engine.js";
+import { searchMemoryRecords } from "../apps/api/src/services/semantic-search.js";
+import { generateExecutiveSummary } from "../apps/api/src/services/executive-summarizer.js";
+import { closeNativeSibylDatabase } from "../apps/api/src/services/native-sibyl.js";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "..");
@@ -58,9 +63,23 @@ function inspectDatabaseState(dbPath: string): {
     beta?: number;
     episodes?: Array<{ outcome: string; note?: string; task_type?: string }>;
   };
+  reflections: Array<{
+    key: string;
+    id: string;
+    category: string;
+    name: string;
+    body: Record<string, unknown>;
+  }>;
+  dossiers: Array<{
+    key: string;
+    id: string;
+    category: string;
+    name: string;
+    body: Record<string, unknown>;
+  }>;
 } {
   if (!fs.existsSync(dbPath)) {
-    return { exists: false };
+    return { exists: false, reflections: [], dossiers: [] };
   }
 
   const db = new DatabaseSync(dbPath);
@@ -69,27 +88,54 @@ function inspectDatabaseState(dbPath: string): {
       .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='entities'")
       .get();
     if (!tableCheck) {
-      return { exists: true };
+      return { exists: true, reflections: [], dossiers: [] };
     }
 
     const row = db
       .prepare("SELECT body FROM entities WHERE key = ?")
       .get("counterparty:virtuals:agent:alpha") as { body: string } | undefined;
-    if (!row) {
-      return { exists: true };
-    }
+    
+    const alpha = row
+      ? (() => {
+          const body = JSON.parse(row.body);
+          return {
+            relationshipStatus: body.relationship_status ?? body.relationshipStatus,
+            consecutiveFailures: body.consecutive_failures ?? body.consecutiveFailures,
+            overallReliability: body.overall_reliability ?? body.overallReliability,
+            alpha: body.alpha,
+            beta: body.beta,
+            episodes: body.episodes,
+          };
+        })()
+      : undefined;
 
-    const body = JSON.parse(row.body);
+    const reflectionRows = db
+      .prepare("SELECT * FROM entities WHERE category = 'reflection'")
+      .all() as Array<{ key: string; id: string; category: string; name: string; body: string }>;
+    const reflections = reflectionRows.map((r) => ({
+      key: r.key,
+      id: r.id,
+      category: r.category,
+      name: r.name,
+      body: JSON.parse(r.body) as Record<string, unknown>,
+    }));
+
+    const dossierRows = db
+      .prepare("SELECT * FROM entities WHERE category = 'dossier'")
+      .all() as Array<{ key: string; id: string; category: string; name: string; body: string }>;
+    const dossiers = dossierRows.map((d) => ({
+      key: d.key,
+      id: d.id,
+      category: d.category,
+      name: d.name,
+      body: JSON.parse(d.body) as Record<string, unknown>,
+    }));
+
     return {
       exists: true,
-      alpha: {
-        relationshipStatus: body.relationship_status ?? body.relationshipStatus,
-        consecutiveFailures: body.consecutive_failures ?? body.consecutiveFailures,
-        overallReliability: body.overall_reliability ?? body.overallReliability,
-        alpha: body.alpha,
-        beta: body.beta,
-        episodes: body.episodes,
-      },
+      alpha,
+      reflections,
+      dossiers,
     };
   } finally {
     db.close();
@@ -177,7 +223,16 @@ async function runCausalMemoryLoopTest(): Promise<void> {
       /reject|failed verification|missing/i.test(cleanStdout1),
       "Phase 1 must verify deliverable defect and reject deliverable.",
     );
+    assert.ok(
+      cleanStdout1.includes("Primitive 1") || cleanStdout1.includes("Reflection Engine"),
+      "Phase 1 must render Primitive 1 Reflection card.",
+    );
+    assert.ok(
+      cleanStdout1.includes("Primitive 2") || cleanStdout1.includes("Episodic Memory Consolidation"),
+      "Phase 1 must render Primitive 2 Consolidated Dossier card.",
+    );
     console.log("✓ Phase 1 exited 0. Provider Alpha selected on price, deliverable rejected, failure committed.");
+    console.log("✓ Reflection card (Primitive 1) and Consolidated Dossier card (Primitive 2) rendered.");
 
     // -------------------------------------------------------------------------
     // STEP 2: SQLite Disk Inspection (Zero Shared Memory)
@@ -213,6 +268,120 @@ async function runCausalMemoryLoopTest(): Promise<void> {
     console.log(`  - Consecutive Failures: ${dbState.alpha.consecutiveFailures}`);
     console.log(`  - Latest Episode      : outcome=${latestEpisode.outcome}`);
 
+    // Programmatic assertion: category = 'reflection' for Alpha in SQLite
+    console.log("\n[Test Step 2A] Programmatically asserting SQLite category = 'reflection' for Alpha...");
+    const alphaReflection = dbState.reflections.find(
+      (r) => r.name === "virtuals:agent:alpha" || r.key.includes("virtuals:agent:alpha"),
+    );
+    assert.ok(alphaReflection, "Physical SQLite must contain category = 'reflection' row for Alpha.");
+    assert.strictEqual(alphaReflection.category, "reflection");
+    assert.strictEqual(alphaReflection.name, "virtuals:agent:alpha");
+    assert.strictEqual(alphaReflection.body.failureCategory, "MISSING_CITATIONS");
+    assert.ok(
+      typeof alphaReflection.body.rootCause === "string" &&
+        /citation|source/i.test(alphaReflection.body.rootCause),
+      "Reflection root cause must mention citation/source defect.",
+    );
+    assert.ok(
+      typeof alphaReflection.body.lesson === "string" && alphaReflection.body.lesson.length > 0,
+      "Reflection must contain non-empty lesson.",
+    );
+    assert.ok(
+      Array.isArray(alphaReflection.body.schemaErrors) && alphaReflection.body.schemaErrors.length > 0,
+      "Reflection must contain schemaErrors array.",
+    );
+    console.log("✓ Physical SQLite contains valid category = 'reflection' for Alpha.");
+
+    // Programmatic assertion: category = 'dossier' for Alpha in SQLite
+    console.log("\n[Test Step 2B] Programmatically asserting SQLite category = 'dossier' for Alpha...");
+    const alphaDossier = dbState.dossiers.find(
+      (d) => d.name === "virtuals:agent:alpha" || d.key.includes("virtuals:agent:alpha"),
+    );
+    assert.ok(alphaDossier, "Physical SQLite must contain category = 'dossier' row for Alpha.");
+    assert.strictEqual(alphaDossier.category, "dossier");
+    assert.strictEqual(alphaDossier.name, "virtuals:agent:alpha");
+    assert.strictEqual(alphaDossier.body.totalMissions, 1);
+    assert.strictEqual(alphaDossier.body.rejectedCount, 1);
+    assert.strictEqual(alphaDossier.body.acceptedCount, 0);
+    assert.strictEqual(alphaDossier.body.successRate, 0);
+    assert.ok(
+      typeof alphaDossier.body.auditTrailHash === "string" &&
+        alphaDossier.body.auditTrailHash.length === 64,
+      "Dossier must contain 64-char SHA-256 auditTrailHash.",
+    );
+    assert.ok(
+      alphaDossier.body.recurringDefects && typeof alphaDossier.body.recurringDefects === "object",
+      "Dossier must contain recurringDefects map.",
+    );
+    assert.ok(
+      Array.isArray(alphaDossier.body.probationHistory) && alphaDossier.body.probationHistory.length >= 1,
+      "Dossier must track probation transition from NEW to WATCH.",
+    );
+    console.log("✓ Physical SQLite contains valid category = 'dossier' for Alpha.");
+
+    // Configure test environment to read from isolated dbPath
+    process.env.SIBYL_NATIVE_DB_PATH = dbPath;
+    process.env.SIBYL_STORAGE_PATH = dbPath;
+    process.env.AURA_NATIVE_STORAGE_PATH = dbPath;
+    closeNativeSibylDatabase();
+
+    // Programmatic assertion: Temporal Reconstruction at t0 and t1
+    console.log("\n[Test Step 2C] Programmatically asserting Temporal Point-in-Time Reconstruction at t0 and t1...");
+    const t0 = reconstructCounterpartyStateAt("virtuals:agent:alpha", 0);
+    assert.ok(t0 !== null, "Temporal reconstruction at t0 must return non-null reconstruction.");
+    assert.strictEqual(t0.historicalState.relationshipStatus, "NEW");
+    assert.strictEqual(t0.historicalState.consecutiveFailures, 0);
+    assert.strictEqual(t0.historicalState.overallReliability, 0.5);
+    assert.strictEqual(t0.historicalState.episodesCount, 0);
+    assert.strictEqual(t0.delta.statusChanged, true);
+    assert.strictEqual(t0.delta.pastStatus, "NEW");
+    assert.strictEqual(t0.delta.currentStatus, "WATCH");
+    assert.strictEqual(t0.delta.failuresDelta, 1);
+    assert.strictEqual(t0.delta.missionsDelta, 1);
+
+    const t1 = reconstructCounterpartyStateAt("virtuals:agent:alpha", 1);
+    assert.ok(t1 !== null, "Temporal reconstruction at t1 must return non-null reconstruction.");
+    assert.strictEqual(t1.historicalState.relationshipStatus, "WATCH");
+    assert.strictEqual(t1.historicalState.consecutiveFailures, 1);
+    assert.strictEqual(t1.historicalState.episodesCount, 1);
+    console.log("✓ Temporal reconstruction at t0 (NEW, 0 failures) and t1 (WATCH, 1 failure) verified.");
+
+    // Programmatic assertion: Semantic Search query returns Alpha reflection with score > 80
+    console.log("\n[Test Step 2D] Programmatically asserting Semantic Memory Search query...");
+    const searchResults = searchMemoryRecords("missing citation sources");
+    assert.ok(searchResults.length >= 1, "Semantic search for 'missing citation sources' must return matches.");
+    const topMatch = searchResults[0];
+    assert.strictEqual(topMatch.category, "reflection", "Top semantic search match must be category 'reflection'.");
+    assert.strictEqual(topMatch.name, "virtuals:agent:alpha", "Top semantic match must target Alpha.");
+    assert.ok(
+      topMatch.score > 80,
+      `Semantic search score for Alpha reflection must be > 80, received: ${topMatch.score}`,
+    );
+    assert.ok(
+      topMatch.matchedTerms.some((t) => ["missing", "citation", "citations", "source", "sources"].includes(t)),
+      "Matched terms must contain search keywords.",
+    );
+    console.log(`✓ Semantic search query returned Alpha reflection with score ${topMatch.score}/100 (> 80).`);
+
+    // Programmatic assertion: Executive Summary returns Risk HIGH
+    console.log("\n[Test Step 2E] Programmatically asserting Executive Risk Digest...");
+    const execSummary = generateExecutiveSummary("virtuals:agent:alpha");
+    assert.ok(execSummary !== null, "Executive summary for Alpha must exist.");
+    assert.strictEqual(
+      execSummary.riskLevel,
+      "HIGH",
+      `Executive summary riskLevel must be 'HIGH', found: ${execSummary.riskLevel}`,
+    );
+    assert.strictEqual(execSummary.relationshipStatus, "WATCH");
+    assert.strictEqual(execSummary.consecutiveFailures, 1);
+    assert.ok(execSummary.headline.includes("Alpha"), "Headline must mention Alpha.");
+    assert.ok(execSummary.headline.includes("WATCH"), "Headline must mention WATCH status.");
+    assert.ok(execSummary.keyFindings.length > 0, "Key findings must be populated.");
+    assert.ok(execSummary.recommendations.length > 0, "Recommendations must be populated.");
+    console.log("✓ Executive summary for Alpha verified with riskLevel = 'HIGH'.");
+
+    closeNativeSibylDatabase();
+
     // -------------------------------------------------------------------------
     // STEP 3: Phase 2 (Process B - With Memory: Task Success)
     // -------------------------------------------------------------------------
@@ -238,7 +407,20 @@ async function runCausalMemoryLoopTest(): Promise<void> {
       /TASK SUCCEEDED/i.test(cleanStdout2) || /ACCEPTED/i.test(cleanStdout2),
       "Phase 2 must verify complete deliverable and confirm TASK SUCCEEDED.",
     );
+    assert.ok(
+      cleanStdout2.includes("Primitive 3") || cleanStdout2.includes("Temporal Point-in-Time"),
+      "Phase 2 must render Temporal Point-in-Time diff card (Primitive 3).",
+    );
+    assert.ok(
+      cleanStdout2.includes("Primitive 4") || cleanStdout2.includes("Semantic & Intent-Based"),
+      "Phase 2 must render Semantic Memory Search card (Primitive 4).",
+    );
+    assert.ok(
+      cleanStdout2.includes("Primitive 5") || cleanStdout2.includes("Executive Memory"),
+      "Phase 2 must render Executive Risk Digest card (Primitive 5).",
+    );
     console.log("✓ Phase 2 exited 0. Provider Beta selected, deliverable verified (1.00/1.00), TASK SUCCEEDED.");
+    console.log("✓ Temporal card (Primitive 3), Search card (Primitive 4), and Executive card (Primitive 5) rendered.");
 
     // -------------------------------------------------------------------------
     // STEP 4: Phase 3 (Process C - Controlled Deletion / Amnesia: Task Fails)

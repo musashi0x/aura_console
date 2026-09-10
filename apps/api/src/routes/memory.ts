@@ -12,6 +12,8 @@ import {
   recallCounterparty,
   type SibylMemoryResult,
 } from "../services/sibyl-memory.js";
+import { getExecutiveSummary } from "../services/executive-summarizer.js";
+import { searchMemoryRecords } from "../services/semantic-search.js";
 
 const store = new MemoryStore();
 
@@ -93,6 +95,7 @@ counterpartyMemory.get("/:counterpartyKey/memory", async (c) => {
   const key = parseKey(c.req.param("counterpartyKey"));
   const { result, provenance } = await store.retrieveWithProvenance(key, env.AGENT_ID);
   const verdict = provenance.sibyl.verdict;
+  const executiveSummary = getExecutiveSummary(key);
 
   return c.json({
     counterparty_key: key,
@@ -107,6 +110,7 @@ counterpartyMemory.get("/:counterpartyKey/memory", async (c) => {
     overall_reliability: result.status === "AVAILABLE" ? result.overallReliability : null,
     task_fit: result.status === "AVAILABLE" ? result.taskFit : null,
     confidence: result.status === "AVAILABLE" ? result.confidence : null,
+    executive_summary: executiveSummary,
     postgres: provenance.postgres,
     sibyl: {
       consulted: provenance.sibyl.consulted,
@@ -188,6 +192,38 @@ counterpartyMemory.get("/:counterpartyKey/memory/records", async (c) => {
  * only do that if this endpoint keeps them apart.
  */
 export const memory = new Hono();
+
+const memorySearchSchema = z.object({
+  q: z.string().trim().min(1, "query term cannot be empty").max(200),
+  category: z.enum(["all", "reflection", "episode", "dossier"]).default("all"),
+  counterpartyKey: z.string().trim().min(1).max(200).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+/**
+ * Searches across Sibyl memory records (reflections, episodes, dossiers)
+ * using tokenized semantic keyword relevance and domain intent expansion.
+ */
+memory.get("/search", async (c) => {
+  const parsed = memorySearchSchema.safeParse(c.req.query());
+  if (!parsed.success) {
+    throw httpError(400, "invalid_search_query", parsed.error.issues[0]?.message ?? "Invalid search query");
+  }
+
+  const { q, category, counterpartyKey, limit } = parsed.data;
+  const results = searchMemoryRecords(q, {
+    category: category === "all" ? undefined : category,
+    counterpartyKey,
+    limit,
+  });
+
+  return c.json({
+    ok: true,
+    query: q,
+    count: results.length,
+    items: results,
+  });
+});
 
 memory.get("/counterparties", async (c) => {
   const result = await listCounterpartiesFromSibyl();

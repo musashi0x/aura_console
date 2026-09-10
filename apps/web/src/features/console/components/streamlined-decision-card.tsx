@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { Badge } from "@astryxdesign/core/Badge";
 import { Button } from "@astryxdesign/core/Button";
 import { HStack } from "@astryxdesign/core/Stack";
 import { Token } from "@astryxdesign/core/Token";
@@ -722,19 +723,47 @@ export function StreamlinedDecisionCard({
                   <p>
                     Why did Aura choose Beta over Alpha? Here is the exact provenance recorded in Sibyl Memory:
                   </p>
-                  <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4 space-y-3 font-mono text-xs">
-                    <div>
-                      <span className="text-rose-400 block font-semibold">Alpha Research (Prior Defect)</span>
-                      <span className="text-neutral-400 text-[11px]">
-                        Failed Competitor Intelligence Report on 2026-09-09. Deliverable lacked required citation URLs.
-                        Evaluator gave score 0.20 and recorded failure episode to Sibyl Memory.
-                      </span>
+                  <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4 space-y-4 font-mono text-xs">
+                    {/* Alpha Research (Penalized Candidate) */}
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-rose-400 block font-semibold text-sm">
+                          Alpha Research (Prior Defect)
+                        </span>
+                        <HStack gap={1.5} align="center" wrap="wrap">
+                          <Badge variant="error" label="RISK: CRITICAL" />
+                          <Token label="Action: DO_NOT_HIRE" size="sm" color="red" />
+                          <Token label="MISSING_CITATIONS" size="sm" color="red" />
+                        </HStack>
+                      </div>
+                      <p className="text-neutral-400 text-[11px] leading-relaxed font-sans">
+                        Executive Risk Digest: Alpha Research: 1 failure due to unverified citations, 0 successful deliveries, currently under WATCH status (Reliability: 33.3%, Confidence: 16.7%).
+                      </p>
+                      <div className="p-2.5 rounded bg-neutral-900 border border-neutral-800 text-[11px] text-neutral-300">
+                        <span className="text-rose-400 font-semibold block">Reflected Lesson (R1):</span>
+                        <span>Failed Competitor Intelligence Report on 2026-09-09. Deliverable lacked required citation URLs. Evaluator gave score 0.20. Root Cause: Alpha omits mandatory competitor citation URLs.</span>
+                      </div>
                     </div>
-                    <div className="pt-2 border-t border-neutral-800">
-                      <span className="text-emerald-400 block font-semibold">Beta Research (Verified Deliverable)</span>
-                      <span className="text-neutral-400 text-[11px]">
-                        Completed market deliverables with verified citations and schema conformity. 100% on-time track record.
-                      </span>
+
+                    {/* Beta Research (Recommended Candidate) */}
+                    <div className="pt-3 border-t border-neutral-800 space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-emerald-400 block font-semibold text-sm">
+                          Beta Research (Verified Deliverable)
+                        </span>
+                        <HStack gap={1.5} align="center" wrap="wrap">
+                          <Badge variant="success" label="RISK: LOW" />
+                          <Token label="Action: HIRE" size="sm" color="green" />
+                          <Token label="Clean Verification" size="sm" color="green" />
+                        </HStack>
+                      </div>
+                      <p className="text-neutral-400 text-[11px] leading-relaxed font-sans">
+                        Executive Risk Digest: Beta Research: 100% verified deliveries, zero defects, currently PREFERRED (Reliability: 91.0%, Confidence: 90.0%).
+                      </p>
+                      <div className="p-2.5 rounded bg-neutral-900 border border-neutral-800 text-[11px] text-neutral-300">
+                        <span className="text-emerald-400 font-semibold block">Consolidated Dossier (R2):</span>
+                        <span>Completed market deliverables with verified citations and schema conformity. 100% on-time track record across episodes.</span>
+                      </div>
                     </div>
                   </div>
                 </div>

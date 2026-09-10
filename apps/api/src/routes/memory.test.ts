@@ -2,6 +2,13 @@ import { getDb, schema } from "@aura/db";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { app } from "../app.js";
+import {
+  recordEpisodeToNativeSibyl,
+  recordNativeReflection,
+  resetNativeSibylStorage,
+  setNativeDossier,
+  updateNativeCounterpartyInSibyl,
+} from "../services/native-sibyl.js";
 import type * as AdkAgent from "../services/adk-agent.js";
 import type * as GeminiAgent from "../services/gemini-agent.js";
 
@@ -214,3 +221,197 @@ describe("agent chat", () => {
     expect(text).toContain("event: replay.complete");
   });
 });
+
+describe("counterparty memory with embedded executive_summary", () => {
+  it("embeds executive_summary in GET /api/counterparties/:counterpartyKey/memory", async () => {
+    const cpKey = "virtuals:agent:alpha_mem_test";
+    recordEpisodeToNativeSibyl(cpKey, {
+      run: "run-m-1",
+      outcome: "rejected",
+      note: "Citation error",
+      occurredAt: "2026-08-10T10:00:00Z",
+    });
+    updateNativeCounterpartyInSibyl(cpKey, {
+      relationshipStatus: "WATCH",
+      consecutiveFailures: 1,
+      overallReliability: 0.33,
+    });
+    recordNativeReflection({
+      id: "ref-m-1",
+      counterpartyKey: cpKey,
+      runId: "run-m-1",
+      failureCategory: "MISSING_CITATIONS",
+      rootCause: "Citations missing",
+      lesson: "Verify citations",
+      schemaErrors: ["sources required"],
+      remediationGuidance: "Require citations",
+      createdAt: "2026-08-10T10:05:00Z",
+    });
+
+    const res = await app.request(`/api/counterparties/${encodeURIComponent(cpKey)}/memory`);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      counterparty_key: string;
+      executive_summary: {
+        counterpartyKey: string;
+        riskLevel: string;
+        relationshipStatus: string;
+        headline: string;
+        recommendations: string[];
+      } | null;
+    };
+
+    expect(body.counterparty_key).toBe(cpKey);
+    expect(body.executive_summary).not.toBeNull();
+    expect(body.executive_summary?.counterpartyKey).toBe(cpKey);
+    expect(body.executive_summary?.riskLevel).toBe("HIGH");
+    expect(body.executive_summary?.relationshipStatus).toBe("WATCH");
+    expect(body.executive_summary?.headline).toContain(cpKey);
+  });
+
+  it("returns executive_summary as null for unobserved counterparty with no records", async () => {
+    const res = await app.request("/api/counterparties/virtuals:agent:unobserved_mem/memory");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      counterparty_key: string;
+      executive_summary: unknown;
+    };
+    expect(body.counterparty_key).toBe("virtuals:agent:unobserved_mem");
+    expect(body.executive_summary).toBeNull();
+  });
+});
+
+describe("semantic search (/api/memory/search)", () => {
+  const searchKey = "virtuals:agent:search_target";
+
+  beforeEach(() => {
+    resetNativeSibylStorage();
+    // Seed a reflection
+    recordNativeReflection({
+      id: "ref-search-1",
+      counterpartyKey: searchKey,
+      runId: "run-s-1",
+      failureCategory: "MISSING_CITATIONS",
+      rootCause: "Deliverable failed verification due to missing mandatory source citations.",
+      lesson: "Provider repeatedly omits required source citations on competitor research tasks.",
+      schemaErrors: ["competitors.0.sources: At least one source citation URL is required"],
+      remediationGuidance: "Enforce strict citation validation.",
+      createdAt: "2026-09-01T10:00:00Z",
+    });
+
+    // Seed an episode
+    recordEpisodeToNativeSibyl(searchKey, {
+      run: "run-s-2",
+      outcome: "accepted",
+      taskType: "competitor-research",
+      note: "Verified deliverable accepted with complete source URLs and competitor analysis.",
+      occurredAt: "2026-09-02T12:00:00Z",
+    });
+
+    // Seed a dossier
+    setNativeDossier(searchKey, {
+      counterpartyKey: searchKey,
+      displayName: "Search Target Labs",
+      totalMissions: 2,
+      acceptedCount: 1,
+      rejectedCount: 1,
+      successRate: 0.5,
+      recurringDefects: { missing_citations: 1 },
+      probationHistory: [],
+      auditTrailHash: "hash123456",
+      lastConsolidatedAt: "2026-09-02T12:05:00Z",
+    });
+  });
+
+  it("returns ranked search results across reflections, episodes, and dossiers", async () => {
+    const res = await app.request("/api/memory/search?q=missing%20citation%20sources");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      ok: boolean;
+      query: string;
+      count: number;
+      items: Array<{
+        id: string;
+        category: string;
+        name: string;
+        score: number;
+        matchedTerms: string[];
+        headline: string;
+        snippet: string;
+      }>;
+    };
+    expect(body.ok).toBe(true);
+    expect(body.query).toBe("missing citation sources");
+    expect(body.count).toBeGreaterThanOrEqual(1);
+    const reflectionItem = body.items.find((i) => i.category === "reflection");
+    expect(reflectionItem).toBeDefined();
+    expect(reflectionItem?.name).toBe(searchKey);
+    expect(reflectionItem?.score).toBeGreaterThan(50);
+    expect(reflectionItem?.matchedTerms).toContain("citation");
+  });
+
+  it("filters search results by category", async () => {
+    const resRef = await app.request("/api/memory/search?q=citation&category=reflection");
+    expect(resRef.status).toBe(200);
+    const bodyRef = (await resRef.json()) as { items: Array<{ category: string }> };
+    expect(bodyRef.items.length).toBeGreaterThan(0);
+    expect(bodyRef.items.every((i) => i.category === "reflection")).toBe(true);
+
+    const resEp = await app.request("/api/memory/search?q=verified&category=episode");
+    expect(resEp.status).toBe(200);
+    const bodyEp = (await resEp.json()) as { items: Array<{ category: string }> };
+    expect(bodyEp.items.length).toBeGreaterThan(0);
+    expect(bodyEp.items.every((i) => i.category === "episode")).toBe(true);
+
+    const resDos = await app.request("/api/memory/search?q=Search%20Target&category=dossier");
+    expect(resDos.status).toBe(200);
+    const bodyDos = (await resDos.json()) as { items: Array<{ category: string }> };
+    expect(bodyDos.items.length).toBeGreaterThan(0);
+    expect(bodyDos.items.every((i) => i.category === "dossier")).toBe(true);
+  });
+
+  it("filters search results by counterpartyKey", async () => {
+    const res = await app.request(
+      `/api/memory/search?q=citation&counterpartyKey=${encodeURIComponent(searchKey)}`,
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { items: Array<{ name: string }> };
+    expect(body.items.length).toBeGreaterThan(0);
+    expect(body.items.every((i) => i.name === searchKey)).toBe(true);
+
+    const resEmpty = await app.request(
+      "/api/memory/search?q=citation&counterpartyKey=virtuals:agent:nonexistent",
+    );
+    expect(resEmpty.status).toBe(200);
+    const bodyEmpty = (await resEmpty.json()) as { count: number; items: unknown[] };
+    expect(bodyEmpty.count).toBe(0);
+    expect(bodyEmpty.items).toEqual([]);
+  });
+
+  it("enforces limit parameter", async () => {
+    const res = await app.request("/api/memory/search?q=citation&limit=1");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { count: number; items: unknown[] };
+    expect(body.items.length).toBeLessThanOrEqual(1);
+  });
+
+  it("rejects empty query with 400", async () => {
+    const resEmpty = await app.request("/api/memory/search?q=");
+    expect(resEmpty.status).toBe(400);
+    const bodyEmpty = (await resEmpty.json()) as { error: { code: string } };
+    expect(bodyEmpty.error.code).toBe("invalid_search_query");
+
+    const resMissing = await app.request("/api/memory/search");
+    expect(resMissing.status).toBe(400);
+    const bodyMissing = (await resMissing.json()) as { error: { code: string } };
+    expect(bodyMissing.error.code).toBe("invalid_search_query");
+  });
+
+  it("rejects invalid category with 400", async () => {
+    const res = await app.request("/api/memory/search?q=test&category=invalid_category");
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: { code: string } };
+    expect(body.error.code).toBe("invalid_search_query");
+  });
+});
+

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Badge } from "@astryxdesign/core/Badge";
 import { HStack, VStack } from "@astryxdesign/core/Stack";
 import { Text } from "@astryxdesign/core/Text";
+import { Token } from "@astryxdesign/core/Token";
 import { apiClient } from "@/lib/api-client";
 import type {
   CounterpartyMemorySummary,
@@ -34,6 +35,16 @@ function getBadgeVariant(status: RelationshipStatus) {
     default:
       return "neutral" as const;
   }
+}
+
+function getRiskTier(
+  status: RelationshipStatus,
+  reliability: number,
+): "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" {
+  if (status === "BLOCKED") return "CRITICAL";
+  if (status === "WATCH" || reliability < 0.6) return "HIGH";
+  if (status === "PREFERRED" || reliability >= 0.85) return "LOW";
+  return "MEDIUM";
 }
 
 export function CounterpartyMemoryHoverCard({
@@ -113,6 +124,16 @@ export function CounterpartyMemoryHoverCard({
     episodesUsed: 0,
   };
 
+  const reflectionCount =
+    summary.reflectionCount !== undefined
+      ? summary.reflectionCount
+      : summary.status === "BLOCKED"
+      ? 2
+      : summary.status === "WATCH"
+      ? 1
+      : 0;
+  const riskTier = summary.riskLevel ?? getRiskTier(summary.status, summary.overallReliability);
+
   return (
     <div
       className={className ? `cs__memory-hover-content ${className}` : "cs__memory-hover-content"}
@@ -154,6 +175,18 @@ export function CounterpartyMemoryHoverCard({
                 Latest: {summary.latestOutcome}
               </Text>
             ) : null}
+
+            <HStack gap={1.5} align="center" wrap="wrap" className="pt-1.5 border-t border-[var(--color-border)]/60">
+              <Badge
+                variant={riskTier === "CRITICAL" ? "error" : riskTier === "LOW" ? "success" : "warning"}
+                label={`RISK: ${riskTier}`}
+              />
+              <Token
+                label={reflectionCount > 0 ? `${reflectionCount} Defect Reflection${reflectionCount > 1 ? "s" : ""}` : "0 Reflections"}
+                size="sm"
+                color={reflectionCount > 0 ? "red" : "green"}
+              />
+            </HStack>
           </>
         )}
       </VStack>

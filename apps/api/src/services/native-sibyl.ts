@@ -294,6 +294,7 @@ function getDb(forWrite = false): DatabaseSync | null {
         );
         CREATE INDEX IF NOT EXISTS idx_entities_category ON entities(category);
         CREATE INDEX IF NOT EXISTS idx_entities_category_name ON entities(category, name);
+        CREATE INDEX IF NOT EXISTS idx_entities_category_created ON entities(category, created_at);
       `);
 
       const countRow = db.prepare("SELECT count(*) as count FROM entities").get() as
@@ -1168,4 +1169,245 @@ export function readNativeMemoryJournal(
     };
   }
 }
+
+export interface ReflectionRecord {
+  id: string;
+  counterpartyKey: string;
+  runId: string;
+  failureCategory: "MISSING_CITATIONS" | "INSUFFICIENT_COMPETITORS" | "SCHEMA_VIOLATION" | "TEST_FAILURE" | "TIMEOUT";
+  rootCause: string;
+  lesson: string;
+  schemaErrors: string[];
+  remediationGuidance: string;
+  createdAt: string;
+}
+
+export interface ProbationTransition {
+  fromStatus: string;
+  toStatus: string;
+  runId: string;
+  reason: string;
+  timestamp: string;
+}
+
+export interface CounterpartyDossier {
+  counterpartyKey: string;
+  displayName: string;
+  totalMissions: number;
+  acceptedCount: number;
+  rejectedCount: number;
+  successRate: number;
+  recurringDefects: Record<string, number>;
+  probationHistory: ProbationTransition[];
+  auditTrailHash: string;
+  lastConsolidatedAt: string;
+}
+
+export interface ExecutiveRiskDigest {
+  counterpartyKey: string;
+  displayName: string;
+  headline: string;
+  riskLevel: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  reliabilityRating: string;
+  relationshipStatus: string;
+  consecutiveFailures: number;
+  totalMissions: number;
+  successRate: number;
+  keyFindings: string[];
+  recommendations: string[];
+  generatedAt: string;
+}
+
+export function getNativeDb(forWrite = false): DatabaseSync | null {
+  return getDb(forWrite);
+}
+
+export function withNativeImmediateTransaction<T>(db: DatabaseSync, action: () => T): T {
+  return withImmediateTransaction(db, action);
+}
+
+export function recordNativeReflection(
+  reflection: ReflectionRecord,
+): { ok: boolean; code?: string; detail?: string } {
+  const db = getDb(true);
+  if (!db) {
+    return { ok: false, code: "storage_unavailable", detail: "Could not open native SQLite database" };
+  }
+  try {
+    return withImmediateTransaction(db, () => {
+      const key = `reflection:${reflection.counterpartyKey}:${reflection.runId}`;
+      const now = reflection.createdAt || new Date().toISOString();
+      const upsert = db.prepare(`
+        INSERT INTO entities (key, id, category, name, status, body, created_at, updated_at)
+        VALUES (?, ?, 'reflection', ?, 'active', ?, ?, ?)
+        ON CONFLICT(key) DO UPDATE SET
+          body = excluded.body,
+          updated_at = excluded.updated_at
+      `);
+      upsert.run(key, reflection.id, reflection.counterpartyKey, JSON.stringify(reflection), now, now);
+      return { ok: true };
+    });
+  } catch (err) {
+    console.warn("[native-sibyl] recordNativeReflection error:", (err as Error).message);
+    return { ok: false, code: "storage_error", detail: (err as Error).message };
+  }
+}
+
+export function getNativeReflections(counterpartyKey?: string): ReflectionRecord[] {
+  const db = getDb(false);
+  if (!db) return [];
+  try {
+    let rows: EntityRow[];
+    if (counterpartyKey) {
+      rows = db
+        .prepare("SELECT * FROM entities WHERE category = 'reflection' AND name = ? ORDER BY created_at DESC")
+        .all(counterpartyKey) as unknown as EntityRow[];
+    } else {
+      rows = db
+        .prepare("SELECT * FROM entities WHERE category = 'reflection' ORDER BY created_at DESC")
+        .all() as unknown as EntityRow[];
+    }
+    const reflections: ReflectionRecord[] = [];
+    for (const row of rows) {
+      try {
+        const body = JSON.parse(row.body) as ReflectionRecord;
+        reflections.push(body);
+      } catch {
+        // ignore malformed rows
+      }
+    }
+    return reflections;
+  } catch (err) {
+    console.warn("[native-sibyl] getNativeReflections error:", (err as Error).message);
+    return [];
+  }
+}
+
+export function setNativeDossier(
+  counterpartyKey: string,
+  dossier: CounterpartyDossier,
+): { ok: boolean; code?: string; detail?: string } {
+  const db = getDb(true);
+  if (!db) {
+    return { ok: false, code: "storage_unavailable", detail: "Could not open native SQLite database" };
+  }
+  try {
+    return withImmediateTransaction(db, () => {
+      const key = `dossier:${counterpartyKey}`;
+      const now = new Date().toISOString();
+      const id = randomUUID();
+      const upsert = db.prepare(`
+        INSERT INTO entities (key, id, category, name, status, body, created_at, updated_at)
+        VALUES (?, ?, 'dossier', ?, 'active', ?, ?, ?)
+        ON CONFLICT(key) DO UPDATE SET
+          body = excluded.body,
+          updated_at = excluded.updated_at
+      `);
+      upsert.run(key, id, counterpartyKey, JSON.stringify(dossier), now, now);
+      return { ok: true };
+    });
+  } catch (err) {
+    console.warn("[native-sibyl] setNativeDossier error:", (err as Error).message);
+    return { ok: false, code: "storage_error", detail: (err as Error).message };
+  }
+}
+
+export function getNativeDossier(counterpartyKey: string): CounterpartyDossier | null {
+  const db = getDb(false);
+  if (!db) return null;
+  try {
+    const key = `dossier:${counterpartyKey}`;
+    const row = db.prepare("SELECT body FROM entities WHERE key = ?").get(key) as
+      | { body: string }
+      | undefined;
+    if (!row) return null;
+    return JSON.parse(row.body) as CounterpartyDossier;
+  } catch (err) {
+    console.warn("[native-sibyl] getNativeDossier error:", (err as Error).message);
+    return null;
+  }
+}
+
+export function setNativeSummary(
+  counterpartyKey: string,
+  summary: ExecutiveRiskDigest,
+): { ok: boolean; code?: string; detail?: string } {
+  const db = getDb(true);
+  if (!db) {
+    return { ok: false, code: "storage_unavailable", detail: "Could not open native SQLite database" };
+  }
+  try {
+    return withImmediateTransaction(db, () => {
+      const key = `summary:${counterpartyKey}`;
+      const now = new Date().toISOString();
+      const id = randomUUID();
+      const upsert = db.prepare(`
+        INSERT INTO entities (key, id, category, name, status, body, created_at, updated_at)
+        VALUES (?, ?, 'summary', ?, 'active', ?, ?, ?)
+        ON CONFLICT(key) DO UPDATE SET
+          body = excluded.body,
+          updated_at = excluded.updated_at
+      `);
+      upsert.run(key, id, counterpartyKey, JSON.stringify(summary), now, now);
+      return { ok: true };
+    });
+  } catch (err) {
+    console.warn("[native-sibyl] setNativeSummary error:", (err as Error).message);
+    return { ok: false, code: "storage_error", detail: (err as Error).message };
+  }
+}
+
+export function getNativeSummary(counterpartyKey: string): ExecutiveRiskDigest | null {
+  const db = getDb(false);
+  if (!db) return null;
+  try {
+    const key = `summary:${counterpartyKey}`;
+    const row = db.prepare("SELECT body FROM entities WHERE key = ?").get(key) as
+      | { body: string }
+      | undefined;
+    if (!row) return null;
+    return JSON.parse(row.body) as ExecutiveRiskDigest;
+  } catch (err) {
+    console.warn("[native-sibyl] getNativeSummary error:", (err as Error).message);
+    return null;
+  }
+}
+
+export function listNativeEntitiesByCategory(category: string, name?: string): NativeEntity[] {
+  const db = getDb(false);
+  if (!db) return [];
+  try {
+    let rows: EntityRow[];
+    if (name) {
+      rows = db
+        .prepare("SELECT * FROM entities WHERE category = ? AND name = ? ORDER BY created_at DESC")
+        .all(category, name) as unknown as EntityRow[];
+    } else {
+      rows = db
+        .prepare("SELECT * FROM entities WHERE category = ? ORDER BY created_at DESC")
+        .all(category) as unknown as EntityRow[];
+    }
+    return rows.map((row) => {
+      let body: Record<string, unknown> = {};
+      try {
+        body = JSON.parse(row.body);
+      } catch {
+        body = {};
+      }
+      return {
+        id: row.id,
+        category: row.category,
+        name: row.name,
+        status: row.status,
+        body,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      };
+    });
+  } catch (err) {
+    console.warn("[native-sibyl] listNativeEntitiesByCategory error:", (err as Error).message);
+    return [];
+  }
+}
+
 

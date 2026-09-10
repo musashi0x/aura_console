@@ -2,9 +2,20 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { console_ } from "@/features/console/copy";
+import type {
+  CounterpartyDossier,
+  ExecutiveRiskDigest,
+  ReflectionRecord,
+  TemporalReputationReconstruction,
+} from "@/lib/api-client";
 
 const dbHealth = vi.fn();
 const listSibylCounterparties = vi.fn();
+const getCounterpartySummary = vi.fn();
+const getCounterpartyReflections = vi.fn();
+const getCounterpartyDossier = vi.fn();
+const getCounterpartyTemporal = vi.fn();
+const searchMemory = vi.fn();
 
 vi.mock("@/lib/api-client", () => ({
   apiClient: {
@@ -12,6 +23,11 @@ vi.mock("@/lib/api-client", () => ({
     listSibylCounterparties: () => listSibylCounterparties(),
     agentHealth: async () => ({ ok: true, data: { configured: false, reachable: false } }),
     sibylHealth: async () => ({ ok: true, data: { configured: false, reachable: false } }),
+    getCounterpartySummary: (key: string) => getCounterpartySummary(key),
+    getCounterpartyReflections: (key: string) => getCounterpartyReflections(key),
+    getCounterpartyDossier: (key: string) => getCounterpartyDossier(key),
+    getCounterpartyTemporal: (key: string, asOf?: string | number) => getCounterpartyTemporal(key, asOf),
+    searchMemory: (query: string, options?: unknown) => searchMemory(query, options),
   },
 }));
 
@@ -44,10 +60,105 @@ const profile = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
+const mockExecutiveSummary: ExecutiveRiskDigest = {
+  counterpartyKey: "beta_labs",
+  displayName: "Beta Labs",
+  headline: "Beta Labs: 100% verified deliveries, zero defects, currently PREFERRED",
+  riskLevel: "LOW",
+  reliabilityRating: "91.0%",
+  relationshipStatus: "PREFERRED",
+  consecutiveFailures: 0,
+  totalMissions: 1,
+  successRate: 1.0,
+  keyFindings: ["Deliverable accepted without revision"],
+  recommendations: ["HIRE"],
+  generatedAt: "2026-09-10T12:00:00Z",
+};
+
+const mockReflections: ReflectionRecord[] = [
+  {
+    id: "refl-01",
+    counterpartyKey: "beta_labs",
+    runId: "run-116",
+    failureCategory: "SCHEMA_VIOLATION",
+    rootCause: "Minor schema discrepancy in draft",
+    lesson: "Ensure schema strictness before final dispatch",
+    schemaErrors: ["competitors.0.sources is missing"],
+    remediationGuidance: "Pre-validate before submitting",
+    createdAt: "2026-08-22T11:00:00Z",
+  },
+];
+
+const mockDossier: CounterpartyDossier = {
+  counterpartyKey: "beta_labs",
+  displayName: "Beta Labs",
+  totalMissions: 1,
+  acceptedCount: 1,
+  rejectedCount: 0,
+  successRate: 1.0,
+  recurringDefects: {},
+  probationHistory: [
+    {
+      fromStatus: "KNOWN",
+      toStatus: "PREFERRED",
+      runId: "run-116",
+      reason: "Consistent delivery accuracy",
+      timestamp: "2026-08-22T11:05:00Z",
+    },
+  ],
+  auditTrailHash: "c0ffee1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab",
+  lastConsolidatedAt: "2026-09-10T10:00:00Z",
+};
+
+const mockTemporal: TemporalReputationReconstruction = {
+  counterpartyKey: "beta_labs",
+  asOf: "0",
+  asOfType: "episode_index",
+  historicalState: {
+    relationshipStatus: "KNOWN",
+    overallReliability: 0.8,
+    confidence: 0.5,
+    alpha: 2.0,
+    beta: 1.0,
+    consecutiveFailures: 0,
+    totalMissions: 1,
+    episodesCount: 0,
+  },
+  currentState: {
+    relationshipStatus: "PREFERRED",
+    overallReliability: 0.91,
+    confidence: 0.9,
+    alpha: 4.0,
+    beta: 1.0,
+    consecutiveFailures: 0,
+    totalMissions: 1,
+    episodesCount: 1,
+  },
+  delta: {
+    statusChanged: true,
+    pastStatus: "KNOWN",
+    currentStatus: "PREFERRED",
+    reliabilityDelta: 0.11,
+    failuresDelta: 0,
+    missionsDelta: 0,
+  },
+};
+
 beforeEach(() => {
   dbHealth.mockReset();
   listSibylCounterparties.mockReset();
+  getCounterpartySummary.mockReset();
+  getCounterpartyReflections.mockReset();
+  getCounterpartyDossier.mockReset();
+  getCounterpartyTemporal.mockReset();
+  searchMemory.mockReset();
+
   dbHealth.mockResolvedValue({ ok: true, data: { status: "ok", latencyMs: 1 } });
+  getCounterpartySummary.mockResolvedValue(null);
+  getCounterpartyReflections.mockResolvedValue([]);
+  getCounterpartyDossier.mockResolvedValue(null);
+  getCounterpartyTemporal.mockResolvedValue(null);
+  searchMemory.mockResolvedValue([]);
 });
 
 /**
@@ -154,5 +265,50 @@ describe("Agents, from Sibyl", () => {
     // A missing score is not a zero, and an absent profile renders no numbers
     // at all rather than a row of them.
     expect(container.textContent).not.toMatch(/Memory version/);
+  });
+
+  it("renders the R4 semantic memory search bar at the top of the counterparties page", async () => {
+    listSibylCounterparties.mockResolvedValue({ ok: true, data: { items: [profile()] } });
+
+    render(await CounterpartiesPage());
+
+    expect(screen.getByTestId("semantic-search-container")).toBeInTheDocument();
+    expect(screen.getByTestId("semantic-search-input")).toBeInTheDocument();
+  });
+
+  it("renders the R5 executive risk digest hero banner when present", async () => {
+    listSibylCounterparties.mockResolvedValue({ ok: true, data: { items: [profile()] } });
+    getCounterpartySummary.mockResolvedValue(mockExecutiveSummary);
+
+    render(await CounterpartiesPage());
+
+    expect(screen.getByTestId("executive-summary-hero")).toBeInTheDocument();
+    expect(screen.getByText(/RISK: LOW/i)).toBeInTheDocument();
+    expect(screen.getByText(/Action: Recommended for Hire/i)).toBeInTheDocument();
+    expect(screen.getByText(/Beta Labs: 100% verified deliveries/i)).toBeInTheDocument();
+  });
+
+  it("renders R1 reflections, R2 dossier, and R3 temporal reconstructions", async () => {
+    listSibylCounterparties.mockResolvedValue({ ok: true, data: { items: [profile()] } });
+    getCounterpartyReflections.mockResolvedValue(mockReflections);
+    getCounterpartyDossier.mockResolvedValue(mockDossier);
+    getCounterpartyTemporal.mockResolvedValue(mockTemporal);
+
+    render(await CounterpartiesPage());
+
+    // R1 Reflections
+    expect(screen.getByTestId("reflections-container")).toBeInTheDocument();
+    expect(screen.getByText("SCHEMA_VIOLATION")).toBeInTheDocument();
+    expect(screen.getByTestId("schema-errors-block")).toBeInTheDocument();
+
+    // R2 Dossier
+    expect(screen.getByTestId("dossier-container")).toBeInTheDocument();
+    expect(screen.getByTestId("dossier-audit-hash")).toHaveTextContent(mockDossier.auditTrailHash);
+
+    // R3 Temporal View
+    expect(screen.getByTestId("temporal-view-container")).toBeInTheDocument();
+    expect(screen.getByTestId("historical-state-card")).toBeInTheDocument();
+    expect(screen.getByTestId("current-state-card")).toBeInTheDocument();
+    expect(screen.getByTestId("temporal-deltas-bar")).toBeInTheDocument();
   });
 });

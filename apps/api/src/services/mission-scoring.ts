@@ -1,4 +1,5 @@
 import type { SibylCounterparty } from "./sibyl.js";
+import { type ReflectionRecord, getNativeReflections } from "./native-sibyl.js";
 
 /**
  * How a Mission ranks the counterparties it could hire.
@@ -27,7 +28,7 @@ import type { SibylCounterparty } from "./sibyl.js";
 
 /** A counterparty that can actually be scored, with its price parsed once. */
 interface Priced {
-  counterparty: SibylCounterparty;
+  counterparty: SibylCounterparty & { reflections?: ReflectionRecord[] };
   priceUsdc: number;
 }
 
@@ -103,7 +104,17 @@ function baseScore(priceUsdc: number, cheapestUsdc: number): number {
  * as no confidence rather than full confidence, because the failure that
  * matters here is over-trusting a thin record.
  */
-function memoryAdjustment(counterparty: SibylCounterparty): number {
+export interface CandidateScoringOptions {
+  /** Optional pre-fetched or explicit reflection records per candidate key */
+  reflections?: Record<string, ReflectionRecord[]> | Map<string, ReflectionRecord[]>;
+  /** If true, explicitly applies reflection penalty */
+  applyReflectionPenalty?: boolean;
+}
+
+function memoryAdjustment(
+  counterparty: SibylCounterparty & { reflections?: ReflectionRecord[] },
+  options?: CandidateScoringOptions,
+): number {
   const reliability = counterparty.overallReliability;
   const taskFit = counterparty.taskFit;
   const status = counterparty.relationshipStatus;
@@ -113,7 +124,25 @@ function memoryAdjustment(counterparty: SibylCounterparty): number {
   const statusPoints = status === null ? 0 : (STATUS_POINTS[status] ?? 0);
 
   const confidence = counterparty.confidence ?? 0;
-  return Math.round(confidence * (reliabilityPoints + taskFitPoints + statusPoints));
+  let adjustment = Math.round(confidence * (reliabilityPoints + taskFitPoints + statusPoints));
+
+  // Determine active reflections
+  let activeReflections: ReflectionRecord[] | undefined = counterparty.reflections;
+  if (!activeReflections && options?.reflections) {
+    if (options.reflections instanceof Map) {
+      activeReflections = options.reflections.get(counterparty.counterpartyKey);
+    } else {
+      activeReflections = options.reflections[counterparty.counterpartyKey];
+    }
+  }
+
+  if (activeReflections && activeReflections.length > 0) {
+    // Apply reflection penalty: -4 points per active reflection (capped at -20)
+    const reflectionPenalty = Math.max(-20, activeReflections.length * -4);
+    adjustment += reflectionPenalty;
+  }
+
+  return adjustment;
 }
 
 /**
@@ -128,7 +157,10 @@ function memoryAdjustment(counterparty: SibylCounterparty): number {
  * An empty `ranked` means there was nothing to choose between, which the caller
  * must report as such rather than treat as a decision.
  */
-export function scoreCandidates(counterparties: readonly SibylCounterparty[]): Ranking {
+export function scoreCandidates(
+  counterparties: readonly (SibylCounterparty & { reflections?: ReflectionRecord[] })[],
+  options?: CandidateScoringOptions,
+): Ranking {
   const excluded: ExcludedCandidate[] = [];
   const priced: Priced[] = [];
 
@@ -164,7 +196,7 @@ export function scoreCandidates(counterparties: readonly SibylCounterparty[]): R
 
   const ranked = priced
     .map(({ counterparty, priceUsdc }): ScoredCandidate => {
-      const adjustment = memoryAdjustment(counterparty);
+      const adjustment = memoryAdjustment(counterparty, options);
       const row: ScoredCandidate = {
         key: counterparty.counterpartyKey,
         score: baseScore(priceUsdc, cheapestUsdc) + adjustment,
@@ -182,6 +214,23 @@ export function scoreCandidates(counterparties: readonly SibylCounterparty[]): R
 }
 
 /**
+ * Scores candidates while automatically inspecting and incorporating
+ * persistent reflection records from Sibyl memory.
+ */
+export function scoreCandidatesWithReflections(
+  counterparties: readonly SibylCounterparty[],
+): Ranking {
+  const reflectionsMap: Record<string, ReflectionRecord[]> = {};
+  for (const c of counterparties) {
+    const refs = getNativeReflections(c.counterpartyKey);
+    if (refs.length > 0) {
+      reflectionsMap[c.counterpartyKey] = refs;
+    }
+  }
+  return scoreCandidates(counterparties, { reflections: reflectionsMap });
+}
+
+/**
  * Why the winner won, in facts the memory store actually holds.
  *
  * Each line is a value read off the record. Nothing here characterises the
@@ -189,7 +238,10 @@ export function scoreCandidates(counterparties: readonly SibylCounterparty[]): R
  * voice — the decision card renders these verbatim, and a persuasive sentence
  * on that card is the most damaging thing this file could produce.
  */
-export function decisionReasons(winner: SibylCounterparty): string[] {
+export function decisionReasons(
+  winner: SibylCounterparty & { reflections?: ReflectionRecord[] },
+  reflections?: ReflectionRecord[],
+): string[] {
   const reasons: string[] = [];
 
   if (winner.relationshipStatus !== null) {
@@ -203,6 +255,12 @@ export function decisionReasons(winner: SibylCounterparty): string[] {
   }
   if (winner.isFixture) {
     reasons.push("This record is seeded demonstration data, not a relationship this operator has had.");
+  }
+  const activeRefs = reflections ?? winner.reflections;
+  if (activeRefs && activeRefs.length > 0) {
+    for (const ref of activeRefs) {
+      reasons.push(`[Reflection: ${ref.failureCategory}] ${ref.lesson}`);
+    }
   }
   return reasons;
 }

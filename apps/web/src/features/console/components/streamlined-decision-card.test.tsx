@@ -80,6 +80,11 @@ describe("StreamlinedDecisionCard", () => {
     expect(
       screen.getByRole("heading", { name: /Why This Provider: Evidence & Provenance/i }),
     ).toBeInTheDocument();
+    expect(screen.getByText("RISK: CRITICAL")).toBeInTheDocument();
+    expect(screen.getByText("MISSING_CITATIONS")).toBeInTheDocument();
+    expect(screen.getByText("Action: DO_NOT_HIRE")).toBeInTheDocument();
+    expect(screen.getByText("RISK: LOW")).toBeInTheDocument();
+    expect(screen.getByText("Action: HIRE")).toBeInTheDocument();
     const closeBtn = screen.getByRole("button", { name: "Close" });
     await user.click(closeBtn);
 
@@ -213,7 +218,7 @@ describe("StreamlinedDecisionCard", () => {
     expect(screen.getByText("Blocked: Amnesic Rejection")).toBeInTheDocument();
 
     // Click Restore Sibyl Memory
-    await user.click(screen.getAllByRole("button", { name: /Restore Sibyl Memory/i })[0]);
+    await user.click(screen.getAllByRole("button", { name: /Restore Sibyl Memory/i })[0]!);
     expect(screen.queryByTestId("controlled-ablation-banner")).not.toBeInTheDocument();
     expect(screen.getByText("Recommended Provider")).toBeInTheDocument();
     expect(screen.getAllByText(/Beta Research/i).length).toBeGreaterThanOrEqual(1);

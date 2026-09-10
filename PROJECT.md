@@ -1,95 +1,193 @@
-# Project: Max Score Hackathon Submission and Verification Kit for Aura Console
+# Project: Aura Memory 5 Sibyl Primitives
 
 ## Architecture
-- **Monorepo Structure**:
-  - `apps/web`: Next.js 16 operator console and public landing page with Astryx Design System (`@astryxdesign/core`), dark operator theme, WCAG AA compliance, and PMF Waitlist artifact.
-  - `apps/api`: Fastify API serving mission runs, SSE chat streaming, Virtuals ACP agent procurement jobs, Sibyl memory retrieval, and Base Sepolia memory commitment verifier.
-  - `packages/db`: Drizzle ORM schema defining runs, events, counterparties, episodes, ACP jobs, spend intents, and inbox.
-  - `tools/`: Sibyl memory bridge (`tools/sibyl_bridge.py`), seed data (`tools/sibyl_seed.py`), and test runners.
-  - `scripts/`: Load-bearing deletion test (`scripts/demo-deletion-test.ts`), Base Sepolia memory commitment verifier (`scripts/verify-memory-commitment.ts`), and demo restart script (`scripts/demo-restart.sh`).
-- **Data Flow & Partner Integrations**:
-  1. **Sibyl Memory (5 Tiers)**: HOT (`setMissionState`/`getMissionState`), WARM (`listCounterpartiesFromSibyl`/`retrieveFromSibyl`), COLD (`recordEpisodeToSibyl`/`readMemoryJournal`), REFERENCE (`setPolicyReference`/`storeSaltInSibyl`), ARCHIVE (`archiveCounterpartyInSibyl`).
-  2. **Base Sepolia (+15% Multiplier)**: `commitMemoryToBaseSepolia` computes salted Keccak256 hash of counterparty profile and commits on-chain; verified via `pnpm memory:verify`.
-  3. **Virtuals Protocol (+10% Multiplier)**: Virtuals ACP agent procurement jobs funded and settled (`acp.job.funded` -> `outcome.recorded`) with counterparty agents (`virtuals:agent:alpha`, `virtuals:agent:beta`).
-  4. **Multi-Agent MCP Coordination (40/40 Rubric)**: Stdio/HTTP MCP server exposing `memory_recall_counterparty`, `memory_list_counterparties`, and `memory_journal` returning structured Sibyl verdict codes (`ok`, `abstained_on`, `negation_abstain`, `gated`, `empty_store`, `no_match`).
-  5. **Verifiable PMF Bonus (+10 Points)**: Interactive Waitlist & Design Partner section on web console with live counter, named procurement partners, and documented real-world problem statement.
+Aura implements persistent Bayesian reputation and memory for autonomous AI agents procuring services from counterparties. This project integrates all 5 remaining Sibyl memory primitives (reflection, consolidation, temporal history, semantic search, summarization) across backend storage, Hono API routes, CLI runners, and the Astryx Web UI console.
+
+### Data Flow & Component Architecture
+1. **Mission Outcome / Verifier**: Deliverable verification evaluates submissions against objective criteria (`verifier-agent.ts`). On failure, the **Reflection Engine** (`reflection-engine.ts`) extracts root-cause analysis and persists structured reflection records (`category: "reflection"`) in SQLite (`node:sqlite`).
+2. **Episodic Consolidation Pipeline**: Raw discrete execution episodes are deterministically consolidated into a unified counterparty dossier (`category: "dossier"`) in SQLite (`consolidation-engine.ts`), maintaining defect frequencies, probation transitions, and an audit trail hash.
+3. **Temporal Point-in-Time Engine**: Historical episodes are replayed deterministically through `reputation-fsm.ts` up to timestamp $t$ or episode index, reconstructing exact prior reputation state and computing deltas (`temporal-engine.ts`).
+4. **Semantic Search Engine**: Tokenizes queries, filters stopwords, expands intent/synonyms, and computes keyword relevance scores across episodes and reflections (`semantic-search.ts`).
+5. **Executive Memory Summarizer**: Aggregates multi-episode logs, Bayesian reputation, reflections, and dossiers into an executive risk digest (`executive-summarizer.ts`) for human operators and autonomous agent decision-making.
+6. **API Layer**: Hono router exposes endpoints for temporal reconstruction, semantic search, reflections, dossiers, and executive summaries (`apps/api/src/routes/`).
+7. **CLI Causal Loop**: Multi-process OS runner (`pnpm demo:causal-loop`) and automated test harness (`pnpm test:causal-loop`) demonstrate all 5 primitives across cold-start sessions, amnesia testing, and fail-closed storage.
+8. **Web UI & Console Drawer**: Astryx-compliant components in `apps/web/` render executive risk banners, reflection cards, consolidated dossiers, temporal scrubbers, and semantic search.
+
+---
 
 ## Feature Inventory
 | # | Feature | Description | Milestone | Source |
 |---|---------|-------------|-----------|--------|
-| 1 | Quickstart & Port Harmonization | 5-command quickstart in README with port 5436 consistently configured | M1 | ORIGINAL_REQUEST §R1 |
-| 2 | Concrete 5-Tier Memory Map Table | Table mapping HOT, WARM, COLD, REFERENCE, ARCHIVE to exact functions and calling services | M1 | ORIGINAL_REQUEST §R1 |
-| 3 | Verifiable Load-Bearing Deletion Test Guide | Exact terminal output snippet in README showing fail-closed behavior | M1 | ORIGINAL_REQUEST §R1 |
-| 4 | Dual-Partner Disclosures | Full disclosure of Base Sepolia and Virtuals ACP runtimes (removing single-stack fallback posture) | M1 | ORIGINAL_REQUEST §R1, §R3 |
-| 5 | Prior Work Declaration | Comprehensive itemization of pre-existing vs hackathon-created artifacts compliant with rules | M1 | ORIGINAL_REQUEST §R1 |
-| 6 | Interactive Waitlist & Design Partner UI | Verifiable Waitlist & Design Partner component on web console with live counter and named AI agent procurement partners | M2 | ORIGINAL_REQUEST §R2 |
-| 7 | Real-World Problem Statement | Documented problem statement on web: autonomous procurement agents spending treasury without persistent reputation | M2 | ORIGINAL_REQUEST §R2 |
-| 8 | Design Tokens & A11y Conformance for PMF UI | Zero raw hex in globals.css, WCAG AA contrast, and passing axe accessibility audits | M2 | ORIGINAL_REQUEST §R2, Acceptance Criteria |
-| 9 | Tokens Test Path Compatibility | Forwarder test at `apps/web/src/styles/tokens.test.ts` to satisfy exact test runner path | M2 | Acceptance Criteria |
-| 10 | Base Sepolia Verification Audit | Verified `pnpm memory:verify` producing valid Base Sepolia commitment matching Sibyl salt | M3 | ORIGINAL_REQUEST §R3 |
-| 11 | Virtuals ACP Settlement Network Fix | Update `mission-execution.ts:245` fallback network from `"sui:local"` to `"base-sepolia"` | M3 | ORIGINAL_REQUEST §R3 |
-| 12 | MCP Coordination Tools & Tests | Ensure `memory_recall_counterparty`, `memory_list_counterparties`, `memory_journal` pass and add unit tests | M3 | ORIGINAL_REQUEST §R4 |
-| 13 | Topbar Port Fallback Fix | Fix port fallback in `console-topbar.tsx:55` from 3011 to 3001 | M3 | Survey |
-| 14 | ESLint Cleanliness Fix | Fix `apps/api/src/routes/memory.test.ts:22:47` forbidden import type annotation | M3 | Survey |
-| 15 | One-Take Demo Video Script | Minute-by-minute rehearsal script (<5 min) in `docs/demo-video-script.md` | M4 | ORIGINAL_REQUEST §R5 |
-| 16 | Continuous Restart Boundary Guide | Document `scripts/demo-restart.sh` unedited restart proof leaving `~/.sibyl-memory/memory.db` | M4 | ORIGINAL_REQUEST §R5 |
-| 17 | Social Media Ready-to-Copy Posts | Post 1 (X/Discord @sibylcap) and Post 2 (X/Discord @sibylcap, @base, @virtuals_io) | M4 | ORIGINAL_REQUEST §R6 |
-| 18 | Private Build Page Form Submission Pack | Complete copy-pasteable submission pack in `docs/submission-pack.md` and README | M4 | ORIGINAL_REQUEST §R6 |
-| 19 | Comprehensive Acceptance Verification | Verification of deletion test, memory verify, web typecheck, tokens test, and web tests | M5 | Acceptance Criteria |
-| 20 | Forensic Integrity Audit | Independent verification by Forensic Auditor confirming authentic implementations | M5 | Project Pattern |
+| 1 | Reflection Engine | Root-cause analysis on verifier failure, structured reflection persistence (`category: "reflection"`) in SQLite | M1 | ORIGINAL_REQUEST §R1 |
+| 2 | Reflection Scoring Penalty | Candidate ranking in `mission-scoring.ts` inspects reflected failure patterns and applies reflection penalties | M1 | ORIGINAL_REQUEST §R1 |
+| 3 | Episodic Consolidation | Deterministic rollup of raw episodes into unified counterparty dossier (`category: "dossier"`) with defect counts | M1 | ORIGINAL_REQUEST §R2 |
+| 4 | Consolidation Audit Trail | Maintains cryptographic lineage audit trail hash over consolidated episodes without losing historical logs | M1 | ORIGINAL_REQUEST §R2 |
+| 5 | Temporal State Reconstruction | Reconstructs counterparty reputation and FSM state at past timestamp $t$ via deterministic episode replay | M1 | ORIGINAL_REQUEST §R3 |
+| 6 | Temporal State Deltas | Computes status, reliability, and failure deltas between historical past state and present state | M1 | ORIGINAL_REQUEST §R3 |
+| 7 | Semantic Search Tokenizer & Engine | Tokenization, stopword removal, intent/synonym expansion, and relevance scoring (0-100) across episodes & reflections | M1 | ORIGINAL_REQUEST §R4 |
+| 8 | Executive Risk Digest Summarizer | Automated synthesis of multi-episode logs, Bayesian state, reflections, and dossiers into an executive risk digest | M1 | ORIGINAL_REQUEST §R5 |
+| 9 | API: Temporal History Endpoint | `GET /api/counterparties/:counterpartyKey/temporal?asOf=...` returning historical state and delta comparison | M2 | ORIGINAL_REQUEST §R3 |
+| 10 | API: Semantic Search Endpoint | `GET /api/memory/search?q=...&category=...&limit=...` returning ranked memory records with relevance scores | M2 | ORIGINAL_REQUEST §R4 |
+| 11 | API: Executive Summary Endpoint | `GET /api/counterparties/:counterpartyKey/summary` and embedded `executive_summary` in counterparty memory endpoint | M2 | ORIGINAL_REQUEST §R5 |
+| 12 | API: Reflections & Dossier Endpoints | `GET /api/counterparties/:key/reflections` and `GET /api/counterparties/:key/dossier` endpoints in Hono router | M2 | Survey Explorer 2 |
+| 13 | CLI: Causal Loop Demonstration | `pnpm demo:causal-loop` exercises all 5 primitives in decoupled child processes with dedicated terminal UI cards | M3 | ORIGINAL_REQUEST Acceptance |
+| 14 | CLI: Automated Test Runner | `pnpm test:causal-loop` programmatically asserts SQLite persistence of reflections & dossiers, temporal accuracy, and search | M3 | ORIGINAL_REQUEST Acceptance |
+| 15 | Web: Typed API Client Methods | Adds typed methods to `api-client.ts` for summary, reflections, dossier, temporal, and semantic search | M4 | Spec Miner 3 |
+| 16 | Web: Executive Risk Digest Banner | Renders executive risk banner atop counterparty detail (`/counterparties`) with headline, risk tier, and action pill | M4 | ORIGINAL_REQUEST §R5 |
+| 17 | Web: Reflection Lessons Section | Renders structured reflection cards with failure category, root cause, schema errors, and remediation guidance | M4 | Spec Miner 3 |
+| 18 | Web: Consolidated Dossier Card | Renders dossier with cumulative reliability meter, recurring defect breakdown pills, and audit trail hash | M4 | Spec Miner 3 |
+| 19 | Web: Temporal Time-Travel Scrubber | Interactive scrubber allowing operators to scrub through episode checkpoints and view side-by-side past vs present deltas | M4 | Spec Miner 3 |
+| 20 | Web: Semantic Memory Search Bar | Search bar in Counterparties view querying Sibyl memory with instant token relevance cards and highlights | M4 | Spec Miner 3 |
+| 21 | Web: Console Drawer Risk Digest | Displays executive delivery performance summary in `StreamlinedDecisionCard` & `EvidenceDrawer` contrasting candidate risk | M4 | ORIGINAL_REQUEST §R5 |
+| 22 | Web: Astryx Design Token Conformance | Guarantees 0 literal hex colors in stylesheets and passes `tokens.test.ts` and axe accessibility audits | M4 | ORIGINAL_REQUEST & Spec Miner 3 |
+| 23 | E2E Monorepo Verification | Full monorepo tests (`pnpm test`), typecheck (`pnpm turbo run typecheck`), and zero regressions | M5 | ORIGINAL_REQUEST Acceptance |
+| 24 | Adversarial & White-Box Hardening | White-box stress tests verifying concurrency, amnesia isolation, secondary rollback safety, and fail-closed storage | M5 | ORIGINAL_REQUEST Acceptance |
+
+---
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| M1 | README & Judge Evaluation Guide | Update `README.md` with 5-command quickstart, concrete 5-tier memory map, deletion test output, partner disclosures, and prior work | none | DONE |
-| M2 | Publicly Verifiable PMF Bonus Artifact | Create Waitlist & Design Partner section on web, live counter, documented problem statement, token test path forwarder, and web unit tests | none | DONE |
-| M3 | Partner Multipliers & MCP Coordination | Base Sepolia verification, Virtuals ACP network fix, MCP tool unit tests, topbar port fix, and ESLint cleanup | none | DONE |
-| M4 | Demo Video Script & Social Submission Pack | Rehearsal script (<5 min), restart boundary guide, X/Discord posts, and Private Build Page form submission pack | M1 | DONE |
-| M5 | Final Verification & Forensic Audit | End-to-end execution of all verification commands, independent reviewer/challenger gate, and forensic integrity audit | M1, M2, M3, M4 | DONE |
+| **M1** | Backend Core Primitives Engine | Implement reflection engine, consolidation engine, temporal replay, semantic search, and executive summarizer in `apps/api/src/services/` with unit tests | none | DONE |
+| **M2** | API Routes & Controller Layer | Mount Hono endpoints for temporal history, semantic search, executive summary, reflections, and dossiers with route integration tests | M1 | DONE |
+| **M3** | CLI Causal Loop & Automated Harness | Implement `demo:causal-loop` terminal cards and `test:causal-loop` programmatic SQLite assertions for all 5 primitives | M1, M2 | DONE |
+| **M4** | Web UI & Console Drawer Integration | Add typed API client, Executive Risk Digest, Reflected Lessons, Consolidated Dossier, Temporal Scrubber, Semantic Search bar, and Console drawer integration | M1, M2 | DONE |
+| **M5** | Final E2E Suite, Regressions & Hardening | Full monorepo tests, typechecks, adversarial coverage hardening, and final forensic integrity audit | M1, M2, M3, M4 | DONE |
+
+---
 
 ## Interface Contracts
 
-### Waitlist / Design Partner Contract
-```ts
-export interface DesignPartner {
-  id: string;
-  name: string;
-  category: "Autonomous Treasury" | "Agent Procurement" | "On-Chain Execution" | "Risk Engine";
-  agentCount: string;
-  status: "Active Pilot" | "Production Design Partner";
-  description: string;
-}
+### Reflection Engine ↔ Storage & Scoring
+- **Function**: `analyzeFailureAndReflect(input: { counterpartyKey: string; runId: string; evaluation: DeliverableVerificationResult }): ReflectionRecord`
+- **Function**: `recordReflectionToSibyl(reflection: ReflectionRecord): Promise<void>`
+- **Function**: `getReflectionsForCounterparty(counterpartyKey: string): ReflectionRecord[]`
+- **Data Model**:
+  ```ts
+  export interface ReflectionRecord {
+    id: string;
+    counterpartyKey: string;
+    runId: string;
+    failureCategory: "MISSING_CITATIONS" | "INSUFFICIENT_COMPETITORS" | "SCHEMA_VIOLATION" | "TEST_FAILURE" | "TIMEOUT";
+    rootCause: string;
+    lesson: string;
+    schemaErrors: string[];
+    remediationGuidance: string;
+    createdAt: string;
+  }
+  ```
 
-export interface WaitlistState {
-  totalWaitlistCount: number;
-  registeredAgentsCount: number;
-  designPartners: DesignPartner[];
-}
-```
+### Consolidation Engine ↔ Storage
+- **Function**: `consolidateEpisodes(counterpartyKey: string): Promise<CounterpartyDossier>`
+- **Function**: `getConsolidatedDossier(counterpartyKey: string): CounterpartyDossier | null`
+- **Data Model**:
+  ```ts
+  export interface CounterpartyDossier {
+    counterpartyKey: string;
+    displayName: string;
+    totalMissions: number;
+    acceptedCount: number;
+    rejectedCount: number;
+    successRate: number;
+    recurringDefects: Record<string, number>;
+    probationHistory: Array<{ fromStatus: string; toStatus: string; runId: string; reason: string; timestamp: string }>;
+    auditTrailHash: string;
+    lastConsolidatedAt: string;
+  }
+  ```
 
-### MCP Tool Contracts
-```ts
-// memory_recall_counterparty
-// Input: { key: string }
-// Output: CounterpartyProfile with verdict code: "ok" | "abstained_on" | "negation_abstain" | "gated" | "empty_store" | "no_match"
+### Temporal Engine ↔ Reputation FSM
+- **Function**: `reconstructCounterpartyStateAt(counterpartyKey: string, asOf: string | number): TemporalReputationReconstruction | null`
+- **Data Model**:
+  ```ts
+  export interface TemporalReputationReconstruction {
+    counterpartyKey: string;
+    asOf: string;
+    asOfType: "timestamp" | "episode_index";
+    historicalState: {
+      relationshipStatus: RelationshipStatus;
+      overallReliability: number;
+      confidence: number;
+      alpha: number;
+      beta: number;
+      consecutiveFailures: number;
+      totalMissions: number;
+      episodesCount: number;
+    };
+    currentState: {
+      relationshipStatus: RelationshipStatus;
+      overallReliability: number;
+      confidence: number;
+      alpha: number;
+      beta: number;
+      consecutiveFailures: number;
+      totalMissions: number;
+      episodesCount: number;
+    };
+    delta: {
+      statusChanged: boolean;
+      pastStatus: RelationshipStatus;
+      currentStatus: RelationshipStatus;
+      reliabilityDelta: number;
+      failuresDelta: number;
+      missionsDelta: number;
+    };
+  }
+  ```
 
-// memory_list_counterparties
-// Input: { limit?: number }
-// Output: CounterpartyProfileSummary[]
+### Semantic Search Engine
+- **Function**: `searchMemoryRecords(query: string, options?: { category?: string; counterpartyKey?: string; limit?: number }): MemorySearchResult[]`
+- **Data Model**:
+  ```ts
+  export interface MemorySearchResult {
+    id: string;
+    category: "reflection" | "episode" | "dossier";
+    name: string;
+    score: number;
+    matchedTerms: string[];
+    headline: string;
+    snippet: string;
+    createdAt: string;
+    body: Record<string, unknown>;
+  }
+  ```
 
-// memory_journal
-// Input: { limit?: number }
-// Output: JournalEntry[]
-```
+### Executive Summarizer
+- **Function**: `generateExecutiveSummary(counterpartyKey: string): ExecutiveRiskDigest | null`
+- **Data Model**:
+  ```ts
+  export interface ExecutiveRiskDigest {
+    counterpartyKey: string;
+    displayName: string;
+    headline: string;
+    riskLevel: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+    reliabilityRating: string;
+    relationshipStatus: RelationshipStatus;
+    consecutiveFailures: number;
+    totalMissions: number;
+    successRate: number;
+    keyFindings: string[];
+    recommendations: string[];
+    generatedAt: string;
+  }
+  ```
+
+---
 
 ## Code Layout
-- `README.md`: 2-minute judge evaluation guide, 5-tier memory map, quickstart, deletion test, partner disclosures, prior work
-- `apps/web/src/features/landing/components/waitlist-section.tsx`: PMF waitlist and design partner UI
-- `apps/web/src/features/landing/components/waitlist-section.test.tsx`: Unit tests and a11y tests for waitlist
-- `apps/web/src/styles/tokens.test.ts`: Forwarder test ensuring compatibility with exact test path
-- `apps/web/src/features/console/components/console-topbar.tsx`: API URL fallback port fix (3001)
-- `apps/api/src/services/mission-execution.ts`: Network fallback fix to `"base-sepolia"`
-- `apps/api/src/mcp/tools.test.ts`: Extended tests for all MCP memory tools
-- `apps/api/src/routes/memory.test.ts`: ESLint fix
-- `docs/demo-video-script.md`: Rehearsal teleprompter script under 5 minutes
-- `docs/submission-pack.md`: Form submission pack for Private Build Page and social posts
+- `apps/api/src/services/reflection-engine.ts`: Agent Reflection Engine implementation
+- `apps/api/src/services/consolidation-engine.ts`: Episodic Memory Consolidation pipeline
+- `apps/api/src/services/temporal-engine.ts`: Point-in-Time history reconstruction
+- `apps/api/src/services/semantic-search.ts`: Semantic & intent-based keyword relevance search
+- `apps/api/src/services/executive-summarizer.ts`: Executive risk digest summarizer
+- `apps/api/src/services/native-sibyl.ts`: SQLite storage methods for new categories & indexes
+- `apps/api/src/services/mission-execution.ts`: Pipeline triggers for reflection & consolidation
+- `apps/api/src/services/mission-scoring.ts`: Dynamic scoring incorporating reflection penalties
+- `apps/api/src/routes/counterparties.ts`: Temporal history, summary, reflections, and dossier endpoints
+- `apps/api/src/routes/memory.ts`: Semantic search endpoint
+- `scripts/demo-causal-memory-loop.ts`: Live CLI demonstration of all 5 primitives
+- `scripts/test-causal-memory-loop.ts`: Automated multi-step verification harness
+- `apps/web/src/lib/api-client.ts`: Typed API client methods
+- `apps/web/src/features/counterparties/`: Feature components (Executive Summary, Reflections, Dossier, Temporal Scrubber, Semantic Search)
+- `apps/web/src/app/counterparties/page.tsx`: Web Counterparty detail view
+- `apps/web/src/features/console/components/`: Console drawer integration

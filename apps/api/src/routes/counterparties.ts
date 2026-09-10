@@ -6,6 +6,20 @@ import { httpError } from "../errors.js";
 import { MemoryStore, type RelationshipStatus } from "../services/memory-store.js";
 import { manualUnblock, type CandidateReputation } from "../services/reputation-fsm.js";
 import { retrieveFromSibyl, updateCounterpartyInSibyl } from "../services/sibyl.js";
+import {
+  reconstructCounterpartyStateAt,
+  type TemporalReputationReconstruction,
+} from "../services/temporal-engine.js";
+import { getExecutiveSummary } from "../services/executive-summarizer.js";
+import { getReflectionsForCounterparty } from "../services/reflection-engine.js";
+import {
+  getConsolidatedDossier,
+  consolidateEpisodesSync,
+} from "../services/consolidation-engine.js";
+import {
+  retrieveNativeFromSibyl,
+  readNativeMemoryJournal,
+} from "../services/native-sibyl.js";
 
 const store = new MemoryStore();
 
@@ -148,4 +162,82 @@ counterparties.post("/:counterpartyKey/unblock", async (c) => {
     sibylUpdated: sibylResult.ok,
   });
 });
+
+const temporalQuerySchema = z.object({
+  asOf: z.string().trim().min(1, "asOf parameter is required"),
+});
+
+/**
+ * Reconstructs counterparty reputation and relationship status
+ * at a past point in time or episode checkpoint.
+ */
+counterparties.get("/:counterpartyKey/temporal", async (c) => {
+  const key = parseKey(c.req.param("counterpartyKey"));
+  const parsed = temporalQuerySchema.safeParse(c.req.query());
+  if (!parsed.success) {
+    throw httpError(400, "invalid_as_of", parsed.error.issues[0]?.message ?? "asOf parameter is required");
+  }
+
+  const rawAsOf = parsed.data.asOf;
+  const numericAsOf = /^\d+$/.test(rawAsOf) ? Number(rawAsOf) : rawAsOf;
+
+  let reconstruction: TemporalReputationReconstruction | null = null;
+  try {
+    reconstruction = reconstructCounterpartyStateAt(key, numericAsOf);
+  } catch (err) {
+    throw httpError(400, "invalid_as_of", err instanceof Error ? err.message : "Invalid asOf parameter");
+  }
+
+  if (!reconstruction) {
+    throw httpError(404, "counterparty_not_found", `No history found for counterparty ${key}`);
+  }
+
+  return c.json(reconstruction);
+});
+
+/**
+ * Returns the executive risk digest summary for a counterparty.
+ */
+counterparties.get("/:counterpartyKey/summary", async (c) => {
+  const key = parseKey(c.req.param("counterpartyKey"));
+  const summary = getExecutiveSummary(key);
+  if (!summary) {
+    throw httpError(404, "counterparty_not_found", `No counterparty found for ${key}`);
+  }
+  return c.json(summary);
+});
+
+/**
+ * Lists all structured failure reflections recorded for a counterparty.
+ */
+counterparties.get("/:counterpartyKey/reflections", async (c) => {
+  const key = parseKey(c.req.param("counterpartyKey"));
+  const items = getReflectionsForCounterparty(key);
+  return c.json({
+    ok: true,
+    counterpartyKey: key,
+    count: items.length,
+    items,
+  });
+});
+
+/**
+ * Returns the consolidated dossier for a counterparty.
+ */
+counterparties.get("/:counterpartyKey/dossier", async (c) => {
+  const key = parseKey(c.req.param("counterpartyKey"));
+  let dossier = getConsolidatedDossier(key);
+  if (!dossier) {
+    const profileLookup = retrieveNativeFromSibyl(key);
+    const journal = readNativeMemoryJournal(1, key);
+    if (profileLookup.status === "AVAILABLE" || (journal.episodes && journal.episodes.length > 0)) {
+      dossier = consolidateEpisodesSync(key);
+    }
+  }
+  if (!dossier) {
+    throw httpError(404, "dossier_not_found", `No consolidated dossier found for ${key}`);
+  }
+  return c.json(dossier);
+});
+
 

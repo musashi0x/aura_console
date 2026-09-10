@@ -287,6 +287,106 @@ export interface CounterpartyMemoryRecords {
   items: SibylMemoryRecord[];
 }
 
+// ── 5 Sibyl Memory Primitives ───────────────────────────────────────────────
+
+export interface ExecutiveRiskDigest {
+  counterpartyKey: string;
+  displayName: string;
+  headline: string;
+  riskLevel: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  reliabilityRating: string;
+  relationshipStatus: RelationshipStatus;
+  consecutiveFailures: number;
+  totalMissions: number;
+  successRate: number;
+  keyFindings: string[];
+  recommendations: string[];
+  generatedAt: string;
+}
+
+export interface ReflectionRecord {
+  id: string;
+  counterpartyKey: string;
+  runId: string;
+  failureCategory:
+    | "MISSING_CITATIONS"
+    | "INSUFFICIENT_COMPETITORS"
+    | "SCHEMA_VIOLATION"
+    | "TEST_FAILURE"
+    | "TIMEOUT";
+  rootCause: string;
+  lesson: string;
+  schemaErrors: string[];
+  remediationGuidance: string;
+  createdAt: string;
+}
+
+export interface CounterpartyDossier {
+  counterpartyKey: string;
+  displayName: string;
+  totalMissions: number;
+  acceptedCount: number;
+  rejectedCount: number;
+  successRate: number;
+  recurringDefects: Record<string, number>;
+  probationHistory: Array<{
+    fromStatus: string;
+    toStatus: string;
+    runId: string;
+    reason: string;
+    timestamp: string;
+  }>;
+  auditTrailHash: string;
+  lastConsolidatedAt: string;
+}
+
+export interface TemporalReputationReconstruction {
+  counterpartyKey: string;
+  asOf: string;
+  asOfType: "timestamp" | "episode_index";
+  historicalState: {
+    relationshipStatus: RelationshipStatus;
+    overallReliability: number;
+    confidence: number;
+    alpha: number;
+    beta: number;
+    consecutiveFailures: number;
+    totalMissions: number;
+    episodesCount: number;
+  };
+  currentState: {
+    relationshipStatus: RelationshipStatus;
+    overallReliability: number;
+    confidence: number;
+    alpha: number;
+    beta: number;
+    consecutiveFailures: number;
+    totalMissions: number;
+    episodesCount: number;
+  };
+  delta: {
+    statusChanged: boolean;
+    pastStatus: RelationshipStatus;
+    currentStatus: RelationshipStatus;
+    reliabilityDelta: number;
+    failuresDelta: number;
+    missionsDelta: number;
+  };
+}
+
+export interface MemorySearchResult {
+  id: string;
+  category: "reflection" | "episode" | "dossier";
+  name: string;
+  score: number;
+  matchedTerms: string[];
+  headline: string;
+  snippet: string;
+  createdAt: string;
+  body: Record<string, unknown>;
+}
+
+
 export const apiClient = {
   /** Liveness. Answers even when Postgres is down, so it isolates the domain. */
   health: () => request<Liveness>("/health"),
@@ -474,5 +574,64 @@ export const apiClient = {
         query ? `?${query}` : ""
       }`,
     );
+  },
+
+  // ── 5 Sibyl Memory Primitive Methods ────────────────────────────────────
+
+  getCounterpartySummary: async (
+    counterpartyKey: string,
+  ): Promise<ExecutiveRiskDigest | null> => {
+    const res = await request<ExecutiveRiskDigest>(
+      `/api/counterparties/${encodeURIComponent(counterpartyKey)}/summary`,
+    );
+    return res.ok ? res.data : null;
+  },
+
+  getCounterpartyReflections: async (
+    counterpartyKey: string,
+  ): Promise<ReflectionRecord[]> => {
+    const res = await request<{ ok: boolean; items?: ReflectionRecord[] }>(
+      `/api/counterparties/${encodeURIComponent(counterpartyKey)}/reflections`,
+    );
+    return res.ok && Array.isArray(res.data.items) ? res.data.items : [];
+  },
+
+  getCounterpartyDossier: async (
+    counterpartyKey: string,
+  ): Promise<CounterpartyDossier | null> => {
+    const res = await request<CounterpartyDossier>(
+      `/api/counterparties/${encodeURIComponent(counterpartyKey)}/dossier`,
+    );
+    return res.ok ? res.data : null;
+  },
+
+  getCounterpartyTemporal: async (
+    counterpartyKey: string,
+    asOf?: string | number,
+  ): Promise<TemporalReputationReconstruction | null> => {
+    const params = new URLSearchParams();
+    if (asOf !== undefined) {
+      params.set("asOf", String(asOf));
+    }
+    const query = params.toString();
+    const res = await request<TemporalReputationReconstruction>(
+      `/api/counterparties/${encodeURIComponent(counterpartyKey)}/temporal${query ? `?${query}` : ""}`,
+    );
+    return res.ok ? res.data : null;
+  },
+
+  searchMemory: async (
+    query: string,
+    options: { category?: string; counterpartyKey?: string; limit?: number } = {},
+  ): Promise<MemorySearchResult[]> => {
+    const params = new URLSearchParams();
+    params.set("q", query);
+    if (options.category) params.set("category", options.category);
+    if (options.counterpartyKey) params.set("counterpartyKey", options.counterpartyKey);
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    const res = await request<{ ok: boolean; items?: MemorySearchResult[] }>(
+      `/api/memory/search?${params.toString()}`,
+    );
+    return res.ok && Array.isArray(res.data.items) ? res.data.items : [];
   },
 };

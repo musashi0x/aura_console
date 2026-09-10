@@ -9,6 +9,13 @@ import { readGrounding } from "@/features/console/grounding";
 import { ConsoleUnavailableMemory } from "@/features/console/components/console-states";
 import { console_ } from "@/features/console/copy";
 import { apiClient, type SibylCounterparty } from "@/lib/api-client";
+import {
+  CounterpartyExecutiveSummary,
+  CounterpartyReflections,
+  CounterpartyDossierView,
+  CounterpartyTemporalView,
+  CounterpartySemanticSearch,
+} from "@/features/counterparties";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +43,7 @@ function Episodes({ item }: { item: SibylCounterparty }) {
   }
   return (
     <div className="flex flex-col gap-2.5 pt-2 border-t border-[var(--color-border)]/60">
-      <span className="text-xs font-medium text-[var(--color-text-muted,#8d9aaf)] flex items-center gap-1.5">
+      <span className="text-xs font-medium text-[var(--color-text-muted)] flex items-center gap-1.5">
         <History size={13} />
         <span>Verified Episodes ({item.episodes.length})</span>
       </span>
@@ -44,7 +51,7 @@ function Episodes({ item }: { item: SibylCounterparty }) {
         {item.episodes.map((episode, index) => (
           <div
             key={`${episode.run ?? "run"}-${index}`}
-            className="p-3 rounded-lg bg-[var(--color-surface,#111015)] border border-[var(--color-border)]/80 flex flex-col gap-1.5"
+            className="p-3 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)]/80 flex flex-col gap-1.5"
           >
             <HStack gap={2} wrap="wrap">
               {episode.outcome ? (
@@ -106,7 +113,7 @@ function Profile({ item }: { item: SibylCounterparty }) {
       </div>
 
       {item.riskNote ? (
-        <div className="flex items-start gap-2 p-2.5 rounded-lg bg-[var(--color-surface,#111015)] border border-[var(--color-border)]/60 text-xs">
+        <div className="flex items-start gap-2 p-2.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)]/60 text-xs">
           <Shield size={13} className="text-[var(--color-accent)] mt-0.5 flex-shrink-0" />
           <Text as="p" size="sm">
             {console_.agents.risk}: {item.riskNote}
@@ -132,6 +139,8 @@ function Profile({ item }: { item: SibylCounterparty }) {
 
 /**
  * The operator's own relationship memory, read from Sibyl.
+ * Integrates all 5 Sibyl memory primitives: R1 Reflection, R2 Consolidation,
+ * R3 Temporal Point-in-Time History, R4 Semantic Search, R5 Executive Summarization.
  */
 export default async function CounterpartiesPage() {
   const [health, memory, grounding] = await Promise.all([
@@ -141,10 +150,37 @@ export default async function CounterpartiesPage() {
   ]);
   const readiness = health.ok ? "ready" : "degraded";
 
+  const details = memory.ok
+    ? await Promise.all(
+        memory.data.items.map(async (item) => {
+          const [summary, reflections, dossier, temporal] = await Promise.all([
+            typeof apiClient.getCounterpartySummary === "function"
+              ? apiClient.getCounterpartySummary(item.counterpartyKey).catch(() => null)
+              : Promise.resolve(null),
+            typeof apiClient.getCounterpartyReflections === "function"
+              ? apiClient.getCounterpartyReflections(item.counterpartyKey).catch(() => [])
+              : Promise.resolve([]),
+            typeof apiClient.getCounterpartyDossier === "function"
+              ? apiClient.getCounterpartyDossier(item.counterpartyKey).catch(() => null)
+              : Promise.resolve(null),
+            typeof apiClient.getCounterpartyTemporal === "function"
+              ? apiClient.getCounterpartyTemporal(item.counterpartyKey, 0).catch(() => null)
+              : Promise.resolve(null),
+          ]);
+          return { item, summary, reflections, dossier, temporal };
+        }),
+      )
+    : [];
+
   return (
     <ConsoleShell surface="Agents" readiness={readiness} grounding={grounding}>
       <h1 className="cs__title">{console_.agents.title}</h1>
       <p className="cs__lede">{console_.agents.lede}</p>
+
+      {/* R4 Semantic & Intent-Based Memory Search Bar */}
+      <div className="w-full max-w-4xl my-3">
+        <CounterpartySemanticSearch />
+      </div>
 
       {!memory.ok ? (
         <ConsoleUnavailableMemory>
@@ -158,23 +194,24 @@ export default async function CounterpartiesPage() {
           </Text>
         </VStack>
       ) : (
-        <div className="flex flex-col gap-4 w-full max-w-4xl my-4">
-          {memory.data.items.map((item) => (
+        <div className="flex flex-col gap-6 w-full max-w-4xl my-4">
+          {details.map(({ item, summary, reflections, dossier, temporal }) => (
             <div
               key={item.counterpartyKey}
-              className="p-5 rounded-2xl bg-[var(--color-surface-raised,#1b1b1f)] border border-[var(--color-border)] hover:border-[var(--color-accent)] transition-all shadow-sm flex flex-col gap-4"
+              data-testid={`counterparty-card-${item.counterpartyKey}`}
+              className="p-5 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-[var(--color-accent)] transition-all shadow-sm flex flex-col gap-5"
             >
               <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)]/60 pb-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-[var(--color-surface,#111015)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-accent)]">
+                  <div className="w-8 h-8 rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-accent)]">
                     <Bot size={18} />
                   </div>
                   <div className="flex flex-col">
-                    <span className="font-semibold text-sm text-[var(--color-text,#f4f7fb)]">
+                    <span className="font-semibold text-sm text-[var(--color-text)]">
                       {item.displayName ?? item.counterpartyKey}
                     </span>
                     {item.displayName ? (
-                      <span className="font-mono text-[11px] text-[var(--color-text-muted,#8d9aaf)]">
+                      <span className="font-mono text-[11px] text-[var(--color-text-muted)]">
                         {item.counterpartyKey}
                       </span>
                     ) : null}
@@ -183,11 +220,19 @@ export default async function CounterpartiesPage() {
 
                 <div className="flex items-center gap-2">
                   <Sparkles size={13} className="text-[var(--color-accent)] opacity-70" />
-                  <span className="text-[11px] font-mono text-[var(--color-text-muted,#8d9aaf)]">
+                  <span className="text-[11px] font-mono text-[var(--color-text-muted)]">
                     Sibyl Rep
                   </span>
                 </div>
               </div>
+
+              {/* R5 Executive Risk Digest Hero Banner */}
+              {summary && (
+                <CounterpartyExecutiveSummary
+                  summary={summary}
+                  counterpartyKey={item.counterpartyKey}
+                />
+              )}
 
               <div className="pt-1">
                 {item.hasProfile ? <Profile item={item} /> : (
@@ -196,6 +241,25 @@ export default async function CounterpartiesPage() {
                   </Text>
                 )}
               </div>
+
+              {/* R1 Reflections, R2 Consolidated Dossier, R3 Temporal Point-in-Time History */}
+              {item.hasProfile && (
+                <div className="flex flex-col gap-4 pt-3 border-t border-[var(--color-border)]/60">
+                  <CounterpartyReflections
+                    reflections={reflections}
+                    counterpartyKey={item.counterpartyKey}
+                  />
+                  <CounterpartyDossierView
+                    dossier={dossier}
+                    counterpartyKey={item.counterpartyKey}
+                  />
+                  <CounterpartyTemporalView
+                    counterpartyKey={item.counterpartyKey}
+                    initialReconstruction={temporal}
+                    totalEpisodes={item.episodes.length}
+                  />
+                </div>
+              )}
             </div>
           ))}
 

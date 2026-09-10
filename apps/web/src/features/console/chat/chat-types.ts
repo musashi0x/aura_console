@@ -45,6 +45,8 @@ export interface CounterpartyMemorySummary {
   episodesUsed: number;
   latestOutcome?: string;
   timestamp?: string;
+  riskLevel?: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  reflectionCount?: number;
 }
 
 /** One turn in the thread. The agent never speaks unless a stream produced it. */

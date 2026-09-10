@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { decisionReasons, scoreCandidates } from "./mission-scoring.js";
+import {
+  decisionReasons,
+  scoreCandidates,
+  scoreCandidatesWithReflections,
+} from "./mission-scoring.js";
+import type { ReflectionRecord } from "./native-sibyl.js";
+import { recordNativeReflection, resetNativeSibylStorage } from "./native-sibyl.js";
 import type { SibylCounterparty } from "./sibyl.js";
 
 /**
@@ -169,5 +175,72 @@ describe("decisionReasons", () => {
 
   it("returns nothing when the record says nothing", () => {
     expect(decisionReasons(counterparty({}))).toEqual([]);
+  });
+
+  it("includes reflection lessons in decision reasons when present", () => {
+    const reflections: ReflectionRecord[] = [
+      {
+        id: "ref-1",
+        counterpartyKey: "virtuals:agent:beta",
+        runId: "run-10",
+        failureCategory: "MISSING_CITATIONS",
+        rootCause: "Citations missing",
+        lesson: "Always verify citations",
+        schemaErrors: [],
+        remediationGuidance: "Check sources",
+        createdAt: "2026-09-01T00:00:00Z",
+      },
+    ];
+
+    const reasons = decisionReasons(BETA, reflections);
+    expect(reasons.some((r) => r.includes("[Reflection: MISSING_CITATIONS] Always verify citations"))).toBe(true);
+  });
+});
+
+describe("scoreCandidates reflection penalty", () => {
+  it("applies reflection penalty when reflections are attached to candidate", () => {
+    const candidateWithReflection = {
+      ...BETA,
+      reflections: [
+        {
+          id: "ref-1",
+          counterpartyKey: BETA.counterpartyKey,
+          runId: "run-1",
+          failureCategory: "MISSING_CITATIONS" as const,
+          rootCause: "Missing citations",
+          lesson: "Candidate omits sources",
+          schemaErrors: [],
+          remediationGuidance: "Enforce checks",
+          createdAt: "2026-09-01T00:00:00Z",
+        },
+      ],
+    };
+
+    const cleanScored = scoreCandidates([BETA]).ranked[0];
+    const penalizedScored = scoreCandidates([candidateWithReflection]).ranked[0];
+
+    // Penalty of -4 points per reflection
+    expect(penalizedScored?.score).toBe(cleanScored!.score - 4);
+    expect(penalizedScored?.memory_adjustment).toBe(cleanScored!.memory_adjustment - 4);
+  });
+
+  it("scoreCandidatesWithReflections retrieves reflections from Sibyl memory", () => {
+    resetNativeSibylStorage();
+    recordNativeReflection({
+      id: "ref-alpha-db",
+      counterpartyKey: "virtuals:agent:alpha",
+      runId: "run-db-1",
+      failureCategory: "SCHEMA_VIOLATION",
+      rootCause: "Schema error",
+      lesson: "Alpha schema violation",
+      schemaErrors: [],
+      remediationGuidance: "Fix schema",
+      createdAt: "2026-09-01T00:00:00Z",
+    });
+
+    const baselineAlpha = scoreCandidates([ALPHA]).ranked[0];
+    const withRefsResult = scoreCandidatesWithReflections([ALPHA]).ranked[0];
+
+    expect(withRefsResult?.score).toBe(baselineAlpha!.score - 4);
   });
 });
