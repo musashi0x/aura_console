@@ -79,12 +79,16 @@ export const INITIAL_FIXTURE_ENTITIES: NativeEntity[] = [
       task_fit: 0.71,
       confidence: 0.88,
       observed_price_usdc: "9.00",
+      alpha: 1.0,
+      beta: 2.0,
+      consecutive_failures: 1,
+      total_missions: 2,
       episodes: [
         {
           run: "98",
           task_type: "market-research",
           outcome: "rejected",
-          note: "Delivered 41 hours late and the deliverable failed acceptance.",
+          note: "Competitor report missing mandatory source citation URLs across 3 entries. Verifier rejected.",
           occurred_at: "2026-08-14T09:12:00Z",
         },
         {
@@ -113,6 +117,10 @@ export const INITIAL_FIXTURE_ENTITIES: NativeEntity[] = [
       task_fit: 0.83,
       confidence: 0.90,
       observed_price_usdc: "12.00",
+      alpha: 4.0,
+      beta: 1.0,
+      consecutive_failures: 0,
+      total_missions: 2,
       episodes: [
         {
           run: "116",
@@ -125,14 +133,235 @@ export const INITIAL_FIXTURE_ENTITIES: NativeEntity[] = [
           run: "121",
           task_type: "market-research",
           outcome: "accepted",
-          note: "Delivered on time at the quoted price.",
+          note: "Delivered on time at the quoted price with 3 verified citations.",
           occurred_at: "2026-08-29T08:31:00Z",
         },
       ],
-      risk_note: "No acceptance failures on record.",
+      risk_note: "100% verified track record across all sessions.",
     },
     createdAt: "2026-08-01T00:00:00.000Z",
     updatedAt: "2026-08-29T08:31:00.000Z",
+  },
+  {
+    id: "entity_gamma_fixture",
+    category: "counterparty",
+    name: "base:agent:gamma",
+    status: "active",
+    body: {
+      source: "fixture",
+      display_name: "Gamma Security",
+      relationship_status: "PREFERRED",
+      overall_reliability: 0.98,
+      task_fit: 0.95,
+      confidence: 0.96,
+      observed_price_usdc: "25.00",
+      alpha: 12.0,
+      beta: 1.0,
+      consecutive_failures: 0,
+      total_missions: 12,
+      episodes: [
+        {
+          run: "142",
+          task_type: "smart-contract-audit",
+          outcome: "accepted",
+          note: "Audited 4 Solidity escrow contracts; zero vulnerabilities missed; verified with 100% test coverage.",
+          occurred_at: "2026-08-25T14:20:00Z",
+        },
+        {
+          run: "150",
+          task_type: "security-review",
+          outcome: "accepted",
+          note: "Delivered comprehensive penetration testing report on Base Sepolia contracts on time.",
+          occurred_at: "2026-09-02T16:45:00Z",
+        },
+      ],
+      risk_note: "Flawless security auditing record. Top-tier reliability.",
+    },
+    createdAt: "2026-08-05T00:00:00.000Z",
+    updatedAt: "2026-09-02T16:45:00.000Z",
+  },
+  {
+    id: "entity_delta_fixture",
+    category: "counterparty",
+    name: "base:agent:delta",
+    status: "active",
+    body: {
+      source: "fixture",
+      display_name: "Delta Scraping",
+      relationship_status: "WATCH",
+      overall_reliability: 0.58,
+      task_fit: 0.65,
+      confidence: 0.75,
+      observed_price_usdc: "5.00",
+      alpha: 3.0,
+      beta: 2.0,
+      consecutive_failures: 1,
+      total_missions: 5,
+      episodes: [
+        {
+          run: "133",
+          task_type: "web-scraping",
+          outcome: "rejected",
+          note: "Encountered Cloudflare HTTP 429 rate limits; deliverable JSON missing 60% of required dataset rows.",
+          occurred_at: "2026-08-20T10:15:00Z",
+        },
+        {
+          run: "139",
+          task_type: "web-scraping",
+          outcome: "accepted",
+          note: "Crawled public news feeds with complete markdown outputs.",
+          occurred_at: "2026-08-27T12:00:00Z",
+        },
+      ],
+      risk_note: "Susceptible to rate-limiting failures on large crawl batches.",
+    },
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-27T12:00:00.000Z",
+  },
+  {
+    id: "entity_epsilon_fixture",
+    category: "counterparty",
+    name: "virtuals:agent:epsilon",
+    status: "active",
+    body: {
+      source: "fixture",
+      display_name: "Epsilon Quant",
+      relationship_status: "PREFERRED",
+      overall_reliability: 0.96,
+      task_fit: 0.92,
+      confidence: 0.94,
+      observed_price_usdc: "45.00",
+      alpha: 8.0,
+      beta: 1.0,
+      consecutive_failures: 0,
+      total_missions: 8,
+      episodes: [
+        {
+          run: "128",
+          task_type: "financial-modeling",
+          outcome: "accepted",
+          note: "Delivered Monte Carlo simulations for liquidity pools with verified mathematical rigor.",
+          occurred_at: "2026-08-18T09:30:00Z",
+        },
+        {
+          run: "145",
+          task_type: "risk-analytics",
+          outcome: "accepted",
+          note: "Real-time risk scoring delivered within SLA with complete source citations.",
+          occurred_at: "2026-08-31T15:10:00Z",
+        },
+      ],
+      risk_note: "Premium quantitative intelligence agent with zero recorded defects.",
+    },
+    createdAt: "2026-08-08T00:00:00.000Z",
+    updatedAt: "2026-08-31T15:10:00.000Z",
+  },
+  {
+    id: "entity_zeta_fixture",
+    category: "counterparty",
+    name: "base:agent:zeta",
+    status: "active",
+    body: {
+      source: "fixture",
+      display_name: "Zeta Rogue",
+      relationship_status: "BLOCKED",
+      overall_reliability: 0.15,
+      task_fit: 0.20,
+      confidence: 0.95,
+      observed_price_usdc: "2.50",
+      alpha: 1.0,
+      beta: 6.0,
+      consecutive_failures: 3,
+      total_missions: 4,
+      blocked_reason: "Consecutive deliverable defects and malformed payload",
+      episodes: [
+        {
+          run: "110",
+          task_type: "data-entry",
+          outcome: "rejected",
+          note: "Delivered corrupted zip archive containing malformed files. Verifier rejected.",
+          occurred_at: "2026-08-10T14:00:00Z",
+        },
+        {
+          run: "114",
+          task_type: "data-entry",
+          outcome: "rejected",
+          note: "Submitted empty JSON payload after 48h timeout.",
+          occurred_at: "2026-08-15T18:30:00Z",
+        },
+        {
+          run: "119",
+          task_type: "data-entry",
+          outcome: "rejected",
+          note: "Attempted prompt injection in deliverable notes field. Hard blocked by operator guardrails.",
+          occurred_at: "2026-08-21T11:20:00Z",
+        },
+      ],
+      risk_note: "CRITICAL RISK: Multiple consecutive verification failures and malicious payload attempts. Operator blocked.",
+    },
+    createdAt: "2026-08-02T00:00:00.000Z",
+    updatedAt: "2026-08-21T11:20:00.000Z",
+  },
+  {
+    id: "entity_eta_fixture",
+    category: "counterparty",
+    name: "erc8004:agent:eta",
+    status: "active",
+    body: {
+      source: "fixture",
+      display_name: "Eta Translation",
+      relationship_status: "NEW",
+      overall_reliability: 0.50,
+      task_fit: 0.50,
+      confidence: 0.00,
+      observed_price_usdc: "8.00",
+      alpha: 1.0,
+      beta: 1.0,
+      consecutive_failures: 0,
+      total_missions: 0,
+      episodes: [],
+      risk_note: "Unobserved baseline counterparty. Zero recorded interactions.",
+    },
+    createdAt: "2026-08-25T00:00:00.000Z",
+    updatedAt: "2026-08-25T00:00:00.000Z",
+  },
+  {
+    id: "entity_theta_fixture",
+    category: "counterparty",
+    name: "base:agent:theta",
+    status: "active",
+    body: {
+      source: "fixture",
+      display_name: "Theta Oracle",
+      relationship_status: "PREFERRED",
+      overall_reliability: 0.94,
+      task_fit: 0.88,
+      confidence: 0.89,
+      observed_price_usdc: "15.00",
+      alpha: 6.0,
+      beta: 1.0,
+      consecutive_failures: 0,
+      total_missions: 6,
+      episodes: [
+        {
+          run: "130",
+          task_type: "data-validation",
+          outcome: "accepted",
+          note: "Verified on-chain state against Merkle roots with 100% cryptographic precision.",
+          occurred_at: "2026-08-21T08:00:00Z",
+        },
+        {
+          run: "148",
+          task_type: "oracle-attestation",
+          outcome: "accepted",
+          note: "Delivered signed price feed attestations within 200ms latency ceiling.",
+          occurred_at: "2026-09-01T13:40:00Z",
+        },
+      ],
+      risk_note: "Consistently meets sub-second latency and verification criteria.",
+    },
+    createdAt: "2026-08-15T00:00:00.000Z",
+    updatedAt: "2026-09-01T13:40:00.000Z",
   },
 ];
 
@@ -176,11 +405,65 @@ export function closeNativeSibylDatabase(): void {
   }
 }
 
-function seedFixtures(db: DatabaseSync): void {
-  const insert = db.prepare(`
-    INSERT OR REPLACE INTO entities (key, id, category, name, status, body, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `);
+const INITIAL_FIXTURE_REFLECTIONS = [
+  {
+    id: "ref_alpha_01",
+    category: "reflection",
+    name: "virtuals:agent:alpha",
+    status: "active",
+    body: {
+      id: "ref_alpha_01",
+      counterpartyKey: "virtuals:agent:alpha",
+      runId: "run_98",
+      failureCategory: "MISSING_CITATIONS",
+      rootCause: "Competitor research report deliverable missing mandatory source citation URLs across 3 entries",
+      lesson: "Require pre-settlement citation validation; Alpha has recurring difficulty with source provenance",
+      createdAt: "2026-08-14T09:12:00.000Z",
+    },
+    createdAt: "2026-08-14T09:12:00.000Z",
+    updatedAt: "2026-08-14T09:12:00.000Z",
+  },
+  {
+    id: "ref_delta_01",
+    category: "reflection",
+    name: "base:agent:delta",
+    status: "active",
+    body: {
+      id: "ref_delta_01",
+      counterpartyKey: "base:agent:delta",
+      runId: "run_133",
+      failureCategory: "TIMEOUT",
+      rootCause: "Cloudflare anti-bot HTTP 429 rate limit exceeded; missing 60% of target dataset rows",
+      lesson: "Avoid high-frequency scraping without residential proxy rotation",
+      createdAt: "2026-08-20T10:15:00.000Z",
+    },
+    createdAt: "2026-08-20T10:15:00.000Z",
+    updatedAt: "2026-08-20T10:15:00.000Z",
+  },
+  {
+    id: "ref_zeta_01",
+    category: "reflection",
+    name: "base:agent:zeta",
+    status: "active",
+    body: {
+      id: "ref_zeta_01",
+      counterpartyKey: "base:agent:zeta",
+      runId: "run_119",
+      failureCategory: "SCHEMA_VIOLATION",
+      rootCause: "Submitted empty archive and attempted prompt injection in metadata fields",
+      lesson: "Permanent BLOCKED status; refuse all unescrowed transactions",
+      createdAt: "2026-08-21T11:20:00.000Z",
+    },
+    createdAt: "2026-08-21T11:20:00.000Z",
+    updatedAt: "2026-08-21T11:20:00.000Z",
+  },
+];
+
+function seedFixtures(db: DatabaseSync, overwrite = true): void {
+  const sql = overwrite
+    ? `INSERT OR REPLACE INTO entities (key, id, category, name, status, body, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    : `INSERT OR IGNORE INTO entities (key, id, category, name, status, body, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+  const insert = db.prepare(sql);
   for (const entity of INITIAL_FIXTURE_ENTITIES) {
     insert.run(
       `${entity.category}:${entity.name}`,
@@ -191,6 +474,18 @@ function seedFixtures(db: DatabaseSync): void {
       JSON.stringify(entity.body),
       entity.createdAt,
       entity.updatedAt,
+    );
+  }
+  for (const ref of INITIAL_FIXTURE_REFLECTIONS) {
+    insert.run(
+      `${ref.category}:${ref.name}:${ref.id}`,
+      ref.id,
+      ref.category,
+      ref.name,
+      ref.status,
+      JSON.stringify(ref.body),
+      ref.createdAt,
+      ref.updatedAt,
     );
   }
 }
@@ -297,17 +592,17 @@ function getDb(forWrite = false): DatabaseSync | null {
         CREATE INDEX IF NOT EXISTS idx_entities_category_created ON entities(category, created_at);
       `);
 
-      const countRow = db.prepare("SELECT count(*) as count FROM entities").get() as
-        | { count: number | bigint }
-        | undefined;
+      const countRow = db
+        .prepare("SELECT count(*) as count FROM entities WHERE category = 'counterparty'")
+        .get() as { count: number | bigint } | undefined;
       const count = Number(countRow?.count ?? 0);
       if (
-        count === 0 &&
+        count < INITIAL_FIXTURE_ENTITIES.length &&
         process.env.SIBYL_SEED_FIXTURES !== "false" &&
         process.env.AURA_NATIVE_AUTO_SEED !== "false" &&
         !forWrite
       ) {
-        seedFixtures(db);
+        seedFixtures(db, false);
       }
 
       currentDb = db;

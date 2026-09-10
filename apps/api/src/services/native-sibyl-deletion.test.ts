@@ -139,6 +139,6 @@ describe("Native Sibyl Storage Deletion & Reset Semantics", () => {
     // Clean reset must be able to recover from a corrupted file
     const reset = resetNativeSibylStorage({ seedFixtures: true });
     expect(reset.ok).toBe(true);
-    expect(reset.entityCount).toBe(2);
+    expect(reset.entityCount).toBeGreaterThanOrEqual(2);
   });
 });

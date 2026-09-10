@@ -632,6 +632,8 @@ export async function runSessionA(dbPath: string): Promise<number> {
   process.env.SIBYL_NATIVE_DB_PATH = dbPath;
   process.env.SIBYL_STORAGE_PATH = dbPath;
   process.env.AURA_NATIVE_STORAGE_PATH = dbPath;
+  process.env.AURA_NATIVE_AUTO_SEED = "false";
+  process.env.SIBYL_SEED_FIXTURES = "false";
 
   const colors = getColors();
   console.log(`\n========================================================================`);
@@ -767,6 +769,8 @@ export async function runSessionB(dbPath: string, args: ColdStartCliArgs): Promi
   process.env.SIBYL_NATIVE_DB_PATH = dbPath;
   process.env.SIBYL_STORAGE_PATH = dbPath;
   process.env.AURA_NATIVE_STORAGE_PATH = dbPath;
+  process.env.AURA_NATIVE_AUTO_SEED = "false";
+  process.env.SIBYL_SEED_FIXTURES = "false";
 
   const colors = getColors();
   console.log(`\n========================================================================`);
