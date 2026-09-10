@@ -212,34 +212,56 @@ export function Hero(): ReactNode {
             <span className="text-accent">✦</span>
           </motion.div>
 
-          <h1 className="text-foreground mb-6 text-7xl leading-[1.1] font-medium tracking-tight max-[850px]:text-4xl">
+          <h1
+            className="text-foreground mb-6 text-7xl leading-[1.1] font-medium tracking-tight max-[850px]:text-4xl"
+            aria-label="Autonomous agents that choose providers using what happened last time."
+          >
+            <span className="text-xs font-mono uppercase tracking-widest text-accent block mb-2 font-normal">
+              Autonomous Agents That
+            </span>
             <motion.span
               className="block"
               variants={fadeInUp}
               transition={{ duration: 0.8, ease }}
             >
-              Autonomous Agents That
+              Choose providers using
             </motion.span>
             <motion.span
               className="block"
               variants={fadeInUp}
               transition={{ duration: 0.8, ease }}
             >
-              Never{" "}
-              <span className="text-accent font-serif italic">Forget</span>
+              what happened{" "}
+              <span className="text-accent font-serif italic">last time.</span>
             </motion.span>
           </h1>
 
           <motion.p
-            className="text-muted-foreground mb-8 max-w-2xl font-sans text-lg leading-relaxed max-[850px]:text-base"
+            className="text-muted-foreground mb-6 max-w-2xl font-sans text-lg leading-relaxed max-[850px]:text-base"
             variants={fadeInUp}
             transition={{ duration: 0.8, ease }}
           >
-            The autonomous agent command console and persistent relationship
-            memory layer. Equip AI buyer fleets with Bayesian counterparty
-            reputation, fail-closed economic guardrails, and on-chain
-            cryptographic proof.
+            Aura uses delivery history stored in Sibyl Memory to help your agent decide who to hire in a new session.
           </motion.p>
+
+          <motion.div
+            className="mb-8 flex flex-wrap items-center justify-center gap-3 text-xs sm:text-sm font-medium"
+            variants={fadeInUp}
+            transition={{ duration: 0.8, ease }}
+          >
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1 text-emerald-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              Remember the result.
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3.5 py-1 text-accent">
+              <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+              See why the choice changed.
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-500/30 bg-blue-500/10 px-3.5 py-1 text-blue-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+              Keep the evidence.
+            </span>
+          </motion.div>
 
           <motion.div
             className="flex w-full max-w-md flex-wrap items-center justify-center gap-3"
@@ -440,7 +462,7 @@ export function Hero(): ReactNode {
               <span className="truncate font-mono text-blue-400">
                 {scenario === "deletion"
                   ? "Zero Spend Intent"
-                  : "0x8f2a...c4e1 (Notarized)"}
+                  : "0x8f2a...c4e1 (Simulated Proof)"}
               </span>
             </div>
           </div>
@@ -485,7 +507,7 @@ export function Hero(): ReactNode {
                     episode to Sibyl COLD journal (`recordEpisodeToSibyl`).
                     Alpha reliability updated to{" "}
                     <span className="font-bold text-red-300">0.33</span> (α=1,
-                    β=2). Keccak256 salt committed to Base Sepolia.
+                    β=2). Keccak256 salt committed (simulated notarization).
                   </div>
                 </div>
 
@@ -582,7 +604,7 @@ export function Hero(): ReactNode {
                       Causal Delta
                     </span>
                     <span className="block font-mono text-sm font-bold text-emerald-400">
-                      -0.35 USDC Saved
+                      Choice Flipped (Beta Chosen)
                     </span>
                   </div>
                 </div>
@@ -595,8 +617,7 @@ export function Hero(): ReactNode {
                     </span>
                   </div>
                   <div className="mt-1 text-neutral-200">
-                    → With Aura Sibyl Memory: Beta chosen. Mission succeeded in
-                    1.4s. Treasury protected.
+                    → With Aura Sibyl Memory: Beta chosen. Mission succeeded. Deliverable verified authentic.
                   </div>
                 </div>
 

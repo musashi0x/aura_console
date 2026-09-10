@@ -13,6 +13,7 @@ import {
   formatForSibyl,
   manualArchive,
   manualUnblock,
+  rehydrateFromSibyl,
   updateReputation,
   type CandidateReputation,
 } from "./reputation-fsm.js";
@@ -909,7 +910,61 @@ describe("reputation-fsm", () => {
         riskNote: null,
         episodes,
         updatedAt: "2026-09-07T12:35:00.000Z",
+        alpha: 9,
+        beta: 1,
+        consecutiveFailures: 0,
+        totalMissions: 8,
+        blockedReason: null,
       });
+    });
+
+    it("rehydrates candidate reputation from SibylCounterparty with full Bayesian state", () => {
+      const source = {
+        counterpartyKey: "virtuals:agent:charlie",
+        relationshipStatus: "WATCH",
+        alpha: 2.0,
+        beta: 4.0,
+        consecutiveFailures: 1,
+        totalMissions: 5,
+        overallReliability: 0.3333,
+        confidence: 0.5,
+        blockedReason: "1 failure in watch",
+        updatedAt: "2026-09-08T10:00:00.000Z",
+      };
+
+      const rehydrated = rehydrateFromSibyl("virtuals:agent:charlie", source);
+      expect(rehydrated.candidateId).toBe("virtuals:agent:charlie");
+      expect(rehydrated.alpha).toBe(2.0);
+      expect(rehydrated.beta).toBe(4.0);
+      expect(rehydrated.consecutiveFailures).toBe(1);
+      expect(rehydrated.totalMissions).toBe(5);
+      expect(rehydrated.status).toBe("WATCH");
+      expect(rehydrated.overallReliability).toBe(0.3333);
+      expect(rehydrated.confidence).toBe(0.5);
+      expect(rehydrated.blockedReason).toBe("1 failure in watch");
+      expect(rehydrated.lastUpdatedAt).toBe("2026-09-08T10:00:00.000Z");
+    });
+
+    it("rehydrates unobserved or empty source using safe default priors", () => {
+      const rehydrated = rehydrateFromSibyl("virtuals:agent:ghost", null);
+      expect(rehydrated.candidateId).toBe("virtuals:agent:ghost");
+      expect(rehydrated.alpha).toBe(1.0);
+      expect(rehydrated.beta).toBe(1.0);
+      expect(rehydrated.overallReliability).toBe(0.5);
+      expect(rehydrated.confidence).toBe(0.0);
+      expect(rehydrated.status).toBe("NEW");
+      expect(rehydrated.consecutiveFailures).toBe(0);
+      expect(rehydrated.totalMissions).toBe(0);
+      expect(rehydrated.blockedReason).toBeUndefined();
+    });
+
+    it("formatForSibyl respects includeBayesianState: false option", () => {
+      const candidate = createInitialReputation("agent-minimal");
+      const minimal = formatForSibyl(candidate, { includeBayesianState: false });
+      expect(minimal.alpha).toBeUndefined();
+      expect(minimal.beta).toBeUndefined();
+      expect(minimal.consecutiveFailures).toBeUndefined();
+      expect(minimal.totalMissions).toBeUndefined();
     });
   });
 });

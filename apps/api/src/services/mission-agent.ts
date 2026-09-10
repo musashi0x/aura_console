@@ -91,11 +91,11 @@ export class MissionAgent {
       verdict_code: "ok",
       count: items.length,
       retrieval_status: "AVAILABLE",
-      summary: `Recalled ${items.length} counterparties from Sibyl relationship memory`,
+      summary: `Checking previous deliveries for ${items.length} counterparties from Sibyl memory`,
     });
 
     await this.append(runId, "candidate.scored", {
-      summary: `Ranked ${ranked.length} ${ranked.length === 1 ? "counterparty" : "counterparties"} on price and relationship memory`,
+      summary: `Ranked ${ranked.length} ${ranked.length === 1 ? "counterparty" : "counterparties"} on price and delivery history`,
       candidates: ranked,
       /* Only when there were any. An empty array on every Mission would read as
          a considered-and-cleared check on Missions where nothing was excluded. */

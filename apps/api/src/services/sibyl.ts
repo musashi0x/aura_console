@@ -599,7 +599,9 @@ function hasProfileBody(body: Record<string, unknown>): boolean {
     str(body, "relationship_status") !== null ||
     num(body, "overall_reliability") !== null ||
     num(body, "task_fit") !== null ||
-    num(body, "confidence") !== null
+    num(body, "confidence") !== null ||
+    num(body, "alpha") !== null ||
+    num(body, "beta") !== null
   );
 }
 
@@ -677,9 +679,18 @@ export async function retrieveFromSibyl(counterpartyKey: string): Promise<SibylR
     isFixture: str(body, "source") === "fixture",
     alpha: num(body, "alpha") ?? undefined,
     beta: num(body, "beta") ?? undefined,
-    consecutiveFailures: num(body, "consecutive_failures") ?? undefined,
-    totalMissions: num(body, "total_missions") ?? undefined,
-    blockedReason: str(body, "blocked_reason") ?? undefined,
+    consecutiveFailures:
+      num(body, "consecutive_failures") ??
+      num(body, "consecutiveFailures") ??
+      undefined,
+    totalMissions:
+      num(body, "total_missions") ??
+      num(body, "totalMissions") ??
+      undefined,
+    blockedReason:
+      str(body, "blocked_reason") ??
+      str(body, "blockedReason") ??
+      undefined,
     backend: "python_bridge",
     fallback_active: false,
   };
@@ -724,7 +735,7 @@ export interface SibylCounterparty {
   beta?: number;
   consecutiveFailures?: number;
   totalMissions?: number;
-  blockedReason?: string;
+  blockedReason?: string | null;
 }
 
 export type SibylCounterparties =
@@ -808,9 +819,18 @@ export async function listCounterpartiesFromSibyl(): Promise<SibylCounterparties
       updatedAt: typeof entity.updated_at === "string" ? entity.updated_at : null,
       alpha: num(body, "alpha") ?? undefined,
       beta: num(body, "beta") ?? undefined,
-      consecutiveFailures: num(body, "consecutive_failures") ?? undefined,
-      totalMissions: num(body, "total_missions") ?? undefined,
-      blockedReason: str(body, "blocked_reason") ?? undefined,
+      consecutiveFailures:
+        num(body, "consecutive_failures") ??
+        num(body, "consecutiveFailures") ??
+        undefined,
+      totalMissions:
+        num(body, "total_missions") ??
+        num(body, "totalMissions") ??
+        undefined,
+      blockedReason:
+        str(body, "blocked_reason") ??
+        str(body, "blockedReason") ??
+        undefined,
     };
   });
   return {
@@ -897,19 +917,27 @@ export async function recordEpisodeToSibyl(
   };
 }
 
+export interface SibylCounterpartyUpdate {
+  relationshipStatus?: string;
+  relationship_status?: string;
+  overallReliability?: number;
+  overall_reliability?: number;
+  confidence?: number;
+  riskNote?: string;
+  risk_note?: string;
+  alpha?: number;
+  beta?: number;
+  consecutiveFailures?: number;
+  consecutive_failures?: number;
+  totalMissions?: number;
+  total_missions?: number;
+  blockedReason?: string | null;
+  blocked_reason?: string | null;
+}
+
 export async function updateCounterpartyInSibyl(
   counterpartyKey: string,
-  update: {
-    relationshipStatus?: string;
-    overallReliability?: number;
-    confidence?: number;
-    riskNote?: string;
-    alpha?: number;
-    beta?: number;
-    consecutiveFailures?: number;
-    totalMissions?: number;
-    blockedReason?: string;
-  },
+  update: SibylCounterpartyUpdate,
 ): Promise<{
   ok: boolean;
   code?: string;
@@ -919,15 +947,21 @@ export async function updateCounterpartyInSibyl(
   bridgeFailure?: { code: string; detail: string };
 }> {
   const payload: Record<string, unknown> = {};
-  if (update.relationshipStatus !== undefined) payload.relationship_status = update.relationshipStatus;
-  if (update.overallReliability !== undefined) payload.overall_reliability = update.overallReliability;
+  const status = update.relationshipStatus ?? update.relationship_status;
+  if (status !== undefined) payload.relationship_status = status;
+  const reliability = update.overallReliability ?? update.overall_reliability;
+  if (reliability !== undefined) payload.overall_reliability = reliability;
   if (update.confidence !== undefined) payload.confidence = update.confidence;
-  if (update.riskNote !== undefined) payload.risk_note = update.riskNote;
+  const riskNote = update.riskNote ?? update.risk_note;
+  if (riskNote !== undefined) payload.risk_note = riskNote;
   if (update.alpha !== undefined) payload.alpha = update.alpha;
   if (update.beta !== undefined) payload.beta = update.beta;
-  if (update.consecutiveFailures !== undefined) payload.consecutive_failures = update.consecutiveFailures;
-  if (update.totalMissions !== undefined) payload.total_missions = update.totalMissions;
-  if (update.blockedReason !== undefined) payload.blocked_reason = update.blockedReason;
+  const failures = update.consecutiveFailures ?? update.consecutive_failures;
+  if (failures !== undefined) payload.consecutive_failures = failures;
+  const missions = update.totalMissions ?? update.total_missions;
+  if (missions !== undefined) payload.total_missions = missions;
+  const blocked = update.blockedReason ?? update.blocked_reason;
+  if (blocked !== undefined) payload.blocked_reason = blocked;
 
   const outcome = await runBridge([
     "update_counterparty",

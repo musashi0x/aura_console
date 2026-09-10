@@ -63,13 +63,19 @@ function getNarrative(type: string, d?: Record<string, unknown> | null): string 
     return `Escrow funded with ${d?.amount_usdc ?? "USDC"} committed to counterparty.`;
   }
   if (type === "base.transaction.confirmed" || type === "commitment.settled") {
-    return "Transaction settled and confirmed on Base Sepolia.";
+    return d?.simulated
+      ? "Payment approved (simulated settlement; no live funds moved)."
+      : "Transaction settled and confirmed on Base Sepolia.";
   }
   if (type === "memory.commitment.confirmed") {
-    return "Salted memory commitment published and confirmed on Base Sepolia.";
+    return d?.simulated
+      ? "Delivery result and memory diff recorded (simulated notarization)."
+      : "Salted memory commitment published and confirmed on Base Sepolia.";
   }
   if (type === "memory.commitment.submitted") {
-    return "Salted memory commitment submitted to Base Sepolia.";
+    return d?.simulated
+      ? "Delivery result and memory diff submitted (simulation)."
+      : "Salted memory commitment submitted to Base Sepolia.";
   }
   if (type === "outcome.recorded" || type === "evaluation.completed") {
     return d?.failure_reason
@@ -259,14 +265,22 @@ function Shell({
       {txHash ? (
         <div className="mw__card-metrics mw__row-metrics">
           <div className="mw__card-metric-chip mw__row-metric-chip">
-            <span className="mw__card-metric-label mw__row-metric-label">On-Chain Tx</span>
-            <Link
-              href={`https://sepolia.basescan.org/tx/${txHash}`}
-              target="_blank"
-              className="mw__card-metric-value mw__tx-link"
-            >
-              {txHash.slice(0, 8)}...{txHash.slice(-6)}
-            </Link>
+            <span className="mw__card-metric-label mw__row-metric-label">
+              {d?.simulated ? "Tx (Simulated)" : "On-Chain Tx"}
+            </span>
+            {d?.simulated ? (
+              <span className="mw__card-metric-value text-neutral-400 font-mono">
+                {txHash.slice(0, 8)}...{txHash.slice(-6)} (Simulated)
+              </span>
+            ) : (
+              <Link
+                href={`https://sepolia.basescan.org/tx/${txHash}`}
+                target="_blank"
+                className="mw__card-metric-value mw__tx-link"
+              >
+                {txHash.slice(0, 8)}...{txHash.slice(-6)}
+              </Link>
+            )}
           </div>
         </div>
       ) : null}
@@ -283,7 +297,7 @@ function Shell({
             icon={showPayload ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
             label={showPayload ? "Hide Payload" : "View Payload"}
           />
-          {txHash ? (
+          {txHash && !d?.simulated ? (
             <Link
               href={`https://sepolia.basescan.org/tx/${txHash}`}
               target="_blank"
@@ -292,6 +306,10 @@ function Shell({
               <ExternalLink size={12} />
               <span>Base Sepolia Explorer</span>
             </Link>
+          ) : txHash && d?.simulated ? (
+            <span className="mw__card-action-btn mw__row-action-btn text-neutral-500 font-mono text-[11px]">
+              <span>Simulated Settlement (No live Base Tx)</span>
+            </span>
           ) : null}
         </HStack>
       ) : null}
@@ -460,17 +478,18 @@ export function EventCard({
     case "memory.commitment.confirmed":
     case "memory.commitment.submitted": {
       const txHash = text(d, "tx_hash") ?? text(d, "reference");
+      const isSimulated = d?.simulated === true;
       const explorerUrl =
         text(d, "explorer_url") ??
-        (txHash && txHash.startsWith("0x")
+        (!isSimulated && txHash && txHash.startsWith("0x")
           ? `https://sepolia.basescan.org/tx/${txHash}`
           : null);
       return (
-        <Shell title={copy.transaction.title} tone="cyan" entry={entry}>
+        <Shell title={isSimulated ? "Payment Approved (Simulated)" : copy.transaction.title} tone="cyan" entry={entry}>
           <Text as="p" size="sm">
             {entry.summary}
           </Text>
-          <Row label={copy.transaction.network} value={text(d, "network")} />
+          <Row label={copy.transaction.network} value={isSimulated ? `${text(d, "network")} (Simulated)` : text(d, "network")} />
           <Row label={copy.transaction.amount} value={amount(d, "amount_usdc")} />
           <Row label="Counterparty" value={text(d, "counterparty_key")} />
           {number(d, "memory_version") !== null ? (
@@ -478,7 +497,7 @@ export function EventCard({
           ) : null}
           <Row label="Commitment" value={text(d, "commitment")} />
           {/* A hash is only shown beside what it settled, never alone. */}
-          <Row label={copy.transaction.reference} value={txHash} />
+          <Row label={isSimulated ? "Reference (Simulated)" : copy.transaction.reference} value={txHash} />
           {explorerUrl ? (
             <HStack gap={2} align="center">
               <Text as="span" size="xsm" color="secondary">

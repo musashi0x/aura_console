@@ -34,6 +34,15 @@ export interface AgentArchetype {
 
 export const AGENT_ARCHETYPES: AgentArchetype[] = [
   {
+    id: "competitor-report",
+    name: "Competitor Intelligence Report",
+    badge: "Market Research",
+    icon: Sparkles,
+    intent: "Find a provider for a competitor report. Budget: 15 USDC.",
+    suggestedBudget: "15.00",
+    rationale: "Requires 3 competitors with authentic website URLs and valid citation sources.",
+  },
+  {
     id: "arbitrage",
     name: "Alpha DEX Arbitrageur",
     badge: "Base Sepolia DEX",

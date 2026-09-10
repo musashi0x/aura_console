@@ -9,6 +9,7 @@ import {
 import {
   type CandidateReputation,
   createInitialReputation,
+  rehydrateFromSibyl,
   updateReputation,
 } from "./reputation-fsm.js";
 import { commitMemoryToBaseSepolia } from "./memory-commitment.js";
@@ -85,17 +86,30 @@ export class MissionExecutionService {
       const evalData = (evalEvent?.data ?? {}) as Record<string, unknown>;
       const grantData = (grantEvent.data ?? {}) as Record<string, unknown>;
 
+      const cpKey = String(grantData.counterparty_key ?? "unknown");
+      let rep = createInitialReputation(cpKey);
+      if (cpKey !== "unknown") {
+        try {
+          const sibylRetrieval = await retrieveFromSibyl(cpKey);
+          if (sibylRetrieval.status === "AVAILABLE") {
+            rep = rehydrateFromSibyl(cpKey, sibylRetrieval);
+          }
+        } catch {
+          // fallback to initial
+        }
+      }
+
       return {
         runId,
         status: outcomeData.result === "ACCEPTED" ? "COMPLETED" : "REJECTED",
-        counterpartyKey: String(grantData.counterparty_key ?? "unknown"),
+        counterpartyKey: cpKey,
         amountUsdc: String(grantData.ceiling_usdc ?? "0"),
         evaluation: {
           score: Number(evalData.score ?? 0),
           tests_passed: evalData.result === "ACCEPTED",
           summary: String(evalData.summary ?? ""),
         },
-        reputation: createInitialReputation(String(grantData.counterparty_key ?? "unknown")),
+        reputation: rep,
         sibylRecorded: true,
       };
     }
@@ -241,14 +255,15 @@ export class MissionExecutionService {
       missionLogs.append(
         runId,
         "system",
-        `Payment settled on-chain: ${txHash} (${amountUsdc} USDC on ${options.network ?? "base-sepolia"})`,
+        `Payment approved (simulated settlement): ${txHash} (${amountUsdc} USDC simulated on ${options.network ?? "base-sepolia"})`,
       );
       await this.append(runId, SETTLED, {
-        summary: "Payment settled on-chain",
+        summary: "Payment approved (simulated settlement)",
         network: options.network ?? "base-sepolia",
         amount_usdc: amountUsdc,
         tx_hash: txHash,
         reference: txHash,
+        simulated: true,
       });
     } else {
       missionLogs.append(
@@ -262,7 +277,7 @@ export class MissionExecutionService {
     missionLogs.append(
       runId,
       "system",
-      `Mission outcome recorded to relationship memory: ${isPassed ? "ACCEPTED" : "REJECTED"}.`,
+      `Mission outcome recorded to relationship memory: ${isPassed ? "ACCEPTED" : "REJECTED"}. Delivery result saved for next time.`,
     );
     await this.append(runId, OUTCOME, {
       summary: isPassed
@@ -284,13 +299,7 @@ export class MissionExecutionService {
     if (counterpartyKey && counterpartyKey !== "unknown") {
       const sibylRetrieval = await retrieveFromSibyl(counterpartyKey);
       if (sibylRetrieval.status === "AVAILABLE") {
-        candidateRep.status = (sibylRetrieval.relationshipStatus as CandidateReputation["status"]) ?? "KNOWN";
-        if (sibylRetrieval.overallReliability !== null) {
-          candidateRep.overallReliability = sibylRetrieval.overallReliability;
-        }
-        if (sibylRetrieval.confidence !== null) {
-          candidateRep.confidence = sibylRetrieval.confidence;
-        }
+        candidateRep = rehydrateFromSibyl(counterpartyKey, sibylRetrieval);
       }
 
       // Apply Bayesian update
@@ -298,12 +307,15 @@ export class MissionExecutionService {
 
       // 8. Write back to Sibyl
       try {
-        const committedConfidence = Math.max(candidateRep.confidence, 0.85);
-
         await updateCounterpartyInSibyl(counterpartyKey, {
           relationshipStatus: candidateRep.status,
           overallReliability: candidateRep.overallReliability,
-          confidence: committedConfidence,
+          confidence: candidateRep.confidence,
+          alpha: candidateRep.alpha,
+          beta: candidateRep.beta,
+          consecutiveFailures: candidateRep.consecutiveFailures,
+          totalMissions: candidateRep.totalMissions,
+          blockedReason: candidateRep.blockedReason,
           riskNote:
             candidateRep.status === "WATCH"
               ? "One acceptance failure inside the last 30 days applies a risk penalty."
@@ -329,7 +341,7 @@ export class MissionExecutionService {
             profile: {
               relationshipStatus: candidateRep.status,
               overallReliability: candidateRep.overallReliability,
-              confidence: committedConfidence,
+              confidence: candidateRep.confidence,
               memoryVersion: candidateRep.totalMissions,
             },
             runId,
@@ -491,13 +503,7 @@ export class MissionExecutionService {
     if (counterpartyKey && counterpartyKey !== "unknown") {
       const sibylRetrieval = await retrieveFromSibyl(counterpartyKey);
       if (sibylRetrieval.status === "AVAILABLE") {
-        candidateRep.status = (sibylRetrieval.relationshipStatus as CandidateReputation["status"]) ?? "KNOWN";
-        if (sibylRetrieval.overallReliability !== null) {
-          candidateRep.overallReliability = sibylRetrieval.overallReliability;
-        }
-        if (sibylRetrieval.confidence !== null) {
-          candidateRep.confidence = sibylRetrieval.confidence;
-        }
+        candidateRep = rehydrateFromSibyl(counterpartyKey, sibylRetrieval);
       }
 
       // Apply Bayesian update
@@ -505,12 +511,15 @@ export class MissionExecutionService {
 
       // 3. Updates profile in Sibyl (updateCounterpartyInSibyl)
       try {
-        const committedConfidence = Math.max(candidateRep.confidence, 0.85);
-
         await updateCounterpartyInSibyl(counterpartyKey, {
           relationshipStatus: candidateRep.status,
           overallReliability: candidateRep.overallReliability,
-          confidence: committedConfidence,
+          confidence: candidateRep.confidence,
+          alpha: candidateRep.alpha,
+          beta: candidateRep.beta,
+          consecutiveFailures: candidateRep.consecutiveFailures,
+          totalMissions: candidateRep.totalMissions,
+          blockedReason: candidateRep.blockedReason,
           riskNote:
             candidateRep.status === "WATCH"
               ? "One acceptance failure inside the last 30 days applies a risk penalty."
@@ -537,7 +546,7 @@ export class MissionExecutionService {
             profile: {
               relationshipStatus: candidateRep.status,
               overallReliability: candidateRep.overallReliability,
-              confidence: committedConfidence,
+              confidence: candidateRep.confidence,
               memoryVersion: candidateRep.totalMissions,
             },
             runId,

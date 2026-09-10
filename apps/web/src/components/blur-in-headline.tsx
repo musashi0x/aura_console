@@ -4,7 +4,7 @@ import { useRef, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
 const headline =
-  "Autonomous agents spending treasury capital without persistent reputation are destined to repeat costly mistakes. Aura Memory equips AI buyer fleets with cryptographic relationship memory — turning ephemeral LLM runs into an immutable, replayable history of trust, performance, and proof.";
+  "When an agent hires a provider, the lowest price is only part of the decision. A failed delivery should matter the next time it hires. Aura keeps that experience available across sessions so your agent remembers the result, sees why the choice changed, and keeps the evidence.";
 
 export function BlurInHeadline(): ReactNode {
   const containerRef = useRef<HTMLDivElement>(null);

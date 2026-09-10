@@ -449,21 +449,29 @@ export function formatEpisodeForSibyl(
   };
 }
 
+export interface FormatForSibylOptions {
+  displayName?: string;
+  taskFit?: number;
+  observedPriceUsdc?: string;
+  riskNote?: string;
+  episodes?: SibylEpisode[];
+  isFixture?: boolean;
+  includeBayesianState?: boolean;
+  alpha?: number;
+  beta?: number;
+  consecutiveFailures?: number;
+  totalMissions?: number;
+  blockedReason?: string | null;
+}
+
 /**
  * Serializes candidate reputation into SibylCounterparty entity format.
  */
 export function formatForSibyl(
   candidate: CandidateReputation,
-  options?: {
-    displayName?: string;
-    taskFit?: number;
-    observedPriceUsdc?: string;
-    riskNote?: string;
-    episodes?: SibylEpisode[];
-    isFixture?: boolean;
-  }
+  options?: FormatForSibylOptions
 ): SibylCounterparty {
-  return {
+  const counterparty: SibylCounterparty = {
     counterpartyKey: candidate.candidateId,
     displayName: options?.displayName ?? candidate.candidateId,
     hasProfile: true,
@@ -477,5 +485,75 @@ export function formatForSibyl(
     riskNote: options?.riskNote ?? candidate.blockedReason ?? null,
     episodes: options?.episodes ?? [],
     updatedAt: candidate.lastUpdatedAt,
+  };
+
+  if (options?.includeBayesianState !== false) {
+    counterparty.alpha = options?.alpha ?? candidate.alpha;
+    counterparty.beta = options?.beta ?? candidate.beta;
+    counterparty.consecutiveFailures =
+      options?.consecutiveFailures ?? candidate.consecutiveFailures;
+    counterparty.totalMissions = options?.totalMissions ?? candidate.totalMissions;
+    counterparty.blockedReason =
+      options?.blockedReason ?? candidate.blockedReason ?? null;
+  }
+
+  return counterparty;
+}
+
+/**
+ * Rehydrates a CandidateReputation record from Sibyl retrieval data or SibylCounterparty.
+ * Falls back to unobserved neutral priors Beta(1, 1) when values are missing.
+ */
+export function rehydrateFromSibyl(
+  counterpartyKey: string,
+  source?: Partial<SibylCounterparty> | null,
+  now?: string | Date
+): CandidateReputation {
+  const initial = createInitialReputation(counterpartyKey, now);
+  if (!source) {
+    return initial;
+  }
+
+  const alpha =
+    typeof source.alpha === "number" && source.alpha > 0 ? source.alpha : initial.alpha;
+  const beta =
+    typeof source.beta === "number" && source.beta > 0 ? source.beta : initial.beta;
+  const status =
+    (source.relationshipStatus as RelationshipStatus) ?? initial.status;
+  const consecutiveFailures =
+    typeof source.consecutiveFailures === "number" && source.consecutiveFailures >= 0
+      ? source.consecutiveFailures
+      : 0;
+  const totalMissions =
+    typeof source.totalMissions === "number" && source.totalMissions >= 0
+      ? source.totalMissions
+      : 0;
+  const overallReliability =
+    typeof source.overallReliability === "number"
+      ? source.overallReliability
+      : calculateReliability(alpha, beta);
+  const confidence =
+    typeof source.confidence === "number"
+      ? source.confidence
+      : calculateConfidence(alpha, beta);
+  const blockedReason =
+    (typeof source.blockedReason === "string" && source.blockedReason.length > 0
+      ? source.blockedReason
+      : undefined) ??
+    (status === "BLOCKED" && typeof source.riskNote === "string" && source.riskNote.length > 0
+      ? source.riskNote
+      : undefined);
+
+  return {
+    candidateId: counterpartyKey,
+    alpha,
+    beta,
+    overallReliability,
+    confidence,
+    status,
+    consecutiveFailures,
+    totalMissions,
+    lastUpdatedAt: source.updatedAt ?? initial.lastUpdatedAt,
+    ...(blockedReason ? { blockedReason } : {}),
   };
 }

@@ -39,14 +39,24 @@ interface EntityRow {
 
 export interface NativeCounterpartyUpdate {
   relationshipStatus?: string;
+  relationship_status?: string;
   overallReliability?: number;
+  overall_reliability?: number;
   confidence?: number;
   riskNote?: string;
+  risk_note?: string;
   alpha?: number;
   beta?: number;
   consecutiveFailures?: number;
+  consecutive_failures?: number;
   totalMissions?: number;
-  blockedReason?: string;
+  total_missions?: number;
+  blockedReason?: string | null;
+  blocked_reason?: string | null;
+  taskFit?: number;
+  task_fit?: number;
+  observedPriceUsdc?: string;
+  observed_price_usdc?: string;
 }
 
 export const DEFAULT_UNOBSERVED_PRIORS = {
@@ -130,7 +140,10 @@ let currentDb: DatabaseSync | null = null;
 let currentDbPath: string | null = null;
 
 export function getNativeStoragePath(): string {
-  const envPath = process.env.SIBYL_STORAGE_PATH || process.env.AURA_NATIVE_STORAGE_PATH;
+  const envPath =
+    process.env.SIBYL_NATIVE_DB_PATH ||
+    process.env.SIBYL_STORAGE_PATH ||
+    process.env.AURA_NATIVE_STORAGE_PATH;
   if (envPath && envPath.trim().length > 0) {
     const trimmed = envPath.trim();
     if (trimmed === ":memory:") return ":memory:";
@@ -343,7 +356,9 @@ function hasProfileBody(body: Record<string, unknown>): boolean {
     str(body, "relationship_status") !== null ||
     num(body, "overall_reliability") !== null ||
     num(body, "task_fit") !== null ||
-    num(body, "confidence") !== null
+    num(body, "confidence") !== null ||
+    num(body, "alpha") !== null ||
+    num(body, "beta") !== null
   );
 }
 
@@ -643,9 +658,18 @@ export function retrieveNativeFromSibyl(counterpartyKey: string): SibylRetrieval
       isFixture: str(body, "source") === "fixture",
       alpha: num(body, "alpha") ?? undefined,
       beta: num(body, "beta") ?? undefined,
-      consecutiveFailures: num(body, "consecutive_failures") ?? undefined,
-      totalMissions: num(body, "total_missions") ?? undefined,
-      blockedReason: str(body, "blocked_reason") ?? undefined,
+      consecutiveFailures:
+        num(body, "consecutive_failures") ??
+        num(body, "consecutiveFailures") ??
+        undefined,
+      totalMissions:
+        num(body, "total_missions") ??
+        num(body, "totalMissions") ??
+        undefined,
+      blockedReason:
+        str(body, "blocked_reason") ??
+        str(body, "blockedReason") ??
+        undefined,
     };
   } catch (err) {
     console.warn("[native-sibyl] retrieveNativeFromSibyl error:", (err as Error).message);
@@ -691,9 +715,18 @@ export function listNativeCounterpartiesFromSibyl(): SibylCounterparties {
         updatedAt: row.updated_at,
         alpha: num(body, "alpha") ?? undefined,
         beta: num(body, "beta") ?? undefined,
-        consecutiveFailures: num(body, "consecutive_failures") ?? undefined,
-        totalMissions: num(body, "total_missions") ?? undefined,
-        blockedReason: str(body, "blocked_reason") ?? undefined,
+        consecutiveFailures:
+          num(body, "consecutive_failures") ??
+          num(body, "consecutiveFailures") ??
+          undefined,
+        totalMissions:
+          num(body, "total_missions") ??
+          num(body, "totalMissions") ??
+          undefined,
+        blockedReason:
+          str(body, "blocked_reason") ??
+          str(body, "blockedReason") ??
+          undefined,
       };
     });
     return { ok: true, items };
@@ -791,15 +824,22 @@ export function updateNativeCounterpartyInSibyl(
       let createdAt: string;
       let body: Record<string, unknown>;
 
+      const relStatus = update.relationshipStatus ?? update.relationship_status;
+      const relReliability = update.overallReliability ?? update.overall_reliability;
+      const rNote = update.riskNote ?? update.risk_note;
+      const cFailures = update.consecutiveFailures ?? update.consecutive_failures;
+      const tMissions = update.totalMissions ?? update.total_missions;
+      const bReason = update.blockedReason ?? update.blocked_reason;
+
       if (!row) {
         id = randomUUID();
         createdAt = now;
         body = {
           display_name: counterpartyKey,
-          relationship_status: update.relationshipStatus ?? "KNOWN",
-          overall_reliability: update.overallReliability,
+          relationship_status: relStatus ?? "KNOWN",
+          overall_reliability: relReliability,
           confidence: update.confidence,
-          risk_note: update.riskNote,
+          risk_note: rNote,
           episodes: [],
         };
       } else {
@@ -810,18 +850,21 @@ export function updateNativeCounterpartyInSibyl(
         } catch {
           body = { episodes: [] };
         }
-        if (update.relationshipStatus !== undefined) body.relationship_status = update.relationshipStatus;
-        if (update.overallReliability !== undefined) body.overall_reliability = update.overallReliability;
+        if (relStatus !== undefined) body.relationship_status = relStatus;
+        if (relReliability !== undefined) body.overall_reliability = relReliability;
         if (update.confidence !== undefined) body.confidence = update.confidence;
-        if (update.riskNote !== undefined) body.risk_note = update.riskNote;
+        if (rNote !== undefined) body.risk_note = rNote;
       }
 
       if (update.alpha !== undefined) body.alpha = update.alpha;
       if (update.beta !== undefined) body.beta = update.beta;
-      if (update.consecutiveFailures !== undefined)
-        body.consecutive_failures = update.consecutiveFailures;
-      if (update.totalMissions !== undefined) body.total_missions = update.totalMissions;
-      if (update.blockedReason !== undefined) body.blocked_reason = update.blockedReason;
+      if (cFailures !== undefined) body.consecutive_failures = cFailures;
+      if (tMissions !== undefined) body.total_missions = tMissions;
+      if (bReason !== undefined) body.blocked_reason = bReason;
+      const tFit = update.taskFit ?? update.task_fit;
+      if (tFit !== undefined) body.task_fit = tFit;
+      const obsPrice = update.observedPriceUsdc ?? update.observed_price_usdc;
+      if (obsPrice !== undefined) body.observed_price_usdc = obsPrice;
 
       const upsert = db.prepare(`
         INSERT INTO entities (key, id, category, name, status, body, created_at, updated_at)

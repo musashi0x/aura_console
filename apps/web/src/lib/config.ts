@@ -39,7 +39,7 @@ export const heroConfig = {
     accent: "Forget",
   },
   subheadline:
-    "The autonomous agent command console and persistent relationship memory layer. Equip AI buyer fleets with Bayesian counterparty reputation, fail-closed economic guardrails, and on-chain cryptographic proof.",
+    "Aura uses delivery history stored in Sibyl Memory to help your agent decide who to hire in a new session.",
   cta: {
     text: "Explore Live Console",
     href: "#console-preview",

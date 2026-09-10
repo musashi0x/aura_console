@@ -177,7 +177,7 @@ export function SibylDatabaseInspector({ className = "" }: { className?: string 
             Live Sibyl Memory Database & 5-Tier Inspector
           </Text>
           <p className="mw__db-subtitle">
-            Inspect real SQLite records, Bayesian belief calculations, and the 5-Tier Memory Architecture governing Aura agents.
+            Inspect real SQLite records, delivery performance history, and why this provider was chosen.
           </p>
         </div>
 

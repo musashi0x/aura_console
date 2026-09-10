@@ -18,6 +18,8 @@
     "db:generate": "turbo run db:generate",
     "db:migrate": "turbo run db:migrate",
     "demo:seed": "bash scripts/demo-seed.sh",
+    "demo:cold-start": "pnpm --filter @aura/api exec tsx ../../scripts/demo-cold-start.ts",
+    "test:cold-start": "pnpm --filter @aura/api exec tsx ../../scripts/test-cold-start.ts",
     "demo:deletion-test": "pnpm --filter @aura/api exec tsx ../../scripts/demo-deletion-test.ts",
     "demo:restart": "bash scripts/demo-restart.sh",
     "demo:reset": "bash scripts/demo-reset.sh",

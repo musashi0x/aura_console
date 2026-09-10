@@ -461,7 +461,7 @@ function planDeterministicTurn(
 
     if (chosenKey && !hasExecuted("memory_recall_counterparty")) {
       return {
-        thought: `Mission engaged counterparty ${chosenKey}. Recalling causal relationship memory from Sibyl WARM tier to assess reliability and historical track record.`,
+        thought: `Mission engaged counterparty ${chosenKey}. Checking previous deliveries from Sibyl memory to assess reliability and historical track record.`,
         parts: [
           {
             functionCall: {
@@ -646,7 +646,7 @@ The mission ran under strict guardrail enforcement, successfully prioritized \`$
     // Step 1: Memory recall first
     if (!hasExecuted("memory_recall_counterparty")) {
       return {
-        thought: `Inquiry requires evaluating counterparty credibility and drafting spend. First recalling historical relationship memory from Sibyl for ${cpKey}.`,
+        thought: `Inquiry requires evaluating counterparty credibility and drafting spend. First checking previous deliveries from Sibyl for ${cpKey}.`,
         parts: [
           {
             functionCall: {

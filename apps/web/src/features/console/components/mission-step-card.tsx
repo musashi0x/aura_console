@@ -110,12 +110,16 @@ interface StepEntities {
   candidatesCount?: number;
   memoryDiff?: string;
   authorizationMode?: string;
+  isSimulated?: boolean;
 }
 
 function extractEntities(entries: TimelineEntry[]): StepEntities {
   const res: StepEntities = {};
   for (const entry of entries) {
     const d = entry.data ?? {};
+    if (d.simulated === true) {
+      res.isSimulated = true;
+    }
     if (!res.counterparty && typeof d.counterparty_key === "string") {
       res.counterparty = d.counterparty_key;
     }
@@ -153,9 +157,9 @@ const STEP_MCP_ROLES: Record<MissionStep, string> = {
   UNDERSTAND: "MCP · Discovery",
   REMEMBER: "MCP · Sibyl Recall",
   DECIDE: "MCP · Policy Gate",
-  ACT: "MCP · Base Sepolia Escrow",
+  ACT: "MCP · Payment Gate (Simulated)",
   VERIFY: "MCP · Delivery Verification",
-  LEARN: "MCP · Reputation Commit",
+  LEARN: "MCP · Delivery Result Saved",
 };
 
 export const STEP_MCP_TOOLS: Record<MissionStep, string> = {
@@ -391,17 +395,25 @@ export function MissionStepCard({
           />
         )}
         {entities.txHash && (
-          <Link
-            href={`https://sepolia.basescan.org/tx/${entities.txHash}`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+          entities.isSimulated ? (
             <Token
               size="sm"
               color="yellow"
-              label={`Tx: ${entities.txHash.slice(0, 6)}…`}
+              label={`Simulated Tx: ${entities.txHash.slice(0, 6)}…`}
             />
-          </Link>
+          ) : (
+            <Link
+              href={`https://sepolia.basescan.org/tx/${entities.txHash}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Token
+                size="sm"
+                color="yellow"
+                label={`Tx: ${entities.txHash.slice(0, 6)}…`}
+              />
+            </Link>
+          )
         )}
       </HStack>
 
@@ -482,7 +494,7 @@ export function MissionStepCard({
                     </VStack>
 
                     <HStack gap={1} align="center">
-                      {tx && (
+                      {tx && !entry.data?.simulated && (
                         <Link
                           href={`https://sepolia.basescan.org/tx/${tx}`}
                           target="_blank"
@@ -492,6 +504,11 @@ export function MissionStepCard({
                         >
                           <ExternalLink size={12} />
                         </Link>
+                      )}
+                      {tx && Boolean(entry.data?.simulated) && (
+                        <span className="font-mono text-[10px] text-neutral-500">
+                          (Simulated)
+                        </span>
                       )}
                       <Button
                         size="sm"

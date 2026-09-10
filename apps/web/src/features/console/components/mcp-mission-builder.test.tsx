@@ -69,8 +69,11 @@ describe("McpMissionBuilder", () => {
     const oracleBtn = screen.getByText("Decentralized Data Oracle");
     fireEvent.click(oracleBtn);
 
+    const oracleArchetype = AGENT_ARCHETYPES.find(
+      (a) => a.name === "Decentralized Data Oracle",
+    )!;
     const textarea = screen.getByLabelText(/Agent Objective \/ Prompt/) as HTMLTextAreaElement;
-    expect(textarea.value).toBe(AGENT_ARCHETYPES[1]!.intent);
+    expect(textarea.value).toBe(oracleArchetype.intent);
   });
 
   it("generates proposal first without auto-executing, then allows customization in manual form", async () => {

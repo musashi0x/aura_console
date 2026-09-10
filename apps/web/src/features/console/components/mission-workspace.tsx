@@ -38,6 +38,7 @@ import { MissionInspector } from "./mission-inspector";
 import { MissionOperator } from "./mission-operator";
 import { MissionRail } from "./mission-rail";
 import { MissionTrace } from "./mission-trace";
+import { StreamlinedDecisionCard } from "./streamlined-decision-card";
 
 export interface MissionWorkspaceProps {
   events: readonly CanonicalEvent[];
@@ -54,6 +55,8 @@ export interface MissionWorkspaceProps {
   defaultExpanded?: boolean;
   /** Initial view mode for the Board (kanban or pipeline) */
   initialBoardView?: "kanban" | "pipeline";
+  /** Optional override to control display of the Streamlined Decision Card */
+  showDecisionCard?: boolean;
 }
 
 type MissionMode = "OPERATOR" | "BOARD" | "TRACE";
@@ -90,6 +93,7 @@ export function MissionWorkspace({
   showExecutiveOverview = false,
   defaultExpanded = false,
   initialBoardView,
+  showDecisionCard,
 }: MissionWorkspaceProps) {
   const router = useRouter();
   const [evaluating, setEvaluating] = useState(false);
@@ -103,7 +107,7 @@ export function MissionWorkspace({
 
     const runId = seed.runId;
     const evalMsgId = `eval-${Date.now()}`;
-    const ceilingAmount = seed.budgetUsdc ?? "25.000000";
+    const ceilingAmount = seed.budgetUsdc ?? "15.000000";
 
     // 1. Post initial running steps to the Agent Chat panel
     setChatMessages((prev) => [
@@ -118,7 +122,7 @@ export function MissionWorkspace({
       {
         id: evalMsgId,
         role: "agent",
-        text: `### 🤖 Autonomous Pipeline Running...\n\nStarting causal evaluation for mission **\`${runId.slice(0, 8)}…\`** with economic ceiling **\`${ceilingAmount} USDC\`**...\n\n- [x] Initialized mission objective & declared budget ceiling\n- ⏳ Querying Sibyl relationship memory (WARM & COLD tiers)\n- ⏳ Scoring candidate counterparties on Bayesian reliability & price\n- ⏳ Evaluating spend authorization guardrails`,
+        text: `### 🤖 Autonomous Pipeline Running...\n\nStarting causal evaluation for mission **\`${runId.slice(0, 8)}…\`** with economic ceiling **\`${ceilingAmount} USDC\`**...\n\n- [x] Initialized mission objective & declared budget ceiling\n- ⏳ Checking previous deliveries from Sibyl memory\n- ⏳ Scoring candidate providers on reliability & price\n- ⏳ Evaluating spend authorization guardrails`,
         complete: false,
         citations: [],
         toolCalls: [
@@ -126,7 +130,7 @@ export function MissionWorkspace({
             id: "step-1",
             name: "memory_recall_counterparty",
             status: "running",
-            target: "Querying SQLite WARM & COLD tiers for candidate memory",
+            target: "Checking previous deliveries from Sibyl memory",
           },
         ],
       },
@@ -146,7 +150,7 @@ export function MissionWorkspace({
                     id: "step-1",
                     name: "memory_recall_counterparty",
                     status: "complete",
-                    target: "Recalled Sibyl relationship memory",
+                    target: "Checked previous deliveries from Sibyl memory",
                     resultDetail:
                       "Retrieved candidate records from SQLite WARM & COLD tiers. Evaluated past delivery history, confidence, and penalty records.",
                   },
@@ -154,7 +158,7 @@ export function MissionWorkspace({
                     id: "step-2",
                     name: "score_candidates",
                     status: "running",
-                    target: "Bayesian scoring across price and verified delivery history",
+                    target: "Scoring providers across price and verified delivery history",
                   },
                 ],
               }
@@ -186,7 +190,7 @@ export function MissionWorkspace({
             ? {
                 ...m,
                 complete: true,
-                text: `### 🎯 Autonomous Evaluation Completed\n\nThe agent evaluated candidate counterparties against Sibyl memory and policy bounds:\n\n1. **Memory Consultation**: Recalled candidate records from Sibyl Labs 5-Tier dynamic storage.\n2. **Bayesian Reputation Scoring**: Evaluated price quotes against historical reliability ratings. Selected **\`${chosen}\`** as the highest-ranking candidate.\n3. **Spend Policy Gate**: Evaluated declared budget ceiling (\`${ceilingAmount} USDC\`) under \`OPERATOR_APPROVAL\` governance.\n4. **Next Step**: Action paused at the operator authorization boundary. Click **Approve Spend** below to authorize escrow funding.`,
+                text: `### 🎯 Choose a provider for this report\n\nAura evaluated candidate providers against Sibyl memory and policy bounds:\n\n1. **Memory Consultation**: Checked previous deliveries from Sibyl memory.\n2. **Provider Selection**: Evaluated previous performance and deliverable reliability. Selected **\`${chosen}\`** as recommended provider.\n3. **Spend Policy Gate**: Evaluated declared budget ceiling (\`${ceilingAmount} USDC\`) under \`OPERATOR_APPROVAL\` governance.\n4. **Next Step**: Action paused at the operator authorization boundary. Click **Approve Spend** below to authorize escrow funding.`,
                 citations: [
                   {
                     counterpartyKey: chosen,
@@ -198,7 +202,7 @@ export function MissionWorkspace({
                     id: "step-1",
                     name: "memory_recall_counterparty",
                     status: "complete",
-                    target: "Recalled Sibyl relationship memory",
+                    target: "Checked previous deliveries from Sibyl memory",
                     resultDetail:
                       "Retrieved candidate records from SQLite WARM & COLD tiers. Evaluated past delivery history, confidence, and penalty records.",
                   },
@@ -206,7 +210,7 @@ export function MissionWorkspace({
                     id: "step-2",
                     name: "score_candidates",
                     status: "complete",
-                    target: "Bayesian scoring across price and reliability",
+                    target: "Scoring providers across price and delivery history",
                     resultDetail: `Computed composite scores: ${chosen} ranked #1 with verified delivery history and 0 failure penalties.`,
                   },
                   {
@@ -346,6 +350,22 @@ export function MissionWorkspace({
       </header>
 
       {fixtureLabel && mode !== "BOARD" ? <p className="run__fixture">{fixtureLabel}</p> : null}
+
+      {/* Pitch Reset: Streamlined Decision Card (Default Focused Screen) */}
+      {(showDecisionCard ?? (!showExecutiveOverview && !fixtureLabel && view.entries.length > 0)) ? (
+        <StreamlinedDecisionCard
+          objective={view.objective}
+          budgetUsdc={view.budgetUsdc}
+          runId={view.runId}
+          entries={view.entries}
+          onApprove={() => {
+            handleStartEvaluation();
+          }}
+          onViewTrace={() => {
+            setMode("TRACE");
+          }}
+        />
+      ) : null}
 
       {/* Autonomous MCP Agent Executive Overview Hero */}
       {showExecutiveOverview || fixtureLabel ? (

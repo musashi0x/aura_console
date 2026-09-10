@@ -33,9 +33,9 @@ export function SibylCounterfactualSimulator({ className = "" }: { className?: s
   const runSibylSimulation = () => {
     setIsSimulating(true);
     setActiveSimulation("sibyl");
-    setSimulationResult("Simulating Sibyl execution: Recalling episodic memory -> Alpha penalized (score 28) -> Flips decision to Beta ($22.00 quote, 100% on-time record)...");
+    setSimulationResult("Checking previous deliveries from Sibyl memory: Alpha penalized for missing citations -> Recommends Beta ($22.00 quote, 100% on-time record). Delivery result saved for next time.");
     setTimeout(() => {
-      setSimulationResult("SUCCESS: Mission Succeeds! virtuals:agent:beta verified 100%. +$6.50 USDC Saved. Salted diff committed to Base Sepolia.");
+      setSimulationResult("SUCCESS: Mission Succeeds! virtuals:agent:beta verified 100%. Delivery result saved for next time. Memory diff committed (simulated).");
       setIsSimulating(false);
     }, 1200);
   };

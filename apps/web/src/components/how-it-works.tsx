@@ -13,21 +13,21 @@ import type { ReactNode } from "react";
 const steps = [
   {
     icon: Database,
-    title: "1. Candidate Scoring & Bayesian Warm Recall",
+    title: "1. Choose a Provider for This Report",
     description:
-      "When an autonomous procurement mission initiates, Aura queries Sibyl WARM tier to recall historical counterparty interactions. Reliability is derived using Bayesian Beta distributions (α/β parameters), filtering out underperforming agents and updating the counterparty FSM state (NEW → KNOWN → PREFERRED).",
+      "When an agent needs a deliverable, Aura checks previous delivery history stored in Sibyl Memory. Instead of hiring blindly or picking the lowest quote that previously failed, past quality and verified failure reasons determine who gets hired.",
   },
   {
     icon: ShieldCheck,
     title: "2. Economic Action Boundary & Fail-Closed Guardrails",
     description:
-      "Decision context and inputs are frozen and cryptographically hashed. Aura verifies policy spend ceilings before any treasury funds can move. If Sibyl relationship memory is disconnected or unavailable, execution strictly halts with run.blocked — guaranteeing zero blind spending.",
+      "Decision context and inputs are frozen and verified. Aura checks policy spend ceilings before any treasury funds can move. If Sibyl relationship memory is disconnected or unavailable, execution strictly halts with run.blocked — guaranteeing zero blind spending.",
   },
   {
     icon: FileCheck2,
-    title: "3. Virtuals ACP Settlement & Base Sepolia Proof",
+    title: "3. Delivery Verification & Memory Preservation",
     description:
-      "The approved procurement job is dispatched and funded via Virtuals Protocol's Agent Commerce Protocol (ACP). Execution outcomes write back to Sibyl COLD journal, and a salted Keccak256 hash notarizes on Base Sepolia. Even across total process restarts, fresh agents remember past performance.",
+      "The deliverable is authentically verified against required criteria and sources. Delivery outcomes and failure reasons are saved into Sibyl Memory. Even across total process restarts, fresh agent sessions use what happened last time.",
   },
 ];
 

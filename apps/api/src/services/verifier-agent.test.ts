@@ -279,4 +279,76 @@ describe("Verifier Agent (verifier-agent)", () => {
     expect(evaluation.tests_passed).toBe(true);
     expect(evaluation.score).toBe(1.0);
   });
+
+  describe("Competitor Research Deliverable Verification", () => {
+    it("validates competitor report in memory via validateCompetitorReport", () => {
+      const valid = {
+        competitors: [
+          { name: "C1", website: "https://c1.com", sources: ["https://s1.com"] },
+          { name: "C2", website: "https://c2.com", sources: ["https://s2.com"] },
+          { name: "C3", website: "https://c3.com", sources: ["https://s3.com"] },
+        ],
+      };
+      const result = validateCompetitorReport(valid);
+      expect(result.tests_passed).toBe(true);
+      expect(result.score).toBe(1.0);
+      expect(result.competitorsCount).toBe(3);
+
+      const invalid = {
+        competitors: [
+          { name: "C1", website: "https://c1.com", sources: [] },
+        ],
+      };
+      const invalidResult = validateCompetitorReport(invalid);
+      expect(invalidResult.tests_passed).toBe(false);
+      expect(invalidResult.score).toBe(0.0);
+      expect(invalidResult.failure_reason).toBeDefined();
+    });
+
+    it("verifies deliverable file via verifyCompetitorReportDeliverable", async () => {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "va-test-"));
+      try {
+        fs.writeFileSync(
+          path.join(tempDir, "competitor-report.json"),
+          JSON.stringify({
+            competitors: [
+              { name: "C1", website: "https://c1.com", sources: ["https://s1.com"] },
+              { name: "C2", website: "https://c2.com", sources: ["https://s2.com"] },
+              { name: "C3", website: "https://c3.com", sources: ["https://s3.com"] },
+            ],
+          }),
+        );
+
+        const evaluation = await verifyCompetitorReportDeliverable(tempDir);
+        expect(evaluation.tests_passed).toBe(true);
+        expect(evaluation.score).toBe(1.0);
+        expect(evaluation.competitorsCount).toBe(3);
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it("supports agent.verifyCompetitorReport method", async () => {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "va-test-agent-"));
+      try {
+        fs.writeFileSync(
+          path.join(tempDir, "deliverable.json"),
+          JSON.stringify({
+            competitors: [
+              { name: "C1", website: "https://c1.com", sources: ["https://s1.com"] },
+              { name: "C2", website: "https://c2.com", sources: ["https://s2.com"] },
+              { name: "C3", website: "https://c3.com", sources: ["https://s3.com"] },
+            ],
+          }),
+        );
+
+        const agent = new VerifierAgent();
+        const evaluation = await agent.verifyCompetitorReport(tempDir);
+        expect(evaluation.tests_passed).toBe(true);
+        expect(evaluation.score).toBe(1.0);
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+  });
 });

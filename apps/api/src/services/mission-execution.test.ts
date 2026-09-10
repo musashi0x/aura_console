@@ -2,15 +2,29 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it } from "vitest";
 
 import type { CommandExecutor } from "./cli-runner.js";
 import { MissionExecutionService } from "./mission-execution.js";
+import { closeNativeSibylDatabase, resetNativeSibylStorage } from "./native-sibyl.js";
 import { RunStore } from "./run-store.js";
+import { retrieveFromSibyl } from "./sibyl.js";
+import { setupTestSibylDb } from "../test-support/sibyl.js";
 
-describe("MissionExecutionService (Post-Approval Loop)", () => {
+describe.sequential("MissionExecutionService (Post-Approval Loop)", () => {
   const store = new RunStore();
   const service = new MissionExecutionService(store);
+
+  beforeEach(async () => {
+    resetNativeSibylStorage({ seedFixtures: true });
+    await setupTestSibylDb();
+  });
+
+  afterAll(async () => {
+    resetNativeSibylStorage({ seedFixtures: true });
+    closeNativeSibylDatabase();
+    await setupTestSibylDb();
+  });
 
   async function createRun(objective = "Test post-approval mission execution") {
     return store.createRun({
@@ -329,9 +343,69 @@ describe("MissionExecutionService (Post-Approval Loop)", () => {
       expect(events.some((e) => e.type === "outcome.recorded")).toBe(true);
 
       const outcomeEvent = events.find((e) => e.type === "outcome.recorded")!;
-      expect((outcomeEvent.data as any).result).toBe("REJECTED");
+      const outcomeData = outcomeEvent.data as Record<string, unknown>;
+      expect(outcomeData.result).toBe("REJECTED");
     } finally {
       fs.rmSync(worktreeDir, { recursive: true, force: true });
+    }
+  });
+
+  it("rehydrates Bayesian counters across sequential missions and triggers BLOCKED after 2 consecutive failures", async () => {
+    const counterpartyKey = `test:consecutive-fail:${randomUUID()}`;
+
+    // Mission 1: First Failure
+    const run1 = await createRun("Sequential run 1");
+    await appendEvent(run1.id, "approval.granted", {
+      ceiling_usdc: "10.000000",
+      counterparty_key: counterpartyKey,
+    });
+
+    const res1 = await service.execute({
+      runId: run1.id,
+      evaluationOverride: { tests_passed: false, score: 0.0, summary: "Run 1 failed" },
+    });
+
+    expect(res1.status).toBe("REJECTED");
+    expect(res1.reputation.status).toBe("WATCH");
+    expect(res1.reputation.consecutiveFailures).toBe(1);
+    expect(res1.reputation.totalMissions).toBe(1);
+    expect(res1.reputation.confidence).toBeCloseTo(1 / 6, 3); // 0.167 < 0.85 (floor eliminated!)
+
+    // Verify write-back persisted to Sibyl
+    const sibylAfter1 = await retrieveFromSibyl(counterpartyKey);
+    expect(sibylAfter1.status).toBe("AVAILABLE");
+    if (sibylAfter1.status === "AVAILABLE") {
+      expect(sibylAfter1.relationshipStatus).toBe("WATCH");
+      expect(sibylAfter1.consecutiveFailures).toBe(1);
+      expect(sibylAfter1.totalMissions).toBe(1);
+      expect(sibylAfter1.confidence).toBeCloseTo(1 / 6, 3);
+    }
+
+    // Mission 2: Second Consecutive Failure
+    const run2 = await createRun("Sequential run 2");
+    await appendEvent(run2.id, "approval.granted", {
+      ceiling_usdc: "10.000000",
+      counterparty_key: counterpartyKey,
+    });
+
+    const res2 = await service.execute({
+      runId: run2.id,
+      evaluationOverride: { tests_passed: false, score: 0.0, summary: "Run 2 failed" },
+    });
+
+    // Invariant verified: 2 consecutive failures in WATCH state triggers BLOCKED
+    expect(res2.status).toBe("REJECTED");
+    expect(res2.reputation.status).toBe("BLOCKED");
+    expect(res2.reputation.consecutiveFailures).toBe(2);
+    expect(res2.reputation.totalMissions).toBe(2);
+    expect(res2.reputation.blockedReason).toContain("2 consecutive failures in WATCH state");
+
+    // Verify Sibyl has BLOCKED status persisted
+    const sibylAfter2 = await retrieveFromSibyl(counterpartyKey);
+    if (sibylAfter2.status === "AVAILABLE") {
+      expect(sibylAfter2.relationshipStatus).toBe("BLOCKED");
+      expect(sibylAfter2.consecutiveFailures).toBe(2);
+      expect(sibylAfter2.blockedReason).toContain("2 consecutive failures in WATCH state");
     }
   });
 });

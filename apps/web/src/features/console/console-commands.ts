@@ -101,7 +101,17 @@ export const CONSOLE_COMMANDS: readonly ConsoleCommand[] = [
     id: "memory",
     label: console_.palette.commands.memoryToggle,
     group: console_.palette.groupView,
-    aliases: ["memory off", "memory on", "toggle memory", "turn memory off", "turn memory on"],
+    aliases: [
+      "memory off",
+      "memory on",
+      "toggle memory",
+      "turn memory off",
+      "turn memory on",
+      "hide memory details",
+      "show memory details",
+      "hide memory",
+      "show memory",
+    ],
     run: () => toggleMemoryView(),
     // Read AFTER the toggle, so the line reports the state that now exists
     // rather than the one the operator asked for.
@@ -125,10 +135,20 @@ export function matchCommand(text: string): ConsoleCommand | null {
   if (said.length === 0) return null;
 
   const memory = CONSOLE_COMMANDS.find((c) => c.id === "memory")!;
-  if (said === "memory on" || said === "turn memory on") {
+  if (
+    said === "memory on" ||
+    said === "turn memory on" ||
+    said === "show memory details" ||
+    said === "show memory"
+  ) {
     return getMemoryViewEnabled() ? null : memory;
   }
-  if (said === "memory off" || said === "turn memory off") {
+  if (
+    said === "memory off" ||
+    said === "turn memory off" ||
+    said === "hide memory details" ||
+    said === "hide memory"
+  ) {
     return getMemoryViewEnabled() ? memory : null;
   }
 

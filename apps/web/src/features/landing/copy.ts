@@ -12,28 +12,28 @@ export const landing = {
     example: "View example Run",
   },
   opening: {
-    statement: "See what your agents decided — and why.",
+    statement: "Choose providers using what happened last time.",
     windowLabel: "Aura Console",
   },
   statement: {
-    headline: ["A better way", "to understand agents."],
-    body: "Follow evidence, decisions, outcomes, and memory changes as one replayable story.",
+    headline: ["Choose providers using", "what happened last time."],
+    body: "Aura uses delivery history stored in Sibyl Memory to help your agent decide who to hire in a new session.",
   },
   principles: [
     {
       index: "01",
-      title: ["Trace every", "decision"],
-      body: "Evidence, reasoning, outcome, and the memory it changed, in one causal timeline.",
+      title: ["Remember the", "result."],
+      body: "Record deliverable quality and verified failure reasons so past mistakes inform future hires.",
     },
     {
       index: "02",
-      title: ["Keep memory", "private"],
-      body: "Private relationship memory stays private. Unavailable memory is never presented as history.",
+      title: ["See why the", "choice changed."],
+      body: "Compare price-only decisions against history-aware recommendations with causal evidence.",
     },
     {
       index: "03",
-      title: ["Know what", "is ready"],
-      body: "Readiness comes from verified dependencies, not assumptions hidden in configuration.",
+      title: ["Keep the", "evidence."],
+      body: "Delivery history stays preserved across sessions in Sibyl Memory, ready for the next cold start.",
     },
   ],
   console: {

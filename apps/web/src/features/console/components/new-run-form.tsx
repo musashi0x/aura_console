@@ -16,7 +16,7 @@ import { env } from "@/lib/env";
 import { useWeb3Wallet } from "@/features/web3";
 import { McpMissionBuilder } from "./mcp-mission-builder";
 
-const BUDGET_PRESETS = ["10.00", "25.00", "50.00", "100.00"];
+const BUDGET_PRESETS = ["10.00", "15.00", "25.00", "50.00"];
 
 /**
  * Create a Run against the real endpoint.
@@ -181,7 +181,7 @@ export function NewRunForm({ disabled }: { disabled: boolean }) {
                 onChange={(event) => setObjective(event.target.value)}
                 required
                 maxLength={500}
-                placeholder="Buy one market dataset under a 25 USDC ceiling"
+                placeholder="Find a provider for a competitor report. Budget: 15 USDC."
               />
             </label>
             <span className="cs__hint text-xs text-[var(--color-text-muted,#8d9aaf)]">
@@ -235,7 +235,7 @@ export function NewRunForm({ disabled }: { disabled: boolean }) {
                 onChange={(event) => setBudget(event.target.value)}
                 inputMode="decimal"
                 pattern="\d+(\.\d{1,6})?"
-                placeholder="25.000000"
+                placeholder="15.000000"
               />
             </div>
 

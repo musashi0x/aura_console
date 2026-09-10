@@ -215,6 +215,38 @@ describe("event cards render only what the event carries", () => {
     await expectNoAxeViolations(container);
   });
 
+  it("disclaims simulated transactions and does not link to fake BaseScan URLs", async () => {
+    const fakeTx = "0x8f3c7a6e129b014d3c9071fe25a6b8c9d01234567890abcdef1234567890abcd";
+    const { container } = render(
+      <EventCard
+        entry={entry("commitment.settled", {
+          summary: "Payment approved (simulated settlement)",
+          network: "base-sepolia",
+          amount_usdc: "12.000000",
+          counterparty_key: "virtuals:agent:beta",
+          tx_hash: fakeTx,
+          reference: fakeTx,
+          simulated: true,
+        })}
+      />,
+    );
+
+    expect(screen.getByText("Payment Approved (Simulated)")).toBeInTheDocument();
+    expect(
+      screen.getByText("Payment approved (simulated settlement; no live funds moved)."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Tx (Simulated)")).toBeInTheDocument();
+    expect(screen.getByText("Simulated Settlement (No live Base Tx)")).toBeInTheDocument();
+
+    const links = screen.queryAllByRole("link");
+    const basescanLinks = links.filter((l) =>
+      l.getAttribute("href")?.includes("sepolia.basescan.org"),
+    );
+    expect(basescanLinks.length).toBe(0);
+
+    await expectNoAxeViolations(container);
+  });
+
   it("has no axe violations", async () => {
     const { container } = render(
       <EventCard entry={entry("decision.made", { counterparty_key: "beta_labs" })} />,
