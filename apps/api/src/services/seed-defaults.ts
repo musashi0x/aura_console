@@ -1,9 +1,10 @@
 import { eq, getDb, schema, sql } from "@aura/db";
 
 import { env } from "../env.js";
+import { getNativeSibylStatus, resetNativeSibylStorage } from "./native-sibyl.js";
 
 /**
- * Seeds the Alpha and Beta counterparty fixture into Postgres if the table is empty.
+ * Seeds the 8 counterparty fixtures into Postgres if missing.
  * Ensures the relational database and Sibyl memory store are coherent.
  */
 export async function ensureDatabaseSeeded(): Promise<void> {
@@ -13,8 +14,8 @@ export async function ensureDatabaseSeeded(): Promise<void> {
       .select({ count: sql<number>`count(*)::int` })
       .from(schema.counterparties);
 
-    if (!countRow || countRow.count === 0) {
-      console.log("[db] seeding initial counterparties fixture (Alpha Research & Beta Labs)...");
+    if (!countRow || countRow.count < 8) {
+      console.log("[db] seeding initial counterparties fixture (8 multi-protocol agents)...");
 
     // Insert Alpha Research
     await db
@@ -171,7 +172,115 @@ export async function ensureDatabaseSeeded(): Promise<void> {
       ])
       .onConflictDoNothing();
 
-      console.log("[db] initial counterparties fixture seeded successfully.");
+      // Insert Gamma SecOps (Base)
+      await db
+        .insert(schema.counterparties)
+        .values({
+          counterpartyKey: "base:agent:gamma",
+          protocol: "base",
+          agentId: "gamma",
+          address: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+          displayName: "Gamma SecOps",
+          acpLifecycleState: "ACTIVE",
+          relationshipStatus: "PREFERRED",
+          latestMemoryVersion: 1,
+          classifiedAggregates: { completed_jobs: 5, acceptance_rate: 1.0, avg_delivery_hours: 12 },
+          offerings: [{ offering_id: "secops_audit_v1", name: "Smart Contract Security Audit", base_price_usdc: "25.00" }],
+          publicTrust: { verified: true, endorsements: 64 },
+        })
+        .onConflictDoNothing();
+
+      // Insert Delta Scraper (Base)
+      await db
+        .insert(schema.counterparties)
+        .values({
+          counterpartyKey: "base:agent:delta",
+          protocol: "base",
+          agentId: "delta",
+          address: "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65",
+          displayName: "Delta Scraper",
+          acpLifecycleState: "ACTIVE",
+          relationshipStatus: "WATCH",
+          latestMemoryVersion: 1,
+          classifiedAggregates: { completed_jobs: 3, acceptance_rate: 0.67, avg_delivery_hours: 6 },
+          offerings: [{ offering_id: "web_scraping_v1", name: "High-Volume Data Extraction", base_price_usdc: "4.50" }],
+          publicTrust: { verified: true, endorsements: 18 },
+        })
+        .onConflictDoNothing();
+
+      // Insert Epsilon Quant (Virtuals)
+      await db
+        .insert(schema.counterparties)
+        .values({
+          counterpartyKey: "virtuals:agent:epsilon",
+          protocol: "virtuals",
+          agentId: "epsilon",
+          address: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
+          displayName: "Epsilon Quant",
+          acpLifecycleState: "ACTIVE",
+          relationshipStatus: "PREFERRED",
+          latestMemoryVersion: 1,
+          classifiedAggregates: { completed_jobs: 8, acceptance_rate: 1.0, avg_delivery_hours: 24 },
+          offerings: [{ offering_id: "quant_modeling_v1", name: "Quantitative Risk Modeling", base_price_usdc: "45.00" }],
+          publicTrust: { verified: true, endorsements: 92 },
+        })
+        .onConflictDoNothing();
+
+      // Insert Zeta Rogue (Base - BLOCKED)
+      await db
+        .insert(schema.counterparties)
+        .values({
+          counterpartyKey: "base:agent:zeta",
+          protocol: "base",
+          agentId: "zeta",
+          address: "0x976EA74026E726554dB657fA54763abd0C3a0aa9",
+          displayName: "Zeta Rogue",
+          acpLifecycleState: "SUSPENDED",
+          relationshipStatus: "BLOCKED",
+          latestMemoryVersion: 1,
+          classifiedAggregates: { completed_jobs: 4, acceptance_rate: 0.25, avg_delivery_hours: 72 },
+          offerings: [{ offering_id: "budget_data_v1", name: "Budget Data Entry", base_price_usdc: "2.50" }],
+          publicTrust: { verified: false, endorsements: 1 },
+        })
+        .onConflictDoNothing();
+
+      // Insert Eta Translation (ERC-8004)
+      await db
+        .insert(schema.counterparties)
+        .values({
+          counterpartyKey: "erc8004:agent:eta",
+          protocol: "erc8004",
+          agentId: "eta",
+          address: "0x14dC79964da2C08b23698B3D3cc7Ca32193d9955",
+          displayName: "Eta Translation",
+          acpLifecycleState: "ACTIVE",
+          relationshipStatus: "NEW",
+          latestMemoryVersion: 1,
+          classifiedAggregates: { completed_jobs: 0, acceptance_rate: 0.0, avg_delivery_hours: 0 },
+          offerings: [{ offering_id: "translation_v1", name: "Multi-Language Technical Translation", base_price_usdc: "8.00" }],
+          publicTrust: { verified: true, endorsements: 5 },
+        })
+        .onConflictDoNothing();
+
+      // Insert Theta Oracle (Base)
+      await db
+        .insert(schema.counterparties)
+        .values({
+          counterpartyKey: "base:agent:theta",
+          protocol: "base",
+          agentId: "theta",
+          address: "0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f",
+          displayName: "Theta Oracle",
+          acpLifecycleState: "ACTIVE",
+          relationshipStatus: "PREFERRED",
+          latestMemoryVersion: 1,
+          classifiedAggregates: { completed_jobs: 6, acceptance_rate: 1.0, avg_delivery_hours: 1 },
+          offerings: [{ offering_id: "oracle_feed_v1", name: "Signed Oracle Feed Attestations", base_price_usdc: "15.00" }],
+          publicTrust: { verified: true, endorsements: 76 },
+        })
+        .onConflictDoNothing();
+
+      console.log("[db] 8 multi-protocol counterparties fixture seeded successfully.");
     }
 
     // Seed default operator policy for target agent if not present
@@ -335,6 +444,19 @@ export async function ensureDatabaseSeeded(): Promise<void> {
         ])
         .onConflictDoNothing();
       console.log(`[db] demo run ${demoRunId} seeded successfully.`);
+    }
+
+    // Initialize native durable SQLite store and seed fixtures if empty
+    try {
+      if (process.env.AURA_NATIVE_AUTO_SEED !== "false" && process.env.SIBYL_SEED_FIXTURES !== "false") {
+        const status = getNativeSibylStatus();
+        if (status.entityCount === 0) {
+          console.log("[db] initializing native durable SQLite store with fixtures...");
+          resetNativeSibylStorage({ seedFixtures: true });
+        }
+      }
+    } catch (err) {
+      console.warn("[db] could not initialize native durable SQLite store:", err);
     }
   } catch (err) {
     console.warn("[db] could not seed initial defaults:", err);

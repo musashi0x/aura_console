@@ -14,6 +14,7 @@ import {
 } from "../services/sibyl-memory.js";
 import { getExecutiveSummary } from "../services/executive-summarizer.js";
 import { searchMemoryRecords } from "../services/semantic-search.js";
+import { resetNativeSibylStorage } from "../services/native-sibyl.js";
 
 const store = new MemoryStore();
 
@@ -226,7 +227,16 @@ memory.get("/search", async (c) => {
 });
 
 memory.get("/counterparties", async (c) => {
-  const result = await listCounterpartiesFromSibyl();
+  let result = await listCounterpartiesFromSibyl();
+  if (
+    result.ok &&
+    result.items.length === 0 &&
+    process.env.AURA_NATIVE_AUTO_SEED !== "false" &&
+    process.env.SIBYL_SEED_FIXTURES !== "false"
+  ) {
+    resetNativeSibylStorage({ seedFixtures: true });
+    result = await listCounterpartiesFromSibyl();
+  }
   if (!result.ok) {
     return c.json({ error: { code: result.code, message: result.detail } }, 503);
   }
